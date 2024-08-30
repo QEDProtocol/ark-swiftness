@@ -1,0 +1,13 @@
+[package]
+name = "ark_swiftness_field"
+description.workspace = true
+edition.workspace = true
+license-file.workspace = true
+readme = "README.md"
+repository.workspace = true
+version.workspace = true
+
+[dependencies]
+ark-ff = { workspace = true }
+ark-std = { workspace = true }
+starknet-crypto = { workspace = true }
