@@ -1,52 +1,44 @@
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
-use starknet_crypto::Felt;
 
 #[serde_as]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct Config {
+pub struct Config<F: SimpleField + Permute> {
     #[cfg_attr(
         feature = "std",
         serde_as(as = "starknet_core::serde::unsigned_field_element::UfeHex")
     )]
-    pub height: Felt,
+    pub height: F,
     #[cfg_attr(
         feature = "std",
         serde_as(as = "starknet_core::serde::unsigned_field_element::UfeHex")
     )]
-    pub n_verifier_friendly_commitment_layers: Felt,
+    pub n_verifier_friendly_commitment_layers: F,
 }
 
-impl Config {
+impl<F: SimpleField + Permute> Config<F> {
     pub fn validate(
         &self,
-        expected_height: Felt,
-        expected_n_verifier_friendly_commitment_layers: Felt,
-    ) -> Result<(), Error> {
-        if self.height != expected_height {
-            return Err(Error::MisMatch { value: self.height, expected: expected_height });
-        }
-        if self.n_verifier_friendly_commitment_layers
-            != expected_n_verifier_friendly_commitment_layers
-        {
-            return Err(Error::MisMatch {
-                value: self.n_verifier_friendly_commitment_layers,
-                expected: expected_n_verifier_friendly_commitment_layers,
-            });
-        }
-
+        expected_height: F,
+        expected_n_verifier_friendly_commitment_layers: F,
+    ) -> Result<(), Error<F>> {
+        self.height.assert_equal(&expected_height);
+        self.n_verifier_friendly_commitment_layers
+            .assert_equal(&expected_n_verifier_friendly_commitment_layers);
         Ok(())
     }
 }
 
+use swiftness_field::SimpleField;
+use swiftness_hash::poseidon::Permute;
 #[cfg(feature = "std")]
 use thiserror::Error;
 
 #[cfg(feature = "std")]
 #[derive(Error, Debug)]
-pub enum Error {
+pub enum Error<F: SimpleField + Permute> {
     #[error("mismatch value {value} expected {expected}")]
-    MisMatch { value: Felt, expected: Felt },
+    MisMatch { value: F, expected: F },
 }
 
 #[cfg(not(feature = "std"))]

@@ -11,3 +11,20 @@ version.workspace = true
 ark-ff = { workspace = true }
 ark-std = { workspace = true }
 starknet-crypto = { workspace = true }
+num-traits = { workspace = true }
+ark-r1cs-std = { workspace = true }
+num-bigint = { workspace = true }
+ark-bls12-381 = { workspace = true }
+num-integer = { workspace = true }
+ark-relations = { workspace = true }
+
+[dev-dependencies]
+ark-groth16 = { workspace = true }
+ark-snark = { workspace = true }
+ark-bn254 = { workspace = true }
+
+[features]
+default = ["std"]
+std = [
+  "ark-std/getrandom"
+]

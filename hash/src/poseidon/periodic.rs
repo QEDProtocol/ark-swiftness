@@ -1,6 +1,6 @@
 //! Periodic columns used by AIR
-use swiftness_field::Fp;
 use ark_ff::MontFp as Fp;
+use swiftness_field::Fp;
 
 /// A periodic column, encoded as a polynomial, comprising of the Poseidon hash
 /// round keys. This polynomial evaluates to the `i + 1`th row of full round

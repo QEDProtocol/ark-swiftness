@@ -1,0 +1,45 @@
+[package]
+name = "ark_swiftness_proof_parser"
+description = "Json Proof Parser for Ark Swiftness - Rust CairoVM Verifier implementation"
+edition = "2021"
+license-file = "LICENSE"
+readme = "README.md"
+repository = "https://github.com/GopherJ/ark-swiftness"
+version = "0.0.8"
+
+[features]
+default = ["std", "keccak"]
+std = [
+    "swiftness_air/std",
+    "swiftness_commitment/std",
+    "swiftness_fri/std",
+    "swiftness_pow/std",
+    "swiftness_stark/std",
+    "swiftness_transcript/std",
+]
+keccak = [
+    "swiftness_pow/keccak",
+    "swiftness_commitment/keccak",
+]
+blake2s = [
+    "swiftness_pow/blake2s",
+    "swiftness_commitment/blake2s",
+]
+
+
+[dependencies]
+serde = { workspace = true }
+thiserror = { workspace = true }
+starknet-types-core = { workspace = true }
+num-bigint = { workspace = true }
+anyhow = { workspace = true }
+clap = { workspace = true }
+regex = { workspace = true }
+serde_json = { workspace = true }
+
+swiftness_air = { workspace = true }
+swiftness_commitment = { workspace = true }
+swiftness_fri = { workspace = true }
+swiftness_pow = { workspace = true }
+swiftness_stark = { workspace = true }
+swiftness_transcript = { workspace = true }

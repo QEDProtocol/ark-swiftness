@@ -1,7 +1,20 @@
 use ark_ff::BigInt;
+use ark_ff::Field;
 use ark_ff::Fp256;
 use ark_ff::MontBackend;
 use ark_ff::MontConfig;
+use ark_ff::PrimeField;
+use ark_r1cs_std::alloc::AllocVar;
+use ark_r1cs_std::alloc::AllocationMode;
+use ark_r1cs_std::eq::EqGadget;
+use ark_r1cs_std::fields::fp::FpVar;
+use ark_r1cs_std::fields::FieldVar;
+use ark_r1cs_std::prelude::Boolean;
+use ark_r1cs_std::ToBitsGadget;
+use ark_relations::ns;
+use num_integer::Integer;
+
+use std::ops::*;
 
 #[derive(MontConfig)]
 #[modulus = "3618502788666131213697322783095070105623107215331596699973092056135872020481"]
@@ -33,10 +46,418 @@ impl StarkArkConvert for Fp {
     }
 }
 
+pub trait SimpleField:
+    Clone
+    + Sized
+    + Add<Self, Output = Self>
+    + Sub<Self, Output = Self>
+    + Mul<Self, Output = Self>
+    + AddAssign<Self>
+    + SubAssign<Self>
+    + MulAssign<Self>
+    + for<'a> Add<&'a Self, Output = Self>
+    + for<'a> Sub<&'a Self, Output = Self>
+    + for<'a> Mul<&'a Self, Output = Self>
+    + for<'a> AddAssign<&'a Self>
+    + for<'a> SubAssign<&'a Self>
+    + for<'a> MulAssign<&'a Self>
+{
+    type BooleanType;
+
+    fn zero() -> Self;
+    fn one() -> Self;
+    fn two() -> Self;
+    fn negate(&self) -> Self;
+    fn inv(&self) -> Option<Self>;
+    fn powers<Exp: AsRef<[u64]>>(&self, n: Exp) -> Self;
+    fn powers_felt(&self, n: Self) -> Self;
+    fn from_constant(value: impl Into<u128>) -> Self;
+    fn into_constant(&self) -> u128;
+    fn from_felt(value: Fp) -> Self;
+    fn from_stark_felt(value: starknet_crypto::Felt) -> Self;
+    fn assert_equal(&self, other: &Self);
+    fn assert_not_equal(&self, other: &Self);
+    fn div_rem(&self, other: &Self) -> (Self, Self);
+    fn div2_rem(&self) -> (Self, Self);
+    fn select(cond: &Self::BooleanType, true_value: Self, false_value: Self) -> Self;
+    fn is_eq(&self, other: &Self) -> Self::BooleanType;
+    fn and(lhs: &Self::BooleanType, rhs: &Self::BooleanType) -> Self::BooleanType;
+    fn or(lhs: &Self::BooleanType, rhs: &Self::BooleanType) -> Self::BooleanType;
+    fn not(value: &Self::BooleanType) -> Self::BooleanType;
+}
+
+impl<F: PrimeField + SimpleField> SimpleField for FpVar<F> {
+    type BooleanType = Boolean<F>;
+
+    fn zero() -> Self {
+        FpVar::Constant(SimpleField::zero())
+    }
+
+    fn one() -> Self {
+        FpVar::Constant(SimpleField::one())
+    }
+
+    fn two() -> Self {
+        FpVar::Constant(SimpleField::two())
+    }
+
+    fn negate(&self) -> Self {
+        FieldVar::<F, F>::negate(self).unwrap()
+    }
+
+    fn inv(&self) -> Option<Self> {
+        FieldVar::<F, F>::inverse(self).ok()
+    }
+
+    fn from_constant(value: impl Into<u128>) -> Self {
+        FpVar::Constant(F::from(value.into()))
+    }
+
+    fn into_constant(&self) -> u128 {
+        match self {
+            FpVar::Constant(value) => value.into_constant(),
+            FpVar::Var(_) => unreachable!(),
+        }
+    }
+
+    fn powers<Exp: AsRef<[u64]>>(&self, n: Exp) -> Self {
+        FieldVar::<F, F>::pow_by_constant(self, n).unwrap()
+    }
+
+    fn from_felt(value: Fp) -> Self {
+        FpVar::Constant(SimpleField::from_felt(value))
+    }
+
+    fn from_stark_felt(value: starknet_crypto::Felt) -> Self {
+        FpVar::Constant(SimpleField::from_stark_felt(value))
+    }
+
+    fn assert_equal(&self, other: &Self) {
+        assert!(ark_r1cs_std::eq::EqGadget::enforce_equal(self, other).is_ok());
+    }
+
+    fn assert_not_equal(&self, other: &Self) {
+        assert!(ark_r1cs_std::eq::EqGadget::enforce_not_equal(self, other).is_ok());
+    }
+
+    fn powers_felt(&self, n: Self) -> Self {
+        ark_r1cs_std::bits::ToBitsGadget::to_bits_le(&n)
+            .and_then(|bits| FieldVar::pow_le(self, &bits))
+            .unwrap()
+    }
+
+    fn div_rem(&self, other: &Self) -> (Self, Self) {
+        if let (FpVar::Constant(dividend), FpVar::Constant(divisor)) = (self, other) {
+            let (quotient, remainder) = dividend.div_rem(divisor);
+            return (FpVar::Constant(quotient), FpVar::Constant(remainder));
+        }
+
+        let (cs, (quotient, remainder)) = match (self, other) {
+            (FpVar::Var(dividend), FpVar::Var(divisor)) => (
+                dividend.cs.clone(),
+                dividend.value().unwrap().div_rem(&divisor.value().unwrap()),
+            ),
+            (FpVar::Var(dividend), FpVar::Constant(divisor)) => (
+                dividend.cs.clone(),
+                dividend.value().unwrap().div_rem(&divisor),
+            ),
+            (FpVar::Constant(dividend), FpVar::Var(divisor)) => (
+                divisor.cs.clone(),
+                dividend.div_rem(&divisor.value().unwrap()),
+            ),
+            _ => unreachable!(),
+        };
+
+        let (quotient, remainder) = (
+            FpVar::new_variable(
+                ns!(cs, "quotient"),
+                || Ok(quotient),
+                AllocationMode::Witness,
+            )
+            .unwrap(),
+            FpVar::new_variable(
+                ns!(cs, "remainder"),
+                || Ok(remainder),
+                AllocationMode::Witness,
+            )
+            .unwrap(),
+        );
+
+        quotient
+            .clone()
+            .mul(other)
+            .add(&remainder)
+            .enforce_equal(self)
+            .unwrap();
+
+        return (quotient, remainder);
+    }
+
+    fn div2_rem(&self) -> (Self, Self) {
+        let bits = self.to_bits_le().unwrap();
+        if bits.is_empty() {
+            return (SimpleField::zero(), SimpleField::zero());
+        }
+
+        if bits.len() == 1 {
+            return (
+                SimpleField::zero(),
+                Boolean::le_bits_to_fp_var(&bits).unwrap(),
+            );
+        }
+
+        let (left, right) = bits.split_at(1);
+        return (
+            Boolean::le_bits_to_fp_var(&right).unwrap(),
+            Boolean::le_bits_to_fp_var(&left).unwrap(),
+        );
+    }
+
+    fn select(cond: &Self::BooleanType, a: Self, b: Self) -> Self {
+        cond.select(&a, &b).unwrap()
+    }
+
+    fn is_eq(&self, other: &Self) -> Self::BooleanType {
+        EqGadget::is_eq(self, other).unwrap()
+    }
+
+    fn and(lhs: &Self::BooleanType, rhs: &Self::BooleanType) -> Self::BooleanType {
+        Boolean::and(lhs, rhs).unwrap()
+    }
+
+    fn or(lhs: &Self::BooleanType, rhs: &Self::BooleanType) -> Self::BooleanType {
+        Boolean::or(lhs, rhs).unwrap()
+    }
+
+    fn not(value: &Self::BooleanType) -> Self::BooleanType {
+        Boolean::not(value)
+    }
+}
+
+impl SimpleField for ark_bls12_381::Fr {
+    type BooleanType = bool;
+
+    fn zero() -> Self {
+        ark_ff::Zero::zero()
+    }
+
+    fn one() -> Self {
+        ark_ff::One::one()
+    }
+
+    fn two() -> Self {
+        ark_bls12_381::Fr::from(2u64)
+    }
+
+    fn negate(&self) -> Self {
+        Neg::neg(*self)
+    }
+
+    fn inv(&self) -> Option<Self> {
+        Field::inverse(self)
+    }
+
+    fn from_constant(value: impl Into<u128>) -> Self {
+        ark_bls12_381::Fr::from(value.into())
+    }
+
+    fn into_constant(&self) -> u128 {
+        num_bigint::BigUint::from(self.clone())
+            .try_into()
+            .unwrap_or(u128::MAX)
+    }
+
+    fn powers<Exp: AsRef<[u64]>>(&self, n: Exp) -> Self {
+        Field::pow(self, n)
+    }
+
+    fn from_felt(value: Fp) -> Self {
+        ark_bls12_381::Fr::from(num_bigint::BigUint::from(value))
+    }
+
+    fn from_stark_felt(value: starknet_crypto::Felt) -> Self {
+        Self::from_felt(StarkArkConvert::from_stark_felt(value))
+    }
+
+    fn assert_equal(&self, other: &Self) {
+        assert!(self == other);
+    }
+
+    fn assert_not_equal(&self, other: &Self) {
+        assert!(self != other);
+    }
+
+    fn powers_felt(&self, n: Self) -> Self {
+        Field::pow(self, num_bigint::BigUint::from(n).to_u64_digits())
+    }
+
+    fn div_rem(&self, other: &Self) -> (Self, Self) {
+        let (quotient, remainder) = num_bigint::BigUint::from(self.clone())
+            .div_rem(&num_bigint::BigUint::from(other.clone()));
+        return (
+            Self::new(BigInt({
+                let mut limbs = quotient.to_u64_digits();
+                limbs.reverse();
+                limbs.resize(4, 0);
+                limbs.try_into().unwrap()
+            })),
+            Self::new(BigInt({
+                let mut limbs = remainder.to_u64_digits();
+                limbs.reverse();
+                limbs.resize(4, 0);
+                limbs.try_into().unwrap()
+            })),
+        );
+    }
+
+    fn div2_rem(&self) -> (Self, Self) {
+        self.div_rem(&Self::two())
+    }
+
+    fn select(cond: &Self::BooleanType, true_value: Self, false_value: Self) -> Self {
+        if *cond {
+            true_value
+        } else {
+            false_value
+        }
+    }
+
+    fn is_eq(&self, other: &Self) -> Self::BooleanType {
+        self == other
+    }
+
+    fn and(lhs: &Self::BooleanType, rhs: &Self::BooleanType) -> Self::BooleanType {
+        lhs & rhs
+    }
+
+    fn or(lhs: &Self::BooleanType, rhs: &Self::BooleanType) -> Self::BooleanType {
+        lhs | rhs
+    }
+
+    fn not(value: &Self::BooleanType) -> Self::BooleanType {
+        !value
+    }
+}
+
+impl SimpleField for Fp {
+    type BooleanType = bool;
+
+    fn zero() -> Self {
+        ark_ff::Zero::zero()
+    }
+
+    fn one() -> Self {
+        ark_ff::One::one()
+    }
+
+    fn two() -> Self {
+        Fp::from(2u64)
+    }
+
+    fn negate(&self) -> Self {
+        Neg::neg(*self)
+    }
+
+    fn inv(&self) -> Option<Self> {
+        Field::inverse(self)
+    }
+
+    fn from_constant(value: impl Into<u128>) -> Self {
+        Fp::from(value.into())
+    }
+
+    fn into_constant(&self) -> u128 {
+        num_bigint::BigUint::from(self.clone())
+            .try_into()
+            .unwrap_or(u128::MAX)
+    }
+
+    fn powers<Exp: AsRef<[u64]>>(&self, n: Exp) -> Self {
+        Field::pow(self, n)
+    }
+
+    fn from_felt(value: Fp) -> Self {
+        value
+    }
+
+    fn from_stark_felt(value: starknet_crypto::Felt) -> Self {
+        StarkArkConvert::from_stark_felt(value)
+    }
+
+    fn assert_equal(&self, other: &Self) {
+        assert!(self == other);
+    }
+
+    fn assert_not_equal(&self, other: &Self) {
+        assert!(self != other);
+    }
+
+    fn powers_felt(&self, n: Self) -> Self {
+        Field::pow(self, num_bigint::BigUint::from(n).to_u64_digits())
+    }
+
+    fn div_rem(&self, other: &Self) -> (Self, Self) {
+        let (div, rem) = num_bigint::BigUint::from(self.clone())
+            .div_rem(&num_bigint::BigUint::from(other.clone()));
+        return (
+            Fp::new(BigInt({
+                let mut limbs = div.to_u64_digits();
+                limbs.reverse();
+                limbs.resize(4, 0);
+                limbs.try_into().unwrap()
+            })),
+            Fp::new(BigInt({
+                let mut limbs = rem.to_u64_digits();
+                limbs.reverse();
+                limbs.resize(4, 0);
+                limbs.try_into().unwrap()
+            })),
+        );
+    }
+
+    fn div2_rem(&self) -> (Self, Self) {
+        self.div_rem(&Self::two())
+    }
+
+    fn select(cond: &Self::BooleanType, true_value: Self, false_value: Self) -> Self {
+        if *cond {
+            true_value
+        } else {
+            false_value
+        }
+    }
+
+    fn is_eq(&self, other: &Self) -> Self::BooleanType {
+        self == other
+    }
+
+    fn and(lhs: &Self::BooleanType, rhs: &Self::BooleanType) -> Self::BooleanType {
+        lhs & rhs
+    }
+
+    fn or(lhs: &Self::BooleanType, rhs: &Self::BooleanType) -> Self::BooleanType {
+        lhs | rhs
+    }
+
+    fn not(value: &Self::BooleanType) -> Self::BooleanType {
+        !value
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ark_bls12_381::Fr;
     use ark_ff::Field;
+    use ark_groth16::Groth16;
+    use ark_r1cs_std::fields::fp::FpVar;
+    use ark_relations::{
+        ns,
+        r1cs::{ConstraintSynthesizer, ConstraintSystem, ConstraintSystemRef, SynthesisError},
+    };
+    use ark_snark::{CircuitSpecificSetupSNARK, SNARK};
+    use ark_std::rand::SeedableRng;
+    use ark_std::UniformRand;
 
     #[test]
     fn test_field_operations() {
@@ -44,11 +465,19 @@ mod tests {
         let b = Fp::from(5u64);
         assert_eq!(a + b, Fp::from(8u64));
         assert_eq!(a * b, Fp::from(15u64));
-        assert_eq!(a.inverse().unwrap() * a, Fp::from(1u64));
+        assert_eq!(a.inv().unwrap() * a, Fp::from(1u64));
+        let c = a.pow([2]);
+        assert_eq!(c, Fp::from(9u64));
+        let d = a.powers_felt(Fp::from(2u64));
+        assert_eq!(d, Fp::from(9u64));
+
+        let (div, rem) = d.div_rem(&b);
+        assert_eq!(div, Fp::from(1u64));
+        assert_eq!(rem, Fp::from(4u64));
     }
 
     #[test]
-    fn starkent_ark_field_conversion() {
+    fn test_starkent_ark_field_conversion() {
         let a = Fp::from(3u64);
 
         let b = starknet_crypto::Felt::from(3u64);
@@ -56,5 +485,325 @@ mod tests {
 
         let c = StarkArkConvert::from_stark_felt(b);
         assert_eq!(a, c);
+    }
+
+    #[test]
+    fn test_groth16() {
+        use ark_bls12_381::{Bls12_381 as Curve, Fr as F};
+        // use ark_bn254::{Bn254 as Curve, Fr as F};
+        #[derive(Clone)]
+        struct MyCircuit {
+            a: Option<F>,
+            b: Option<F>,
+            sum: Option<F>,
+            difference: Option<F>,
+            product: Option<F>,
+            powers: Option<F>,
+        }
+
+        impl ConstraintSynthesizer<F> for MyCircuit {
+            fn generate_constraints(
+                self,
+                cs: ConstraintSystemRef<F>,
+            ) -> Result<(), SynthesisError> {
+                let a = FpVar::new_witness(ns!(cs, "a"), || {
+                    self.a.ok_or(SynthesisError::AssignmentMissing)
+                })?;
+                let b = FpVar::new_witness(ns!(cs, "b"), || {
+                    self.b.ok_or(SynthesisError::AssignmentMissing)
+                })?;
+
+                let sum = a.clone() + b.clone();
+                let sum_input = FpVar::new_input(ns!(cs, "sum"), || {
+                    self.sum.ok_or(SynthesisError::AssignmentMissing)
+                })?;
+
+                sum.enforce_equal(&sum_input)?;
+
+                let difference = a.clone() - b.clone();
+                let difference_input = FpVar::new_input(ns!(cs, "difference"), || {
+                    self.difference.ok_or(SynthesisError::AssignmentMissing)
+                })?;
+                difference.enforce_equal(&difference_input)?;
+
+                let product = a.clone() * b;
+                let product_input = FpVar::new_input(ns!(cs, "product"), || {
+                    self.product.ok_or(SynthesisError::AssignmentMissing)
+                })?;
+                product.enforce_equal(&product_input)?;
+
+                let powers = a.powers_felt(FpVar::two());
+                let powers_input = FpVar::new_input(ns!(cs, "powers"), || {
+                    self.powers.ok_or(SynthesisError::AssignmentMissing)
+                })?;
+                powers.enforce_equal(&powers_input)?;
+
+                Ok(())
+            }
+        }
+
+        let mut rng = ark_std::rand::rngs::StdRng::seed_from_u64(9365255816191338696);
+
+        let a = F::from(20);
+        let b = F::from(10);
+
+        let circuit = MyCircuit {
+            a: Some(a),
+            b: Some(b),
+            sum: Some(a + b),
+            difference: Some(a - b),
+            product: Some(a * b),
+            powers: Some(a.powers([2])),
+        };
+
+        let (pk, vk) = Groth16::<Curve>::setup(circuit.clone(), &mut rng).unwrap();
+        let processed_vk = Groth16::<Curve>::process_vk(&vk).unwrap();
+
+        let proof = Groth16::<Curve>::prove(&pk, circuit.clone(), &mut rng).unwrap();
+
+        let public_inputs = vec![a + b, a - b, a * b, a.powers([2])];
+
+        assert!(
+            Groth16::<Curve>::verify_with_processed_vk(&processed_vk, &public_inputs, &proof)
+                .unwrap()
+        );
+    }
+
+    #[test]
+    fn test_normal_div_rem() {
+        use ark_bls12_381::{Bls12_381 as Curve, Fr};
+        // use ark_bn254::{Bn254 as Curve, Fr as F};
+        #[derive(Clone)]
+        struct MyCircuit<F: SimpleField> {
+            divisor: Option<F>,
+            dividend: Option<F>,
+        }
+
+        impl<F: SimpleField + PrimeField> ConstraintSynthesizer<F> for MyCircuit<F> {
+            fn generate_constraints(
+                self,
+                cs: ConstraintSystemRef<F>,
+            ) -> Result<(), SynthesisError> {
+                let divisor = FpVar::new_witness(ns!(cs, "divisor"), || {
+                    self.divisor.ok_or(SynthesisError::AssignmentMissing)
+                })?;
+
+                let dividend = FpVar::new_witness(ns!(cs, "dividend"), || {
+                    self.dividend.ok_or(SynthesisError::AssignmentMissing)
+                })?;
+
+                let quotient_input = FpVar::new_input(ns!(cs, "quotient"), || {
+                    if let (FpVar::Var(ref dividend), FpVar::Var(ref divisor)) =
+                        (&dividend, &divisor)
+                    {
+                        Ok(dividend
+                            .value()
+                            .unwrap()
+                            .div_rem(&divisor.value().unwrap())
+                            .0)
+                    } else {
+                        panic!("cannot compute quotient")
+                    }
+                })?;
+
+                let remainder_input = FpVar::new_input(ns!(cs, "remainder"), || {
+                    if let (FpVar::Var(dividend), FpVar::Var(divisor)) = (&dividend, &divisor) {
+                        Ok(dividend
+                            .value()
+                            .unwrap()
+                            .div_rem(&divisor.value().unwrap())
+                            .1)
+                    } else {
+                        panic!("cannot compute remainder")
+                    }
+                })?;
+
+                (remainder_input + quotient_input.mul(divisor)).enforce_equal(&dividend)?;
+
+                Ok(())
+            }
+        }
+
+        let mut rng = ark_std::rand::rngs::StdRng::seed_from_u64(9365255816191338696);
+
+        let divisor = Fr::from(10);
+        let dividend = Fr::from(21);
+
+        let circuit = MyCircuit {
+            divisor: Some(divisor),
+            dividend: Some(dividend),
+        };
+
+        let (pk, vk) = Groth16::<Curve>::setup(circuit.clone(), &mut rng).unwrap();
+        let processed_vk = Groth16::<Curve>::process_vk(&vk).unwrap();
+
+        let proof = Groth16::<Curve>::prove(&pk, circuit.clone(), &mut rng).unwrap();
+
+        let public_inputs = vec![Fr::from(2), Fr::from(1)];
+
+        assert!(
+            Groth16::<Curve>::verify_with_processed_vk(&processed_vk, &public_inputs, &proof)
+                .unwrap()
+        );
+    }
+
+    #[test]
+    fn test_div_rem() {
+        use ark_bls12_381::{Bls12_381 as Curve, Fr};
+        // use ark_bn254::{Bn254 as Curve, Fr as F};
+        #[derive(Clone)]
+        struct MyCircuit<F: SimpleField> {
+            divisor: Option<F>,
+            dividend: Option<F>,
+            quotient: Option<F>,
+            remainder: Option<F>,
+        }
+
+        impl<F: SimpleField + PrimeField> ConstraintSynthesizer<F> for MyCircuit<F> {
+            fn generate_constraints(
+                self,
+                cs: ConstraintSystemRef<F>,
+            ) -> Result<(), SynthesisError> {
+                let divisor = FpVar::new_witness(ns!(cs, "divisor"), || {
+                    self.divisor.ok_or(SynthesisError::AssignmentMissing)
+                })?;
+
+                let dividend = FpVar::new_witness(ns!(cs, "dividend"), || {
+                    self.dividend.ok_or(SynthesisError::AssignmentMissing)
+                })?;
+
+                // TODO: make div_rem works
+
+                let quotient_input = FpVar::new_input(ns!(cs, "quotient"), || {
+                    self.quotient
+                        .clone()
+                        .ok_or(SynthesisError::AssignmentMissing)
+                })?;
+
+                let remainder_input = FpVar::new_input(ns!(cs, "remainder"), || {
+                    self.remainder
+                        .clone()
+                        .ok_or(SynthesisError::AssignmentMissing)
+                })?;
+
+                (remainder_input + quotient_input.mul(divisor)).enforce_equal(&dividend)?;
+
+                Ok(())
+            }
+        }
+
+        let mut rng = ark_std::rand::rngs::StdRng::seed_from_u64(9365255816191338696);
+
+        let divisor = Fr::from(10);
+        let dividend = Fr::from(21);
+
+        let circuit = MyCircuit {
+            divisor: Some(divisor),
+            dividend: Some(dividend),
+            quotient: Some(Fr::from(2)),
+            remainder: Some(Fr::from(1)),
+        };
+
+        let (pk, vk) = Groth16::<Curve>::setup(circuit.clone(), &mut rng).unwrap();
+        let processed_vk = Groth16::<Curve>::process_vk(&vk).unwrap();
+
+        let proof = Groth16::<Curve>::prove(&pk, circuit.clone(), &mut rng).unwrap();
+
+        let public_inputs = vec![Fr::from(2), Fr::from(1)];
+
+        assert!(
+            Groth16::<Curve>::verify_with_processed_vk(&processed_vk, &public_inputs, &proof)
+                .unwrap()
+        );
+    }
+
+    #[test]
+    fn test_div2_rem() {
+        use ark_bls12_381::{Bls12_381 as Curve, Fr};
+        // use ark_bn254::{Bn254 as Curve, Fr as F};
+        #[derive(Clone)]
+        struct MyCircuit<F: SimpleField> {
+            dividend: Option<F>,
+            quotient: Option<F>,
+            remainder: Option<F>,
+        }
+
+        impl<F: SimpleField + PrimeField> ConstraintSynthesizer<F> for MyCircuit<F> {
+            fn generate_constraints(
+                self,
+                cs: ConstraintSystemRef<F>,
+            ) -> Result<(), SynthesisError> {
+                let dividend = FpVar::new_witness(ns!(cs, "dividend"), || {
+                    self.dividend.ok_or(SynthesisError::AssignmentMissing)
+                })?;
+
+                let (quotient, remainder) = dividend.div2_rem();
+
+                let quotient_input = FpVar::new_input(ns!(cs, "quotient"), || {
+                    self.quotient
+                        .clone()
+                        .ok_or(SynthesisError::AssignmentMissing)
+                })?;
+
+                let remainder_input = FpVar::new_input(ns!(cs, "remainder"), || {
+                    self.remainder
+                        .clone()
+                        .ok_or(SynthesisError::AssignmentMissing)
+                })?;
+
+                quotient.enforce_equal(&quotient_input)?;
+                remainder.enforce_equal(&remainder_input)?;
+
+                (remainder_input + quotient_input.mul(FpVar::two())).enforce_equal(&dividend)?;
+
+                Ok(())
+            }
+        }
+
+        let mut rng = ark_std::rand::rngs::StdRng::seed_from_u64(9365255816191338696);
+
+        let dividend = Fr::from(21);
+
+        let circuit = MyCircuit {
+            dividend: Some(dividend),
+            quotient: Some(Fr::from(10)),
+            remainder: Some(Fr::from(1)),
+        };
+
+        let (pk, vk) = Groth16::<Curve>::setup(circuit.clone(), &mut rng).unwrap();
+        let processed_vk = Groth16::<Curve>::process_vk(&vk).unwrap();
+
+        let proof = Groth16::<Curve>::prove(&pk, circuit.clone(), &mut rng).unwrap();
+
+        let public_inputs = vec![Fr::from(10), Fr::from(1)];
+
+        assert!(
+            Groth16::<Curve>::verify_with_processed_vk(&processed_vk, &public_inputs, &proof)
+                .unwrap()
+        );
+    }
+
+    #[test]
+    fn test_select_fp() {
+        let mut rng = ark_std::test_rng();
+        let a = Fr::rand(&mut rng);
+        let b = Fr::rand(&mut rng);
+
+        assert_eq!(Fr::select(&true, a, b), a);
+        assert_eq!(Fr::select(&false, a, b), b);
+    }
+
+    #[test]
+    fn test_select_fpvar() {
+        let cs = ConstraintSystem::<Fr>::new_ref();
+        let a = FpVar::new_witness(cs.clone(), || Ok(Fr::from(10u32))).unwrap();
+        let b = FpVar::new_witness(cs.clone(), || Ok(Fr::from(20u32))).unwrap();
+        let cond_true = Boolean::new_witness(cs.clone(), || Ok(true)).unwrap();
+        let cond_false = Boolean::new_witness(cs.clone(), || Ok(false)).unwrap();
+
+        let _result_true = FpVar::select(&cond_true, a.clone(), b.clone());
+        let _result_false = FpVar::select(&cond_false, a, b);
+
+        assert!(cs.is_satisfied().unwrap());
     }
 }

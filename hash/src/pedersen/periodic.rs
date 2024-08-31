@@ -1,6 +1,6 @@
 //! Periodic columns used by AIR
-use swiftness_field::Fp;
 use ark_ff::MontFp as Fp;
+use swiftness_field::Fp;
 
 /// A periodic column, encoded as a polynomial, comprising of the x-coordinate
 /// of the constant Pedersen hash points. This polynomial evaluates to the `i`th
@@ -1166,19 +1166,19 @@ pub const HASH_POINTS_Y_COEFFS: [Fp; 512] = [
 
 #[cfg(test)]
 mod tests {
-    use std::iter::zip;
-    use ark_ec::CurveGroup;
-    use ark_ec::short_weierstrass::Projective;
-    use swiftness_field::Fp;
-    use ark_poly::Radix2EvaluationDomain;
-    use ark_poly::EvaluationDomain;
+    use super::HASH_POINTS_X_COEFFS;
+    use super::HASH_POINTS_Y_COEFFS;
     use crate::pedersen::constants::P1;
     use crate::pedersen::constants::P2;
     use crate::pedersen::constants::P3;
     use crate::pedersen::constants::P4;
+    use ark_ec::short_weierstrass::Projective;
+    use ark_ec::CurveGroup;
     use ark_ff::PrimeField;
-    use super::HASH_POINTS_X_COEFFS;
-    use super::HASH_POINTS_Y_COEFFS;
+    use ark_poly::EvaluationDomain;
+    use ark_poly::Radix2EvaluationDomain;
+    use std::iter::zip;
+    use swiftness_field::Fp;
 
     #[test]
     fn periodic_x_evals_match() {

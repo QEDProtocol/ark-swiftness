@@ -1,10 +1,11 @@
 //! Poseidon builtin. Reference implementation (used by StarkWare):
 //! <https://github.com/CryptoExperts/poseidon>
 
-use std::iter::zip;
 use ark_ff::MontFp as Fp;
-use swiftness_utils::binary::PoseidonInstance;
+use std::iter::zip;
 use swiftness_field::Fp;
+use swiftness_field::SimpleField;
+use swiftness_utils::binary::PoseidonInstance;
 pub mod params;
 pub mod periodic;
 use self::params::FULL_ROUND_KEYS_1ST_HALF;
@@ -14,10 +15,12 @@ use self::params::NUM_PARTIAL_ROUNDS;
 use self::params::PARTIAL_ROUND_KEYS;
 use self::params::ROUND_KEYS;
 use crate::poseidon::params::FULL_ROUND_KEYS_2ND_HALF;
+use crate::poseidon::params::MDS_MATRIX_VAR;
 use crate::poseidon::params::PARTIAL_ROUND_KEYS_OPTIMIZED;
-use swiftness_utils::Mat3x3;
 use ark_ff::Field;
+use ark_r1cs_std::fields::fp::FpVar;
 use num_bigint::BigUint;
+use swiftness_utils::Mat3x3;
 
 /// Stores the states within a full round
 #[derive(Clone, Copy, Debug)]
@@ -97,7 +100,7 @@ impl InstanceTrace {
             gen_half_full_round_states(state, full_round_keys_2nd_half);
         // set state to last state of the last round (aka after the MDS multiplication)
         let final_state = full_round_states_2nd_half.last().unwrap().after_mds_mul;
-        assert_eq!(permute([input0, input1, input2]), final_state);
+        assert_eq!(Permute::permute([input0, input1, input2]), final_state);
         let [output0, output1, output2] = final_state;
 
         Self {
@@ -147,83 +150,100 @@ fn gen_half_full_round_states(
     rounds
 }
 
-/// Computes the Poseidon hash using StarkWare's parameters. Source:
-/// <https://extgit.iaik.tugraz.at/krypto/hadeshash/-/blob/master/code/starkadperm_x5_256_3.sage>
-pub fn permute(input: [Fp; 3]) -> [Fp; 3] {
-    let mut state = input;
-    let mut round = 0;
-    // first full rounds
-    for _ in 0..NUM_FULL_ROUNDS / 2 {
-        // round constants, nonlinear layer, matrix multiplication
-        for (s, round_key) in zip(&mut state, ROUND_KEYS[round]) {
-            *s = (*s + round_key).pow([3]);
+pub trait Permute: SimpleField {
+    const ROUND_KEYS: [[Fp; 3]; NUM_FULL_ROUNDS + NUM_PARTIAL_ROUNDS];
+    const MDS_MATRIX: [[Self; 3]; 3];
+
+    fn permute(input: [Self; 3]) -> [Self; 3] {
+        let mut state = input;
+        let mut round = 0;
+        // first full rounds
+        for _ in 0..NUM_FULL_ROUNDS / 2 {
+            // round constants, nonlinear layer, matrix multiplication
+            for (s, round_key) in zip(&mut state, &Self::ROUND_KEYS[round]) {
+                *s = (s.clone() + Self::from_felt(*round_key)).powers([3]);
+            }
+            state = Mat3x3(Self::MDS_MATRIX) * state;
+            round += 1;
         }
-        state = Mat3x3(MDS_MATRIX) * state;
-        round += 1;
-    }
-    // Middle partial rounds
-    for _ in 0..NUM_PARTIAL_ROUNDS {
-        // round constants, nonlinear layer, matrix multiplication
-        for (s, round_key) in zip(&mut state, ROUND_KEYS[round]) {
-            *s += round_key;
+        // Middle partial rounds
+        for _ in 0..NUM_PARTIAL_ROUNDS {
+            // round constants, nonlinear layer, matrix multiplication
+            for (s, round_key) in zip(&mut state, &Self::ROUND_KEYS[round]) {
+                *s += Self::from_felt(*round_key);
+            }
+            state[2] = state[2].powers([3]);
+            state = Mat3x3(Self::MDS_MATRIX) * state;
+            round += 1;
         }
-        state[2] = state[2].pow([3]);
-        state = Mat3x3(MDS_MATRIX) * state;
-        round += 1;
-    }
-    // last full rounds
-    for _ in 0..NUM_FULL_ROUNDS / 2 {
-        // round constants, nonlinear layer, matrix multiplication
-        for (s, round_key) in zip(&mut state, ROUND_KEYS[round]) {
-            *s = (*s + round_key).pow([3]);
+        // last full rounds
+        for _ in 0..NUM_FULL_ROUNDS / 2 {
+            // round constants, nonlinear layer, matrix multiplication
+            for (s, round_key) in zip(&mut state, &Self::ROUND_KEYS[round]) {
+                *s = (s.clone() + Self::from_felt(*round_key)).powers([3]);
+            }
+            state = Mat3x3(Self::MDS_MATRIX) * state;
+            round += 1;
         }
-        state = Mat3x3(MDS_MATRIX) * state;
-        round += 1;
+        state
     }
-    state
+}
+
+impl Permute for Fp {
+    const ROUND_KEYS: [[Fp; 3]; NUM_FULL_ROUNDS + NUM_PARTIAL_ROUNDS] = ROUND_KEYS;
+    const MDS_MATRIX: [[Self; 3]; 3] = MDS_MATRIX;
+}
+
+impl Permute for FpVar<Fp> {
+    const ROUND_KEYS: [[Fp; 3]; NUM_FULL_ROUNDS + NUM_PARTIAL_ROUNDS] = ROUND_KEYS;
+    const MDS_MATRIX: [[Self; 3]; 3] = MDS_MATRIX_VAR;
 }
 
 /// Computes the Starknet Poseidon hash of x and y.
-pub fn poseidon_hash(x: Fp, y: Fp) -> Fp {
-    let state = [x, y, Fp::from(2u64)];
-    permute(state)[0]
+pub fn poseidon_hash<F: Permute>(x: F, y: F) -> F {
+    let state = [x, y, F::from_constant(2u64)];
+    Permute::permute(state)[0].clone()
 }
 
 /// Computes the Starknet Poseidon hash of a single [`Felt`].
-pub fn poseidon_hash_single(x: Fp) -> Fp {
-    let state = [x, Fp::from(0), Fp::from(1)];
-    permute(state)[0]
+pub fn poseidon_hash_single<F: Permute>(x: F) -> F {
+    let state = [x, F::from_constant(0u64), F::from_constant(1u64)];
+    Permute::permute(state)[0].clone()
 }
 
 /// Computes the Starknet Poseidon hash of an arbitrary number of [`Felt`]s.
 ///
 /// Using this function is the same as using [`PoseidonHasher`].
-pub fn poseidon_hash_many<'a, I: IntoIterator<Item = &'a Fp>>(msgs: I) -> Fp {
-    let mut state = [Fp::from(0), Fp::from(0), Fp::from(0)];
+pub fn poseidon_hash_many<'a, F: Permute + 'a, I: IntoIterator<Item = &'a F>>(msgs: I) -> F {
+    let mut state = [
+        F::from_constant(0u64),
+        F::from_constant(0u64),
+        F::from_constant(0u64),
+    ];
     let mut iter = msgs.into_iter();
 
     loop {
         match iter.next() {
-            Some(v) => state[0] += *v,
+            Some(v) => state[0] += v.clone(),
             None => {
-                state[0] += Fp::from(1);
+                state[0] += F::from_constant(1u64);
                 break;
             }
         }
 
         match iter.next() {
-            Some(v) => state[1] += *v,
+            Some(v) => state[1] += v.clone(),
             None => {
-                state[1] += Fp::from(1);
+                state[1] += F::from_constant(1u64);
                 break;
             }
         }
 
-        state = permute(state);
+        state = Permute::permute(state);
     }
-    state = permute(state);
+    state = Permute::permute(state);
 
-    state[0]
+    state[0].clone()
 }
 
 /// Computes the Poseidon hash using StarkWare's parameters. Source:
@@ -286,14 +306,13 @@ fn _calc_optimized_partial_round_keys() -> [[Fp; 3]; NUM_PARTIAL_ROUNDS] {
 
 #[cfg(test)]
 mod tests {
-    use crate::poseidon::permute;
-    use swiftness_field::StarkArkConvert;
     use super::*;
+    use swiftness_field::StarkArkConvert;
 
     #[test]
     fn zero_hash_matches_starkware_example() {
-        use ark_ff::MontFp as Fp;
         use ark_ff::Field;
+        use ark_ff::MontFp as Fp;
         use swiftness_field::Fp;
         // Example from https://github.com/starkware-industries/poseidon
         let expected = [
@@ -302,14 +321,15 @@ mod tests {
             Fp!("867921192302518434283879514999422690776342565400001269945778456016268852423"),
         ];
 
-        assert_eq!(expected, permute([Fp::ZERO, Fp::ZERO, Fp::ZERO]));
+        assert_eq!(expected, Permute::permute([Fp::ZERO, Fp::ZERO, Fp::ZERO]));
     }
 
     #[test]
     fn test_hash_two_to_one() {
         let a = Fp::from(2u64);
         let b = Fp::from(3u64);
-        assert_eq!(starknet_crypto::poseidon_hash(a.to_stark_felt(), b.to_stark_felt()),
+        assert_eq!(
+            starknet_crypto::poseidon_hash(a.to_stark_felt(), b.to_stark_felt()),
             poseidon_hash(a, b).to_stark_felt()
         );
     }
@@ -317,7 +337,8 @@ mod tests {
     #[test]
     fn test_hash_single() {
         let a = Fp::from(2u64);
-        assert_eq!(starknet_crypto::poseidon_hash_single(a.to_stark_felt()),
+        assert_eq!(
+            starknet_crypto::poseidon_hash_single(a.to_stark_felt()),
             poseidon_hash_single(a).to_stark_felt()
         );
     }
@@ -326,7 +347,8 @@ mod tests {
     fn test_hash_many() {
         let a: [Fp; 12] = core::array::from_fn(|i| Fp::from(i as u64));
         let b = a.into_iter().map(|x| x.to_stark_felt()).collect::<Vec<_>>();
-        assert_eq!(starknet_crypto::poseidon_hash_many(b.iter()),
+        assert_eq!(
+            starknet_crypto::poseidon_hash_many(b.iter()),
             poseidon_hash_many(a.iter()).to_stark_felt()
         );
     }

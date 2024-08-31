@@ -1,0 +1,40 @@
+[package]
+name = "ark_swiftness_cli"
+description = "Ark Swiftness - Rust CairoVM Verifier implementation"
+edition = "2021"
+license-file = "LICENSE"
+readme = "../README.md"
+repository = "https://github.com/GopherJ/swiftness"
+version = "0.0.8"
+
+[dependencies]
+clap = { workspace = true }
+
+swiftness_air = { workspace = true }
+swiftness_stark = { workspace = true }
+swiftness_proof_parser = { workspace = true }
+
+[features]
+default = ["recursive", "keccak"]
+dex = ["swiftness_air/dex", "swiftness_stark/dex"]
+recursive = ["swiftness_air/recursive", "swiftness_stark/recursive"]
+recursive_with_poseidon = [
+    "swiftness_air/recursive_with_poseidon",
+    "swiftness_stark/recursive_with_poseidon",
+]
+small = ["swiftness_air/small", "swiftness_stark/small"]
+starknet = ["swiftness_air/starknet", "swiftness_stark/starknet"]
+starknet_with_keccak = [
+    "swiftness_air/starknet_with_keccak",
+    "swiftness_stark/starknet_with_keccak",
+]
+keccak = [
+    "swiftness_air/keccak",
+    "swiftness_stark/keccak",
+    "swiftness_proof_parser/keccak"
+]
+blake2s = [
+    "swiftness_air/blake2s",
+    "swiftness_stark/blake2s",
+    "swiftness_proof_parser/blake2s"
+]

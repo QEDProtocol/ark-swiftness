@@ -10,7 +10,10 @@ use sha3::Keccak256;
 
 use serde::{Deserialize, Serialize};
 use starknet_crypto::Felt;
+use swiftness_field::Fp;
 use swiftness_transcript::{assure, transcript::Transcript};
+
+use ark_ff::BigInteger;
 
 use crate::config::Config;
 
@@ -22,8 +25,8 @@ pub struct UnsentCommitment {
 }
 
 impl UnsentCommitment {
-    pub fn commit(&self, transcript: &mut Transcript, config: &Config) -> Result<(), Error> {
-        verify_pow(transcript.digest().to_bytes_be(), config.n_bits, self.nonce)?;
+    pub fn commit(&self, transcript: &mut Transcript<Fp>, config: &Config) -> Result<(), Error> {
+        verify_pow(transcript.digest().0.to_bytes_be().try_into().unwrap(), config.n_bits, self.nonce)?;
         transcript.read_uint64_from_prover(self.nonce);
         Ok(())
     }

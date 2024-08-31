@@ -1,20 +1,13 @@
 use alloc::vec;
 use alloc::vec::Vec;
-use ark_ff::Field;
 use ark_r1cs_std::{alloc::AllocVar, fields::fp::FpVar};
 use ark_relations::r1cs::{Namespace, SynthesisError};
-use starknet_crypto::{poseidon_hash_many};
-use swiftness_field::Fp as Felt;
-use swiftness_hash::poseidon::poseidon_hash;
+use swiftness_field::{Fp, SimpleField};
+use swiftness_hash::poseidon::{poseidon_hash, poseidon_hash_many, Permute};
 
-pub struct TranscriptVar {
-    digest: FpVar<Felt>,
-    counter: FpVar<Felt>,
-}
-
-impl AllocVar<Transcript, Felt> for TranscriptVar {
-    fn new_variable<T: core::borrow::Borrow<Transcript>>(
-        cs: impl Into<Namespace<Felt>>,
+impl AllocVar<Transcript<Fp>, Fp> for Transcript<FpVar<Fp>> {
+    fn new_variable<T: core::borrow::Borrow<Transcript<Fp>>>(
+        cs: impl Into<Namespace<Fp>>,
         f: impl FnOnce() -> Result<T, SynthesisError>,
         mode: ark_r1cs_std::prelude::AllocationMode,
     ) -> Result<Self, SynthesisError> {
@@ -24,63 +17,70 @@ impl AllocVar<Transcript, Felt> for TranscriptVar {
 
             Ok(Self {
                 digest: FpVar::new_variable(cs.clone(), || Ok(&transcript.digest), mode)?,
-                counter: FpVar::new_variable(cs, || Ok(&transcript.counter), mode)?
+                counter: FpVar::new_variable(cs, || Ok(&transcript.counter), mode)?,
             })
         })
     }
 }
 
 #[derive(Clone, Debug)]
-pub struct Transcript {
-    digest: Felt,
-    counter: Felt,
+pub struct Transcript<F: SimpleField + Permute> {
+    digest: F,
+    counter: F,
 }
 
-impl Transcript {
-    pub fn new(digest: Felt) -> Self {
-        Self { digest, counter: Felt::from(0) }
+impl<F: SimpleField + Permute> Transcript<F> {
+    pub fn new(digest: F) -> Self {
+        Self {
+            digest,
+            counter: F::from_constant(0u64),
+        }
     }
 
-    pub fn new_with_counter(digest: Felt, counter: Felt) -> Self {
+    pub fn new_with_counter(digest: F, counter: F) -> Self {
         Self { digest, counter }
     }
 
-    pub fn digest(&self) -> &Felt {
+    pub fn digest(&self) -> &F {
         &self.digest
     }
 
-    pub fn counter(&self) -> &Felt {
+    pub fn counter(&self) -> &F {
         &self.counter
     }
 
-    pub fn random_felt_to_prover(&mut self) -> Felt {
-        let hash = poseidon_hash(self.digest, self.counter);
-        self.counter += Felt::ONE;
+    pub fn random_felt_to_prover(&mut self) -> F {
+        let hash = poseidon_hash(self.digest.clone(), self.counter.clone());
+        self.counter += F::one();
         hash
     }
 
-    pub fn random_felts_to_prover(&mut self, mut len: Felt) -> Vec<Felt> {
+    pub fn random_felts_to_prover(&mut self, mut len: F) -> Vec<F>
+    where
+        F: PartialOrd,
+    {
         let mut res = Vec::new();
-        while len > Felt::ZERO {
+        while len > F::zero() {
             res.push(self.random_felt_to_prover());
-            len -= Felt::ONE
+            len -= F::one()
         }
         res
     }
 
-    pub fn read_felt_from_prover(&mut self, val: &Felt) {
-        let hash = poseidon_hash_many([&(self.digest + Felt::ONE), val]);
+    pub fn read_felt_from_prover(&mut self, val: &F) {
+        let hash = poseidon_hash_many([&(self.digest.clone() + F::one()), val]);
         self.digest = hash;
-        self.counter = Felt::ZERO;
+        self.counter = F::zero();
     }
 
-    pub fn read_felt_vector_from_prover(&mut self, val: &[Felt]) {
-        let hash = poseidon_hash_many(vec![&(self.digest + Felt::ONE)].into_iter().chain(val));
+    pub fn read_felt_vector_from_prover(&mut self, val: &[F]) {
+        let digest = self.digest.clone();
+        let hash = poseidon_hash_many(vec![&(digest + F::one())].into_iter().chain(val));
         self.digest = hash;
-        self.counter = Felt::ZERO;
+        self.counter = F::zero();
     }
 
     pub fn read_uint64_from_prover(&mut self, val: u64) {
-        self.read_felt_from_prover(&Felt::from(val))
+        self.read_felt_from_prover(&F::from_constant(val))
     }
 }

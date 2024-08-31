@@ -1,11 +1,11 @@
 #![feature(buf_read_has_data_left, int_roundings)]
 use ark_ff::FftField;
-use ark_ff::Field;
 use ark_poly::univariate::DensePolynomial;
 use ark_poly::EvaluationDomain;
 use ark_poly::Evaluations;
 use ark_poly::Radix2EvaluationDomain;
-use std::ops::Mul;
+use swiftness_field::SimpleField;
+use std::ops::*;
 
 /// Generates a periodic table comprising of values in the matrix.
 /// The columns of the periodic table are are represented by polynomials that
@@ -56,7 +56,7 @@ impl<T> Mat3x3<T> {
     }
 }
 
-impl<F: Field> Mat3x3<F> {
+impl<F: SimpleField> Mat3x3<F> {
     pub fn identity() -> Self {
         Self([
             [F::one(), F::zero(), F::zero()],
@@ -67,54 +67,53 @@ impl<F: Field> Mat3x3<F> {
 
     pub fn inverse(self) -> Option<Self> {
         let [[a, b, c], [d, e, f], [g, h, i]] = self.0;
-        let a_prime = e * i - f * h;
-        let b_prime = -(b * i - c * h);
-        let c_prime = b * f - c * e;
-        let d_prime = -(d * i - f * g);
-        let e_prime = a * i - c * g;
-        let f_prime = -(a * f - c * d);
-        let g_prime = d * h - e * g;
-        let h_prime = -(a * h - b * g);
-        let i_prime = a * e - b * d;
-        let determinant = a * a_prime + b * d_prime + c * g_prime;
+        let a_prime = e.clone() * i.clone() - f.clone() * h.clone();
+        let b_prime = (b.clone() * i.clone() - c.clone() * h.clone()).negate();
+        let c_prime = b.clone() * f.clone() - c.clone() * e.clone();
+        let d_prime = (d.clone() * i.clone() - f.clone() * g.clone()).negate();
+        let e_prime = a.clone() * i.clone() - c.clone() * g.clone();
+        let f_prime = (a.clone() * f.clone() - c.clone() * d.clone()).negate();
+        let g_prime = d.clone() * h.clone() - e.clone() * g.clone();
+        let h_prime = (a.clone() * h.clone() - b.clone() * g.clone()).negate();
+        let i_prime = a.clone() * e.clone() - b.clone() * d.clone();
+        let determinant = a.clone() * a_prime.clone() + b.clone() * d_prime.clone() + c.clone() * g_prime.clone();
         let inv = Self([
             [a_prime, b_prime, c_prime],
             [d_prime, e_prime, f_prime],
             [g_prime, h_prime, i_prime],
-        ]) * determinant.inverse()?;
-        debug_assert_eq!(self * inv, Self::identity());
+        ]) * determinant.inv()?;
         Some(inv)
     }
 }
 
-impl<F: Field> Mul<F> for Mat3x3<F> {
+impl<F: SimpleField> Mul<F> for Mat3x3<F> {
     type Output = Self;
 
     /// Multiplies the matrix by a scalar
     fn mul(self, rhs: F) -> Self {
-        Self(self.0.map(|row| row.map(|cell| cell * rhs)))
+        Self(self.0.map(|row| row.map(|cell| cell * rhs.clone())))
     }
 }
 
-impl<F: Field> Mul<Self> for Mat3x3<F> {
+impl<F: SimpleField> Mul<Self> for Mat3x3<F> {
     type Output = Self;
 
     /// Multiplies the matrix by another matrix
     fn mul(self, rhs: Self) -> Self {
         let [v0, v1, v2] = rhs.transpose().0;
-        Mat3x3([self * v0, self * v1, self * v2]).transpose()
+        Mat3x3([self.clone() * v0, self.clone() * v1, self * v2]).transpose()
     }
 }
 
-impl<F: Field> Mul<[F; 3]> for Mat3x3<F> {
+impl<F: SimpleField> Mul<[F; 3]> for Mat3x3<F> {
     type Output = [F; 3];
 
     /// Multiplies the matrix by a vector
     fn mul(self, [x, y, z]: [F; 3]) -> [F; 3] {
         let [[a, b, c], [d, e, f], [g, h, i]] = self.0;
         [
-            x * a + y * b + z * c,
-            x * d + y * e + z * f,
+            x.clone() * a + y.clone() * b + z.clone() * c,
+            x.clone() * d + y.clone() * e + z.clone() * f,
             x * g + y * h + z * i,
         ]
     }

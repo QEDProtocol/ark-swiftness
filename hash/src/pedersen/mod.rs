@@ -23,6 +23,7 @@ pub mod constants;
 pub mod periodic;
 
 /// Computes the Pedersen hash of a and b using StarkWare's parameters.
+///
 /// The hash is defined by:
 ///     shift_point + x_low * P_0 + x_high * P1 + y_low * P2  + y_high * P3
 /// where x_low is the 248 low bits of x, x_high is the 4 high bits of x and

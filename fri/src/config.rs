@@ -11,42 +11,42 @@ const MIN_FRI_STEP: u64 = 1;
 
 #[serde_as]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct Config {
+pub struct Config<F: SimpleField + Permute> {
     // Log2 of the size of the input layer to FRI.
     #[cfg_attr(
         feature = "std",
         serde_as(as = "starknet_core::serde::unsigned_field_element::UfeHex")
     )]
-    pub log_input_size: Felt,
+    pub log_input_size: F,
     // Number of layers in the FRI. Inner + last layer.
     #[cfg_attr(
         feature = "std",
         serde_as(as = "starknet_core::serde::unsigned_field_element::UfeHex")
     )]
-    pub n_layers: Felt,
+    pub n_layers: F,
     // Array of size n_layers - 1, each entry is a configuration of a table commitment for the
     // corresponding inner layer.
-    pub inner_layers: Vec<swiftness_commitment::table::config::Config>,
+    pub inner_layers: Vec<swiftness_commitment::table::config::Config<F>>,
     // Array of size n_layers, each entry represents the FRI step size,
     // i.e. the number of FRI-foldings between layer i and i+1.
     #[cfg_attr(
         feature = "std",
         serde_as(as = "Vec<starknet_core::serde::unsigned_field_element::UfeHex>")
     )]
-    pub fri_step_sizes: Vec<Felt>,
+    pub fri_step_sizes: Vec<F>,
     #[cfg_attr(
         feature = "std",
         serde_as(as = "starknet_core::serde::unsigned_field_element::UfeHex")
     )]
-    pub log_last_layer_degree_bound: Felt,
+    pub log_last_layer_degree_bound: F,
 }
 
-impl Config {
+impl<F: SimpleField + Permute> Config<F> {
     pub fn validate(
         &self,
-        log_n_cosets: Felt,
-        n_verifier_friendly_commitment_layers: Felt,
-    ) -> Result<Felt, Error> {
+        log_n_cosets: F,
+        n_verifier_friendly_commitment_layers: F,
+    ) -> Result<F, Error<F>> {
         if self.n_layers < MIN_FRI_LAYERS.into() || self.n_layers > MAX_FRI_LAYERS.into() {
             return Err(Error::OutOfBounds { min: MIN_FRI_LAYERS, max: MAX_FRI_LAYERS });
         }
@@ -97,22 +97,24 @@ impl Config {
     }
 }
 
+use swiftness_field::SimpleField;
+use swiftness_hash::poseidon::Permute;
 #[cfg(feature = "std")]
 use thiserror::Error;
 
 #[cfg(feature = "std")]
 #[derive(Error, Debug)]
-pub enum Error {
+pub enum Error<F: SimpleField + Permute> {
     #[error("value out of bounds {min} - {max}")]
     OutOfBounds { min: u64, max: u64 },
     #[error("invalid first fri step")]
     FirstFriStepInvalid,
     #[error("invalid value for column count, expected {expected}, got {actual}")]
-    InvalidColumnCount { expected: Felt, actual: Felt },
+    InvalidColumnCount { expected: F, actual: F },
     #[error("log input size mismatch, expected {expected}, got {actual}")]
-    LogInputSizeMismatch { expected: Felt, actual: Felt },
+    LogInputSizeMismatch { expected: F, actual: F },
     #[error("vector validation failed: {0}")]
-    VectorValidationFailed(#[from] swiftness_commitment::vector::config::Error),
+    VectorValidationFailed(#[from] swiftness_commitment::vector::config::Error<F>),
 }
 
 #[cfg(not(feature = "std"))]
@@ -120,15 +122,15 @@ use thiserror_no_std::Error;
 
 #[cfg(not(feature = "std"))]
 #[derive(Error, Debug)]
-pub enum Error {
+pub enum Error<F: SimpleField + Permute> {
     #[error("value out of bounds {min} - {max}")]
     OutOfBounds { min: u64, max: u64 },
     #[error("invalid first fri step")]
     FirstFriStepInvalid,
     #[error("invalid value for column count, expected {expected}, got {actual}")]
-    InvalidColumnCount { expected: Felt, actual: Felt },
+    InvalidColumnCount { expected: F, actual: F },
     #[error("log input size mismatch, expected {expected}, got {actual}")]
-    LogInputSizeMismatch { expected: Felt, actual: Felt },
+    LogInputSizeMismatch { expected: F, actual: F },
     #[error("vector validation failed: {0}")]
-    VectorValidationFailed(#[from] swiftness_commitment::vector::config::Error),
+    VectorValidationFailed(#[from] swiftness_commitment::vector::config::Error<F>),
 }

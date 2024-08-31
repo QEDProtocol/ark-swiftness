@@ -25,7 +25,7 @@ pub struct UnsentCommitment {
 }
 
 #[serde_as]
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Commitment {
     pub config: Config,
     // Array of size n_layers - 1 containing table commitments for each inner layer.

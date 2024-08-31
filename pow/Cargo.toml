@@ -25,7 +25,9 @@ starknet-types-core.workspace = true
 thiserror = { optional = true, workspace = true }
 thiserror-no-std.workspace = true
 blake2.workspace = true
+ark-ff = { workspace = true }
 
 swiftness_transcript.workspace = true
 swiftness_field = { workspace = true }
+swiftness_hash = { workspace = true }
 swiftness_utils = { workspace = true }

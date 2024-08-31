@@ -1,6 +1,6 @@
-use swiftness_utils::curve::StarkwareCurve;
 use ark_ec::short_weierstrass::Affine;
 use ark_ff::MontFp as Fp;
+use swiftness_utils::curve::StarkwareCurve;
 
 /// P0
 pub const P0: Affine<StarkwareCurve> = Affine::new_unchecked(
