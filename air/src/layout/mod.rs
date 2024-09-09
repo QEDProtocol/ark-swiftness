@@ -1,5 +1,9 @@
 use crate::{domains::StarkDomains, public_memory::PublicInput};
-use starknet_crypto::Felt;
+use ark_ec::short_weierstrass::SWCurveConfig;
+use ark_ff::{Field, PrimeField};
+use ark_r1cs_std::{fields::{fp::FpVar, FieldOpsBounds, FieldVar}, prelude::Boolean};
+use swiftness_field::SimpleField;
+use swiftness_hash::{pedersen::PedersenHash, poseidon::PoseidonHash};
 use swiftness_transcript::transcript::Transcript;
 
 pub mod dex;
@@ -28,7 +32,7 @@ pub mod stark_curve {
     );
 }
 
-pub trait LayoutTrait {
+pub trait LayoutTrait<F: SimpleField + PoseidonHash> {
     type InteractionElements;
 
     const CONSTRAINT_DEGREE: usize;
@@ -39,42 +43,53 @@ pub trait LayoutTrait {
 
     fn eval_composition_polynomial(
         interaction_elements: &Self::InteractionElements,
-        public_input: &PublicInput,
-        mask_values: &[Felt],
-        constraint_coefficients: &[Felt],
-        point: &Felt,
-        trace_domain_size: &Felt,
-        trace_generator: &Felt,
-    ) -> Result<Felt, CompositionPolyEvalError>;
+        public_input: &PublicInput<F>,
+        mask_values: &[F],
+        constraint_coefficients: &[F],
+        point: &F,
+        trace_domain_size: &F,
+        trace_generator: &F,
+    ) -> Result<F, CompositionPolyEvalError>;
 
     fn eval_oods_polynomial(
-        column_values: &[Felt],
-        oods_values: &[Felt],
-        constraint_coefficients: &[Felt],
-        point: &Felt,
-        oods_point: &Felt,
-        trace_generator: &Felt,
-    ) -> Felt;
+        column_values: &[F],
+        oods_values: &[F],
+        constraint_coefficients: &[F],
+        point: &F,
+        oods_point: &F,
+        trace_generator: &F,
+    ) -> F;
 
     fn validate_public_input(
-        public_input: &PublicInput,
-        stark_domains: &StarkDomains,
+        public_input: &PublicInput<F>,
+        stark_domains: &StarkDomains<F>,
     ) -> Result<(), PublicInputError>;
 
     fn traces_commit(
-        transcript: &mut Transcript,
-        unsent_commitment: &crate::trace::UnsentCommitment,
-        config: crate::trace::config::Config,
-    ) -> crate::trace::Commitment<Self::InteractionElements>;
+        transcript: &mut Transcript<F>,
+        unsent_commitment: &crate::trace::UnsentCommitment<F>,
+        config: crate::trace::config::Config<F>,
+    ) -> crate::trace::Commitment<Self::InteractionElements, F>;
 
     fn traces_decommit(
-        queries: &[Felt],
-        commitment: crate::trace::Commitment<Self::InteractionElements>,
-        decommitment: crate::trace::Decommitment,
-        witness: crate::trace::Witness,
-    ) -> Result<(), crate::trace::decommit::Error>;
+        queries: &[F],
+        commitment: crate::trace::Commitment<Self::InteractionElements, F>,
+        decommitment: crate::trace::Decommitment<F>,
+        witness: crate::trace::Witness<F>,
+    ) -> Result<(), crate::trace::decommit::Error<F>>;
 
-    fn verify_public_input(public_input: &PublicInput) -> Result<(Felt, Felt), PublicInputError>;
+    fn verify_public_input<P: SWCurveConfig>(
+        public_input: &PublicInput<F>,
+    ) -> Result<(F, F), PublicInputError>
+    where
+        F: PedersenHash<P>,
+        P::BaseField: PrimeField + SimpleField,
+        <P::BaseField as Field>::BasePrimeField: SimpleField,
+        FpVar<P::BaseField>:
+            FieldVar<P::BaseField, <P::BaseField as Field>::BasePrimeField> + SimpleField,
+        for<'a> &'a FpVar<P::BaseField>: FieldOpsBounds<'a, P::BaseField, FpVar<P::BaseField>>,
+        <FpVar<P::BaseField> as SimpleField>::BooleanType:
+            From<Boolean<<P::BaseField as Field>::BasePrimeField>>;
 }
 
 #[cfg(feature = "std")]

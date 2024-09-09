@@ -3,6 +3,7 @@ use crate::{
     verify::stark_verify,
 };
 use swiftness_air::layout::{recursive::Layout, LayoutTrait};
+use swiftness_field::Fp;
 use swiftness_fri::fixtures::queries;
 
 #[test]
@@ -12,7 +13,7 @@ pub fn test_stark_verify() {
     let witness = witness::get();
     let stark_domains = domains::get();
 
-    stark_verify::<Layout>(
+    stark_verify::<Fp, Layout>(
         Layout::NUM_COLUMNS_FIRST,
         Layout::NUM_COLUMNS_SECOND,
         &queries,

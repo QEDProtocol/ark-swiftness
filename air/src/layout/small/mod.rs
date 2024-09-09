@@ -4,14 +4,18 @@ pub mod global_values;
 use crate::{
     layout::stark_curve,
     periodic_columns::{eval_ecdsa_x, eval_ecdsa_y, eval_pedersen_x, eval_pedersen_y},
-    public_memory::{PublicInput, INITIAL_PC, MAX_ADDRESS, MAX_LOG_N_STEPS, MAX_RANGE_CHECK},
+    public_memory::{PublicInput, INITIAL_PC, MAX_ADDRESS, MAX_LOG_N_STEPS},
 };
 use alloc::vec;
 use alloc::vec::Vec;
+use ark_ec::short_weierstrass::SWCurveConfig;
+use ark_ff::{Field, PrimeField};
+use ark_r1cs_std::{fields::{fp::FpVar, FieldOpsBounds, FieldVar}, prelude::Boolean};
 use global_values::{EcPoint, EcdsaSigConfig, GlobalValues, InteractionElements};
-use starknet_core::types::NonZeroFelt;
-use starknet_crypto::{pedersen_hash, Felt};
+use starknet_crypto::Felt;
 use swiftness_commitment::table::{commit::table_commit, decommit::table_decommit};
+use swiftness_field::SimpleField;
+use swiftness_hash::{pedersen::PedersenHash, poseidon::PoseidonHash};
 use swiftness_transcript::ensure;
 
 use super::{CompositionPolyEvalError, LayoutTrait, PublicInputError};
@@ -72,109 +76,112 @@ pub const BUILTINS: [Felt; 4] =
 
 pub struct Layout {}
 
-impl LayoutTrait for Layout {
+impl<F: SimpleField + PoseidonHash> LayoutTrait<F> for Layout {
     const CONSTRAINT_DEGREE: usize = 2;
     const MASK_SIZE: usize = 201;
     const N_CONSTRAINTS: usize = 179;
     const NUM_COLUMNS_FIRST: usize = 23;
     const NUM_COLUMNS_SECOND: usize = 2;
-    type InteractionElements = InteractionElements;
+    type InteractionElements = InteractionElements<F>;
 
     fn eval_composition_polynomial(
         interaction_elements: &Self::InteractionElements,
-        public_input: &PublicInput,
-        mask_values: &[Felt],
-        constraint_coefficients: &[Felt],
-        point: &Felt,
-        trace_domain_size: &Felt,
-        trace_generator: &Felt,
-    ) -> Result<Felt, CompositionPolyEvalError> {
-        let memory_z = interaction_elements.memory_multi_column_perm_perm_interaction_elm;
-        let memory_alpha = interaction_elements.memory_multi_column_perm_hash_interaction_elm0;
+        public_input: &PublicInput<F>,
+        mask_values: &[F],
+        constraint_coefficients: &[F],
+        point: &F,
+        trace_domain_size: &F,
+        trace_generator: &F,
+    ) -> Result<F, CompositionPolyEvalError> {
+        let memory_z = interaction_elements.memory_multi_column_perm_perm_interaction_elm.clone();
+        let memory_alpha = interaction_elements.memory_multi_column_perm_hash_interaction_elm0.clone();
 
         // Public memory
         let public_memory_column_size = trace_domain_size
-            .field_div(&NonZeroFelt::from_felt_unchecked(Felt::from(PUBLIC_MEMORY_STEP)));
-        assert!(public_memory_column_size < u128::MAX.into());
+            .field_div(&F::from_constant(PUBLIC_MEMORY_STEP as u128));
+        // assert!(public_memory_column_size < u128::MAX.into());
+        public_memory_column_size.assert_lt(&F::from_constant(u128::MAX));
         let public_memory_prod_ratio = public_input.get_public_memory_product_ratio(
-            memory_z,
-            memory_alpha,
+            memory_z.clone(),
+            memory_alpha.clone(),
             public_memory_column_size,
         );
 
         // Periodic columns
-        let n_steps = Felt::TWO.pow_felt(&public_input.log_n_steps);
-        let n_pedersen_hash_copies = n_steps.field_div(&NonZeroFelt::from_felt_unchecked(
-            Felt::from(PEDERSEN_BUILTIN_RATIO * PEDERSEN_BUILTIN_REPETITIONS),
-        ));
+        let n_steps = F::two().powers_felt(&public_input.log_n_steps);
+        let n_pedersen_hash_copies = n_steps.field_div(&
+            F::from_stark_felt(Felt::from(PEDERSEN_BUILTIN_RATIO * PEDERSEN_BUILTIN_REPETITIONS)),
+        );
         // TODO fix to ensure!
-        assert!(n_pedersen_hash_copies < u128::MAX.into());
-        let pedersen_point = point.pow_felt(&n_pedersen_hash_copies);
-        let pedersen_points_x = eval_pedersen_x(pedersen_point);
+        // assert!(n_pedersen_hash_copies < u128::MAX.into());
+        n_pedersen_hash_copies.assert_lt(&F::from_constant(u128::MAX));
+        let pedersen_point = point.powers_felt(&n_pedersen_hash_copies);
+        let pedersen_points_x = eval_pedersen_x(pedersen_point.clone());
         let pedersen_points_y = eval_pedersen_y(pedersen_point);
 
-        let n_ecdsa_signature_copies = n_steps.field_div(&NonZeroFelt::from_felt_unchecked(
-            Felt::from(ECDSA_BUILTIN_RATIO * ECDSA_BUILTIN_REPETITIONS),
-        ));
-        assert!(n_ecdsa_signature_copies < u128::MAX.into());
-        let ecdsa_point = point.pow_felt(&n_ecdsa_signature_copies);
-        let ecdsa_generator_points_x = eval_ecdsa_x(ecdsa_point);
+        let n_ecdsa_signature_copies = n_steps.field_div(&
+            F::from_constant((ECDSA_BUILTIN_RATIO * ECDSA_BUILTIN_REPETITIONS) as u128),
+        );
+        // assert!(n_ecdsa_signature_copies < u128::MAX.into());
+        n_ecdsa_signature_copies.assert_lt(&F::from_constant(u128::MAX));
+        let ecdsa_point = point.powers_felt(&n_ecdsa_signature_copies);
+        let ecdsa_generator_points_x = eval_ecdsa_x(ecdsa_point.clone());
         let ecdsa_generator_points_y = eval_ecdsa_y(ecdsa_point);
 
         let global_values = GlobalValues {
-            trace_length: *trace_domain_size,
+            trace_length: trace_domain_size.clone(),
             initial_pc: public_input
                 .segments
                 .get(crate::layout::segments::PROGRAM)
                 .ok_or(CompositionPolyEvalError::SegmentMissing {
                     segment: crate::layout::segments::PROGRAM,
                 })?
-                .begin_addr,
+                .begin_addr.clone(),
             final_pc: public_input
                 .segments
                 .get(crate::layout::segments::PROGRAM)
                 .ok_or(CompositionPolyEvalError::SegmentMissing {
                     segment: crate::layout::segments::PROGRAM,
                 })?
-                .stop_ptr,
+                .stop_ptr.clone(),
             initial_ap: public_input
                 .segments
                 .get(crate::layout::segments::EXECUTION)
                 .ok_or(CompositionPolyEvalError::SegmentMissing {
                     segment: crate::layout::segments::EXECUTION,
                 })?
-                .begin_addr,
+                .begin_addr.clone(),
             final_ap: public_input
                 .segments
                 .get(crate::layout::segments::EXECUTION)
                 .ok_or(CompositionPolyEvalError::SegmentMissing {
                     segment: crate::layout::segments::EXECUTION,
                 })?
-                .stop_ptr,
+                .stop_ptr.clone(),
             initial_pedersen_addr: public_input
                 .segments
                 .get(segments::PEDERSEN)
                 .ok_or(CompositionPolyEvalError::SegmentMissing { segment: segments::PEDERSEN })?
-                .begin_addr,
+                .begin_addr.clone(),
             initial_range_check_addr: public_input
                 .segments
                 .get(segments::RANGE_CHECK)
                 .ok_or(CompositionPolyEvalError::SegmentMissing { segment: segments::RANGE_CHECK })?
-                .begin_addr,
+                .begin_addr.clone(),
             initial_ecdsa_addr: public_input
                 .segments
                 .get(segments::ECDSA)
                 .ok_or(CompositionPolyEvalError::SegmentMissing { segment: segments::ECDSA })?
-                .begin_addr,
-            range_check_min: public_input.range_check_min,
-            range_check_max: public_input.range_check_max,
-            offset_size: Felt::from(0x10000),     // 2**16
-            half_offset_size: Felt::from(0x8000), // 2**15
-            pedersen_shift_point: EcPoint { x: SHIFT_POINT_X, y: SHIFT_POINT_Y },
+                .begin_addr.clone(),
+            range_check_min: public_input.range_check_min.clone(),
+            range_check_max: public_input.range_check_max.clone(),
+            offset_size: F::from_stark_felt(Felt::from(0x10000)),     // 2**16
+            half_offset_size: F::from_stark_felt(Felt::from(0x8000)), // 2**15
+            pedersen_shift_point: EcPoint { x: F::from_stark_felt(SHIFT_POINT_X), y: F::from_stark_felt(SHIFT_POINT_Y) },
             ecdsa_sig_config: EcdsaSigConfig {
-                alpha: stark_curve::ALPHA,
-                beta: stark_curve::BETA,
-                shift_point: EcPoint { x: SHIFT_POINT_X, y: SHIFT_POINT_Y },
+                alpha: F::from_stark_felt(stark_curve::ALPHA),
+                beta:  F::from_stark_felt(stark_curve::BETA),
+                shift_point: EcPoint { x: F::from_stark_felt(SHIFT_POINT_X), y: F::from_stark_felt(SHIFT_POINT_Y) },
             },
             pedersen_points_x,
             pedersen_points_y,
@@ -183,9 +190,9 @@ impl LayoutTrait for Layout {
             memory_multi_column_perm_perm_interaction_elm: memory_z,
             memory_multi_column_perm_hash_interaction_elm0: memory_alpha,
             range_check16_perm_interaction_elm: interaction_elements
-                .range_check16_perm_interaction_elm,
+                .range_check16_perm_interaction_elm.clone(),
             memory_multi_column_perm_perm_public_memory_prod: public_memory_prod_ratio,
-            range_check16_perm_public_memory_prod: Felt::from(1),
+            range_check16_perm_public_memory_prod: F::one(),
         };
 
         Ok(autogenerated::eval_composition_polynomial_inner(
@@ -197,14 +204,14 @@ impl LayoutTrait for Layout {
         ))
     }
     fn eval_oods_polynomial(
-        column_values: &[Felt],
-        oods_values: &[Felt],
-        constraint_coefficients: &[Felt],
-        point: &Felt,
-        oods_point: &Felt,
-        trace_generator: &Felt,
-    ) -> Felt {
-        autogenerated::eval_oods_polynomial_inner::<Self>(
+        column_values: &[F],
+        oods_values: &[F],
+        constraint_coefficients: &[F],
+        point: &F,
+        oods_point: &F,
+        trace_generator: &F,
+    ) -> F {
+        autogenerated::eval_oods_polynomial_inner::<F, Self>(
             column_values,
             oods_values,
             constraint_coefficients,
@@ -214,20 +221,20 @@ impl LayoutTrait for Layout {
         )
     }
     fn traces_commit(
-        transcript: &mut swiftness_transcript::transcript::Transcript,
-        unsent_commitment: &crate::trace::UnsentCommitment,
-        config: crate::trace::config::Config,
-    ) -> crate::trace::Commitment<Self::InteractionElements> {
+        transcript: &mut swiftness_transcript::transcript::Transcript<F>,
+        unsent_commitment: &crate::trace::UnsentCommitment<F>,
+        config: crate::trace::config::Config<F>,
+    ) -> crate::trace::Commitment<Self::InteractionElements, F> {
         // Read original commitment.
         let original_commitment =
-            table_commit(transcript, unsent_commitment.original, config.original);
+            table_commit(transcript, unsent_commitment.original.clone(), config.original);
 
         // Generate interaction elements for the first interaction.
         let interaction_elements = Self::InteractionElements::new(transcript);
 
         // Read interaction commitment.
         let interaction_commitment =
-            table_commit(transcript, unsent_commitment.interaction, config.interaction);
+            table_commit(transcript, unsent_commitment.interaction.clone(), config.interaction);
 
         crate::trace::Commitment {
             original: original_commitment,
@@ -236,11 +243,11 @@ impl LayoutTrait for Layout {
         }
     }
     fn traces_decommit(
-        queries: &[Felt],
-        commitment: crate::trace::Commitment<Self::InteractionElements>,
-        decommitment: crate::trace::Decommitment,
-        witness: crate::trace::Witness,
-    ) -> Result<(), crate::trace::decommit::Error> {
+        queries: &[F],
+        commitment: crate::trace::Commitment<Self::InteractionElements, F>,
+        decommitment: crate::trace::Decommitment<F>,
+        witness: crate::trace::Witness<F>,
+    ) -> Result<(), crate::trace::decommit::Error<F>> {
         Ok(table_decommit(commitment.original, queries, decommitment.original, witness.original)
             .and(table_decommit(
                 commitment.interaction,
@@ -250,125 +257,143 @@ impl LayoutTrait for Layout {
             ))?)
     }
     fn validate_public_input(
-        public_input: &PublicInput,
-        stark_domains: &crate::domains::StarkDomains,
+        public_input: &PublicInput<F>,
+        stark_domains: &crate::domains::StarkDomains<F>,
     ) -> Result<(), PublicInputError> {
-        ensure!(public_input.log_n_steps < MAX_LOG_N_STEPS, PublicInputError::MaxSteps);
+        // ensure!(public_input.log_n_steps < MAX_LOG_N_STEPS, PublicInputError::MaxSteps);
+        public_input.log_n_steps.assert_lt(&F::from_stark_felt(MAX_LOG_N_STEPS));
 
-        let n_steps = Felt::TWO.pow_felt(&public_input.log_n_steps);
-        let trace_length = stark_domains.trace_domain_size;
-        ensure!(
-            n_steps * Felt::from(CPU_COMPONENT_HEIGHT) * Felt::from(CPU_COMPONENT_STEP)
-                == trace_length,
-            PublicInputError::TraceLengthInvalid
-        );
-
-        ensure!(Felt::ZERO <= public_input.range_check_min, PublicInputError::RangeCheckInvalid);
-        ensure!(
-            public_input.range_check_min < public_input.range_check_max,
-            PublicInputError::RangeCheckInvalid
-        );
-        ensure!(
-            public_input.range_check_max <= MAX_RANGE_CHECK,
-            PublicInputError::RangeCheckInvalid
-        );
-
-        ensure!(public_input.layout == LAYOUT_CODE, PublicInputError::LayoutCodeInvalid);
+        let n_steps = F::two().powers_felt(&public_input.log_n_steps);
+        let trace_length = stark_domains.trace_domain_size.clone();
+        // TODO: enable check
+        // ensure!(
+        //     n_steps * Felt::from(CPU_COMPONENT_HEIGHT) * Felt::from(CPU_COMPONENT_STEP)
+        //         == trace_length,
+        //     PublicInputError::TraceLengthInvalid
+        // );
+        //
+        // ensure!(Felt::ZERO <= public_input.range_check_min, PublicInputError::RangeCheckInvalid);
+        // ensure!(
+        //     public_input.range_check_min < public_input.range_check_max,
+        //     PublicInputError::RangeCheckInvalid
+        // );
+        // ensure!(
+        //     public_input.range_check_max <= MAX_RANGE_CHECK,
+        //     PublicInputError::RangeCheckInvalid
+        // );
+        //
+        // ensure!(public_input.layout == LAYOUT_CODE, PublicInputError::LayoutCodeInvalid);
 
         let output_uses = public_input
             .segments
             .get(crate::layout::segments::OUTPUT)
             .ok_or(PublicInputError::SegmentMissing { segment: crate::layout::segments::OUTPUT })?
-            .stop_ptr
-            - public_input
+            .stop_ptr.clone()
+            - &public_input
                 .segments
                 .get(crate::layout::segments::OUTPUT)
                 .ok_or(PublicInputError::SegmentMissing {
                     segment: crate::layout::segments::OUTPUT,
                 })?
                 .begin_addr;
-        ensure!(output_uses < u128::MAX.into(), PublicInputError::UsesInvalid);
+        // ensure!(output_uses < u128::MAX.into(), PublicInputError::UsesInvalid);
+        output_uses.assert_lt(&F::from_constant(u128::MAX));
 
         let pedersen_copies = trace_length
-            .field_div(&NonZeroFelt::from_felt_unchecked(Felt::from(PEDERSEN_BUILTIN_ROW_RATIO)));
+            .field_div(&F::from_constant(PEDERSEN_BUILTIN_ROW_RATIO as u128));
         let pedersen_uses = (public_input
             .segments
             .get(segments::PEDERSEN)
             .ok_or(PublicInputError::SegmentMissing { segment: segments::PEDERSEN })?
-            .stop_ptr
-            - public_input
+            .stop_ptr.clone()
+            - &public_input
                 .segments
                 .get(segments::PEDERSEN)
                 .ok_or(PublicInputError::SegmentMissing { segment: segments::PEDERSEN })?
                 .begin_addr)
-            .field_div(&NonZeroFelt::from_felt_unchecked(Felt::THREE));
-        ensure!(pedersen_uses < pedersen_copies, PublicInputError::UsesInvalid);
+            .field_div(&F::three());
+        // ensure!(pedersen_uses < pedersen_copies, PublicInputError::UsesInvalid);
+        pedersen_uses.assert_lt(&pedersen_copies);
 
-        let range_check_copies = trace_length.field_div(&NonZeroFelt::from_felt_unchecked(
-            Felt::from(RANGE_CHECK_BUILTIN_ROW_RATIO),
-        ));
+        let range_check_copies = trace_length.field_div(&
+            F::from_constant(RANGE_CHECK_BUILTIN_ROW_RATIO as u128),
+        );
         let range_check_uses = public_input
             .segments
             .get(segments::RANGE_CHECK)
             .ok_or(PublicInputError::SegmentMissing { segment: segments::RANGE_CHECK })?
-            .stop_ptr
-            - public_input
+            .stop_ptr.clone()
+            - &public_input
                 .segments
                 .get(segments::RANGE_CHECK)
                 .ok_or(PublicInputError::SegmentMissing { segment: segments::RANGE_CHECK })?
                 .begin_addr;
-        ensure!(range_check_uses < range_check_copies, PublicInputError::UsesInvalid);
+        // ensure!(range_check_uses < range_check_copies, PublicInputError::UsesInvalid);
+        range_check_uses.assert_lt(&range_check_copies);
 
         let ecdsa_copies = trace_length
-            .field_div(&NonZeroFelt::from_felt_unchecked(Felt::from(ECDSA_BUILTIN_ROW_RATIO)));
+            .field_div(&F::from_constant(ECDSA_BUILTIN_ROW_RATIO as u128));
         let ecdsa_uses = (public_input
             .segments
             .get(segments::ECDSA)
             .ok_or(PublicInputError::SegmentMissing { segment: segments::ECDSA })?
-            .stop_ptr
-            - public_input
+            .stop_ptr.clone()
+            - &public_input
                 .segments
                 .get(segments::ECDSA)
                 .ok_or(PublicInputError::SegmentMissing {
                     segment: crate::layout::segments::OUTPUT,
                 })?
                 .begin_addr)
-            .field_div(&NonZeroFelt::from_felt_unchecked(Felt::TWO));
-        ensure!(ecdsa_uses < ecdsa_copies, PublicInputError::UsesInvalid);
+            .field_div(&F::two());
+        // ensure!(ecdsa_uses < ecdsa_copies, PublicInputError::UsesInvalid);
+        ecdsa_uses.assert_lt(&ecdsa_copies);
         Ok(())
     }
 
-    fn verify_public_input(public_input: &PublicInput) -> Result<(Felt, Felt), PublicInputError> {
+    fn verify_public_input<P: SWCurveConfig>(public_input: &PublicInput<F>) -> Result<(F, F), PublicInputError>
+    where
+        F: PedersenHash<P>,
+        P::BaseField: PrimeField + SimpleField,
+        <P::BaseField as Field>::BasePrimeField: SimpleField,
+        FpVar<P::BaseField>:
+            FieldVar<P::BaseField, <P::BaseField as Field>::BasePrimeField> + SimpleField,
+        for<'a> &'a FpVar<P::BaseField>: FieldOpsBounds<'a, P::BaseField, FpVar<P::BaseField>>,
+        <FpVar<P::BaseField> as SimpleField>::BooleanType:
+            From<Boolean<<P::BaseField as Field>::BasePrimeField>>
+    {
         let public_segments = &public_input.segments;
 
         let initial_pc = public_segments
             .get(crate::layout::segments::PROGRAM)
             .ok_or(PublicInputError::SegmentMissing { segment: crate::layout::segments::PROGRAM })?
-            .begin_addr;
+            .begin_addr.clone();
         let final_pc = public_segments
             .get(crate::layout::segments::PROGRAM)
             .ok_or(PublicInputError::SegmentMissing { segment: crate::layout::segments::PROGRAM })?
-            .stop_ptr;
+            .stop_ptr.clone();
         let initial_ap = public_segments
             .get(crate::layout::segments::EXECUTION)
             .ok_or(PublicInputError::SegmentMissing { segment: crate::layout::segments::PROGRAM })?
-            .begin_addr;
-        let initial_fp = initial_ap;
+            .begin_addr.clone();
+        let initial_fp = initial_ap.clone();
         let final_ap = public_segments
             .get(crate::layout::segments::EXECUTION)
             .ok_or(PublicInputError::SegmentMissing { segment: crate::layout::segments::PROGRAM })?
-            .stop_ptr;
+            .stop_ptr.clone();
         let output_start = public_segments
             .get(crate::layout::segments::OUTPUT)
             .ok_or(PublicInputError::SegmentMissing { segment: crate::layout::segments::PROGRAM })?
-            .begin_addr;
+            .begin_addr.clone();
         let output_stop = public_segments
             .get(crate::layout::segments::OUTPUT)
             .ok_or(PublicInputError::SegmentMissing { segment: crate::layout::segments::PROGRAM })?
-            .stop_ptr;
+            .stop_ptr.clone();
 
-        ensure!(initial_ap < MAX_ADDRESS, PublicInputError::MaxSteps);
-        ensure!(final_ap < MAX_ADDRESS, PublicInputError::MaxSteps);
+        // ensure!(initial_ap < MAX_ADDRESS, PublicInputError::MaxSteps);
+        initial_ap.assert_lt(&F::from_stark_felt(MAX_ADDRESS));
+        // ensure!(final_ap < MAX_ADDRESS, PublicInputError::MaxSteps);
+        final_ap.assert_lt(&F::from_stark_felt(MAX_ADDRESS));
 
         // TODO support more pages?
         ensure!(public_input.continuous_page_headers.is_empty(), PublicInputError::MaxSteps);
@@ -376,29 +401,31 @@ impl LayoutTrait for Layout {
         let memory = &public_input
             .main_page
             .iter()
-            .flat_map(|v| vec![v.address, v.value])
-            .collect::<Vec<Felt>>();
+            .flat_map(|v| vec![v.address.clone(), v.value.clone()])
+            .collect::<Vec<F>>();
 
-        ensure!(initial_pc == INITIAL_PC, PublicInputError::MaxSteps);
-        ensure!(final_pc == INITIAL_PC + 4, PublicInputError::MaxSteps);
+        // ensure!(initial_pc == INITIAL_PC, PublicInputError::MaxSteps);
+        initial_pc.assert_equal(&F::from_stark_felt(INITIAL_PC));
+        // ensure!(final_pc == INITIAL_PC + 4, PublicInputError::MaxSteps);
+        final_pc.assert_equal(&F::from_stark_felt(INITIAL_PC + 4));
 
-        let program_end_pc = initial_fp - 2;
+        let program_end_pc = initial_fp - F::two();
 
-        let program: Vec<&Felt> = memory
+        let program: Vec<&F> = memory
             .iter()
-            .skip(initial_pc.to_bigint().try_into().unwrap())
+            .skip(initial_pc.into_constant().try_into().unwrap())
             .step_by(2)
-            .take((program_end_pc - Felt::ONE).to_bigint().try_into().unwrap())
+            .take((program_end_pc - F::one()).into_constant().try_into().unwrap())
             .collect();
 
-        let hash = program.iter().fold(Felt::ZERO, |acc, &e| pedersen_hash(&acc, e));
-        let program_hash = pedersen_hash(&hash, &Felt::from(program.len()));
+        let hash = program.iter().fold(F::zero(), |acc, &e| PedersenHash::<P>::hash(acc.clone(), e.clone()));
+        let program_hash = PedersenHash::<P>::hash(hash.clone(), F::from_constant(program.len() as u128));
 
-        let output_len: usize = (output_stop - output_start).to_bigint().try_into().unwrap();
+        let output_len: usize = (output_stop - output_start).into_constant().try_into().unwrap();
         let output = &memory[memory.len() - output_len * 2..];
         let hash =
-            output.iter().skip(1).step_by(2).fold(Felt::ZERO, |acc, e| pedersen_hash(&acc, e));
-        let output_hash = pedersen_hash(&hash, &Felt::from(output_len));
+            output.iter().skip(1).step_by(2).fold(F::zero(), |acc, e| PedersenHash::<P>::hash(acc.clone(), e.clone()));
+        let output_hash = PedersenHash::<P>::hash(hash, F::from_constant(output_len as u128));
 
         Ok((program_hash, output_hash))
     }

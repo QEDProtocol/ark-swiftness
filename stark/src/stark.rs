@@ -2,8 +2,18 @@ use crate::{
     commit::stark_commit, queries::generate_queries, types::StarkProof, verify::stark_verify,
 };
 
-impl StarkProof {
-    pub fn verify<Layout: LayoutTrait>(&self, security_bits: Felt) -> Result<(Felt, Felt), Error> {
+impl<F: SimpleField + PoseidonHash + Blake2sHash> StarkProof<F> {
+    pub fn verify<P: SWCurveConfig, Layout: LayoutTrait<F>>(&self, security_bits: F) -> Result<(F, F), Error<F>>
+    where
+        F: PedersenHash<P>,
+        P::BaseField: PrimeField + SimpleField,
+        <P::BaseField as Field>::BasePrimeField: SimpleField,
+        FpVar<P::BaseField>:
+            FieldVar<P::BaseField, <P::BaseField as Field>::BasePrimeField> + SimpleField,
+        for<'a> &'a FpVar<P::BaseField>: FieldOpsBounds<'a, P::BaseField, FpVar<P::BaseField>>,
+        <FpVar<P::BaseField> as SimpleField>::BooleanType:
+            From<Boolean<<P::BaseField as Field>::BasePrimeField>>
+    {
         self.config.validate::<Layout>(security_bits)?;
 
         // Validate the public input.
@@ -18,7 +28,7 @@ impl StarkProof {
         let mut transcript = Transcript::new_variable(digest);
 
         // STARK commitment phase.
-        let stark_commitment = stark_commit::<Layout>(
+        let stark_commitment = stark_commit::<F, Layout>(
             &mut transcript,
             &self.public_input,
             &self.unsent_commitment,
@@ -34,7 +44,7 @@ impl StarkProof {
         );
 
         // STARK verify phase.
-        stark_verify::<Layout>(
+        stark_verify::<F, Layout>(
             Layout::NUM_COLUMNS_FIRST,
             Layout::NUM_COLUMNS_SECOND,
             &queries,
@@ -47,11 +57,15 @@ impl StarkProof {
     }
 }
 
-use starknet_crypto::Felt;
+use ark_ec::short_weierstrass::SWCurveConfig;
+use ark_ff::{Field, PrimeField};
+use ark_r1cs_std::{fields::{fp::FpVar, FieldOpsBounds, FieldVar}, prelude::Boolean};
 use swiftness_air::{
     domains::StarkDomains,
     layout::{LayoutTrait, PublicInputError},
 };
+use swiftness_field::SimpleField;
+use swiftness_hash::{blake2s::Blake2sHash, pedersen::PedersenHash, poseidon::PoseidonHash};
 use swiftness_transcript::transcript::Transcript;
 
 #[cfg(feature = "std")]
@@ -59,18 +73,18 @@ use thiserror::Error;
 
 #[cfg(feature = "std")]
 #[derive(Error, Debug)]
-pub enum Error {
+pub enum Error<F: SimpleField + PoseidonHash> {
     #[error("Vector Error")]
-    Validation(#[from] crate::config::Error),
+    Validation(#[from] crate::config::Error<F>),
 
     #[error("PublicInputError Error")]
     PublicInputError(#[from] PublicInputError),
 
     #[error("Commit Error")]
-    Commit(#[from] crate::commit::Error),
+    Commit(#[from] crate::commit::Error<F>),
 
     #[error("Verify Error")]
-    Verify(#[from] crate::verify::Error),
+    Verify(#[from] crate::verify::Error<F>),
 }
 
 #[cfg(not(feature = "std"))]
@@ -78,7 +92,7 @@ use thiserror_no_std::Error;
 
 #[cfg(not(feature = "std"))]
 #[derive(Error, Debug)]
-pub enum Error {
+pub enum Error<F: SimpleField + PoseidonHash> {
     #[error("Vector Error")]
     Validation(#[from] crate::config::Error),
 
@@ -89,5 +103,5 @@ pub enum Error {
     Commit(#[from] crate::commit::Error),
 
     #[error("Verify Error")]
-    Verify(#[from] crate::verify::Error),
+    Verify(#[from] crate::verify::Error<F>),
 }

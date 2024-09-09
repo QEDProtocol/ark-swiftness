@@ -1,3 +1,5 @@
+use swiftness_field::Fp;
+
 use crate::pow::verify_pow;
 
 #[test]
@@ -9,7 +11,7 @@ fn test_verify_proof_of_work_0() {
     ];
     let nonce: u64 = 0xd65397f;
     let n_bits: u8 = 0x1e;
-    verify_pow(digest, n_bits, nonce).unwrap();
+    verify_pow::<Fp>(digest.to_vec(), n_bits, nonce).unwrap();
 }
 
 #[test]
@@ -22,5 +24,5 @@ fn test_verify_proof_of_work_1() {
     ];
     let nonce: u64 = 0xd65397f + 1;
     let n_bits: u8 = 0x1e;
-    verify_pow(digest, n_bits, nonce).unwrap();
+    verify_pow::<Fp>(digest.to_vec(), n_bits, nonce).unwrap();
 }

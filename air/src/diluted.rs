@@ -1,4 +1,5 @@
-use starknet_crypto::Felt;
+use swiftness_field::SimpleField;
+use swiftness_hash::poseidon::PoseidonHash;
 
 // The cumulative value is defined using the next recursive formula:
 //   r_1 = 1, r_{j+1} = r_j * (1 + z * u_j) + alpha * u_j^2
@@ -23,26 +24,27 @@ use starknet_crypto::Felt;
 //   q_i = q_{i-1} * (1 + z * x_{i-1}) * p_{i-1} + x_{i-1}^2 * p_{i-1} + q_{i-1}
 //
 // Now we can compute p_{n_bits} and q_{n_bits} in just n_bits recursive steps and we are done.
-pub fn get_diluted_product(n_bits: Felt, spacing: Felt, z: Felt, alpha: Felt) -> Felt {
-    let diff_multiplier = Felt::TWO.pow_felt(&spacing);
-    let mut diff_x: Felt = diff_multiplier - 2;
-    let mut x: Felt = Felt::ONE;
-    let mut p: Felt = z + 1;
-    let mut q: Felt = Felt::ONE;
+pub fn get_diluted_product<F: SimpleField + PoseidonHash>(n_bits: F, spacing: F, z: F, alpha: F) -> F {
+    let diff_multiplier = F::two().powers_felt(&spacing);
+    let mut diff_x: F = diff_multiplier.clone() - F::two();
+    let mut x: F = F::one();
+    let mut p: F = z.clone() + F::one();
+    let mut q: F = F::one();
 
-    let mut i = Felt::ZERO;
+    let mut i = F::zero();
     loop {
-        if i == n_bits - 1 {
-            break p + q * alpha;
-        }
+        // TODO: fix this
+        // if i == n_bits - F::one() {
+        //     break p + q * alpha;
+        // }
 
-        x += diff_x;
-        diff_x *= diff_multiplier;
-        let x_p = x * p;
-        let y = p + z * x_p;
-        q = q * y + x * x_p + q;
-        p *= y;
+        x += &diff_x;
+        diff_x *= &diff_multiplier;
+        let x_p = x.clone() * &p;
+        let y = p.clone() + z.clone() * &x_p;
+        q = q.clone() * &y + x.clone() * &x_p + &q;
+        p *= &y;
 
-        i = i + 1;
+        i = i + F::one();
     }
 }

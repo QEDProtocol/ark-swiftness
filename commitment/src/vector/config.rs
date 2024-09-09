@@ -3,7 +3,7 @@ use serde_with::serde_as;
 
 #[serde_as]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct Config<F: SimpleField + Permute> {
+pub struct Config<F: SimpleField + PoseidonHash> {
     #[cfg_attr(
         feature = "std",
         serde_as(as = "starknet_core::serde::unsigned_field_element::UfeHex")
@@ -16,7 +16,7 @@ pub struct Config<F: SimpleField + Permute> {
     pub n_verifier_friendly_commitment_layers: F,
 }
 
-impl<F: SimpleField + Permute> Config<F> {
+impl<F: SimpleField + PoseidonHash> Config<F> {
     pub fn validate(
         &self,
         expected_height: F,
@@ -30,13 +30,13 @@ impl<F: SimpleField + Permute> Config<F> {
 }
 
 use swiftness_field::SimpleField;
-use swiftness_hash::poseidon::Permute;
+use swiftness_hash::poseidon::PoseidonHash;
 #[cfg(feature = "std")]
 use thiserror::Error;
 
 #[cfg(feature = "std")]
 #[derive(Error, Debug)]
-pub enum Error<F: SimpleField + Permute> {
+pub enum Error<F: SimpleField + PoseidonHash> {
     #[error("mismatch value {value} expected {expected}")]
     MisMatch { value: F, expected: F },
 }

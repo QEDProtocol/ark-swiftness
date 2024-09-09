@@ -1,322 +1,323 @@
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
-use starknet_crypto::Felt;
+use swiftness_field::SimpleField;
+use swiftness_hash::poseidon::PoseidonHash;
 use swiftness_transcript::transcript::Transcript;
 
 #[serde_as]
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
-pub struct EcPoint {
+pub struct EcPoint<F: SimpleField + PoseidonHash> {
     #[cfg_attr(
         feature = "std",
         serde_as(as = "starknet_core::serde::unsigned_field_element::UfeHex")
     )]
-    pub x: Felt,
+    pub x: F,
     #[cfg_attr(
         feature = "std",
         serde_as(as = "starknet_core::serde::unsigned_field_element::UfeHex")
     )]
-    pub y: Felt,
+    pub y: F,
 }
 
 #[serde_as]
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
-pub struct CurveConfig {
+pub struct CurveConfig<F: SimpleField + PoseidonHash> {
     #[cfg_attr(
         feature = "std",
         serde_as(as = "starknet_core::serde::unsigned_field_element::UfeHex")
     )]
-    pub alpha: Felt,
+    pub alpha: F,
     #[cfg_attr(
         feature = "std",
         serde_as(as = "starknet_core::serde::unsigned_field_element::UfeHex")
     )]
-    pub beta: Felt,
+    pub beta: F,
 }
 
 #[serde_as]
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
-pub struct EcdsaSigConfig {
+pub struct EcdsaSigConfig<F: SimpleField + PoseidonHash> {
     #[cfg_attr(
         feature = "std",
         serde_as(as = "starknet_core::serde::unsigned_field_element::UfeHex")
     )]
-    pub alpha: Felt,
+    pub alpha: F,
     #[cfg_attr(
         feature = "std",
         serde_as(as = "starknet_core::serde::unsigned_field_element::UfeHex")
     )]
-    pub beta: Felt,
-    pub shift_point: EcPoint,
+    pub beta: F,
+    pub shift_point: EcPoint<F>,
 }
 
 // Accumulation of member expressions for auto generated composition polynomial code.
 #[serde_as]
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
-pub struct GlobalValues {
+pub struct GlobalValues<F: SimpleField + PoseidonHash> {
     // Public input.
     #[cfg_attr(
         feature = "std",
         serde_as(as = "starknet_core::serde::unsigned_field_element::UfeHex")
     )]
-    pub trace_length: Felt,
+    pub trace_length: F,
     #[cfg_attr(
         feature = "std",
         serde_as(as = "starknet_core::serde::unsigned_field_element::UfeHex")
     )]
-    pub initial_pc: Felt,
+    pub initial_pc: F,
     #[cfg_attr(
         feature = "std",
         serde_as(as = "starknet_core::serde::unsigned_field_element::UfeHex")
     )]
-    pub final_pc: Felt,
+    pub final_pc: F,
     #[cfg_attr(
         feature = "std",
         serde_as(as = "starknet_core::serde::unsigned_field_element::UfeHex")
     )]
-    pub initial_ap: Felt,
+    pub initial_ap: F,
     #[cfg_attr(
         feature = "std",
         serde_as(as = "starknet_core::serde::unsigned_field_element::UfeHex")
     )]
-    pub final_ap: Felt,
+    pub final_ap: F,
     #[cfg_attr(
         feature = "std",
         serde_as(as = "starknet_core::serde::unsigned_field_element::UfeHex")
     )]
-    pub initial_pedersen_addr: Felt,
+    pub initial_pedersen_addr: F,
     #[cfg_attr(
         feature = "std",
         serde_as(as = "starknet_core::serde::unsigned_field_element::UfeHex")
     )]
-    pub initial_range_check_addr: Felt,
+    pub initial_range_check_addr: F,
     #[cfg_attr(
         feature = "std",
         serde_as(as = "starknet_core::serde::unsigned_field_element::UfeHex")
     )]
-    pub initial_ecdsa_addr: Felt,
+    pub initial_ecdsa_addr: F,
     #[cfg_attr(
         feature = "std",
         serde_as(as = "starknet_core::serde::unsigned_field_element::UfeHex")
     )]
-    pub initial_bitwise_addr: Felt,
+    pub initial_bitwise_addr: F,
     #[cfg_attr(
         feature = "std",
         serde_as(as = "starknet_core::serde::unsigned_field_element::UfeHex")
     )]
-    pub initial_ec_op_addr: Felt,
+    pub initial_ec_op_addr: F,
     #[cfg_attr(
         feature = "std",
         serde_as(as = "starknet_core::serde::unsigned_field_element::UfeHex")
     )]
-    pub initial_keccak_addr: Felt,
+    pub initial_keccak_addr: F,
     #[cfg_attr(
         feature = "std",
         serde_as(as = "starknet_core::serde::unsigned_field_element::UfeHex")
     )]
-    pub initial_poseidon_addr: Felt,
+    pub initial_poseidon_addr: F,
     #[cfg_attr(
         feature = "std",
         serde_as(as = "starknet_core::serde::unsigned_field_element::UfeHex")
     )]
-    pub range_check_min: Felt,
+    pub range_check_min: F,
     #[cfg_attr(
         feature = "std",
         serde_as(as = "starknet_core::serde::unsigned_field_element::UfeHex")
     )]
-    pub range_check_max: Felt,
+    pub range_check_max: F,
     // Constants.
     #[cfg_attr(
         feature = "std",
         serde_as(as = "starknet_core::serde::unsigned_field_element::UfeHex")
     )]
-    pub offset_size: Felt,
+    pub offset_size: F,
     #[cfg_attr(
         feature = "std",
         serde_as(as = "starknet_core::serde::unsigned_field_element::UfeHex")
     )]
-    pub half_offset_size: Felt,
-    pub pedersen_shift_point: EcPoint,
-    pub ecdsa_sig_config: EcdsaSigConfig,
-    pub ec_op_curve_config: CurveConfig,
+    pub half_offset_size: F,
+    pub pedersen_shift_point: EcPoint<F>,
+    pub ecdsa_sig_config: EcdsaSigConfig<F>,
+    pub ec_op_curve_config: CurveConfig<F>,
     // Periodic columns.
     #[cfg_attr(
         feature = "std",
         serde_as(as = "starknet_core::serde::unsigned_field_element::UfeHex")
     )]
-    pub pedersen_points_x: Felt,
+    pub pedersen_points_x: F,
     #[cfg_attr(
         feature = "std",
         serde_as(as = "starknet_core::serde::unsigned_field_element::UfeHex")
     )]
-    pub pedersen_points_y: Felt,
+    pub pedersen_points_y: F,
     #[cfg_attr(
         feature = "std",
         serde_as(as = "starknet_core::serde::unsigned_field_element::UfeHex")
     )]
-    pub ecdsa_generator_points_x: Felt,
+    pub ecdsa_generator_points_x: F,
     #[cfg_attr(
         feature = "std",
         serde_as(as = "starknet_core::serde::unsigned_field_element::UfeHex")
     )]
-    pub ecdsa_generator_points_y: Felt,
+    pub ecdsa_generator_points_y: F,
     #[cfg_attr(
         feature = "std",
         serde_as(as = "starknet_core::serde::unsigned_field_element::UfeHex")
     )]
-    pub keccak_keccak_keccak_round_key0: Felt,
+    pub keccak_keccak_keccak_round_key0: F,
     #[cfg_attr(
         feature = "std",
         serde_as(as = "starknet_core::serde::unsigned_field_element::UfeHex")
     )]
-    pub keccak_keccak_keccak_round_key1: Felt,
+    pub keccak_keccak_keccak_round_key1: F,
     #[cfg_attr(
         feature = "std",
         serde_as(as = "starknet_core::serde::unsigned_field_element::UfeHex")
     )]
-    pub keccak_keccak_keccak_round_key3: Felt,
+    pub keccak_keccak_keccak_round_key3: F,
     #[cfg_attr(
         feature = "std",
         serde_as(as = "starknet_core::serde::unsigned_field_element::UfeHex")
     )]
-    pub keccak_keccak_keccak_round_key7: Felt,
+    pub keccak_keccak_keccak_round_key7: F,
     #[cfg_attr(
         feature = "std",
         serde_as(as = "starknet_core::serde::unsigned_field_element::UfeHex")
     )]
-    pub keccak_keccak_keccak_round_key15: Felt,
+    pub keccak_keccak_keccak_round_key15: F,
     #[cfg_attr(
         feature = "std",
         serde_as(as = "starknet_core::serde::unsigned_field_element::UfeHex")
     )]
-    pub keccak_keccak_keccak_round_key31: Felt,
+    pub keccak_keccak_keccak_round_key31: F,
     #[cfg_attr(
         feature = "std",
         serde_as(as = "starknet_core::serde::unsigned_field_element::UfeHex")
     )]
-    pub keccak_keccak_keccak_round_key63: Felt,
+    pub keccak_keccak_keccak_round_key63: F,
     #[cfg_attr(
         feature = "std",
         serde_as(as = "starknet_core::serde::unsigned_field_element::UfeHex")
     )]
-    pub poseidon_poseidon_full_round_key0: Felt,
+    pub poseidon_poseidon_full_round_key0: F,
     #[cfg_attr(
         feature = "std",
         serde_as(as = "starknet_core::serde::unsigned_field_element::UfeHex")
     )]
-    pub poseidon_poseidon_full_round_key1: Felt,
+    pub poseidon_poseidon_full_round_key1: F,
     #[cfg_attr(
         feature = "std",
         serde_as(as = "starknet_core::serde::unsigned_field_element::UfeHex")
     )]
-    pub poseidon_poseidon_full_round_key2: Felt,
+    pub poseidon_poseidon_full_round_key2: F,
     #[cfg_attr(
         feature = "std",
         serde_as(as = "starknet_core::serde::unsigned_field_element::UfeHex")
     )]
-    pub poseidon_poseidon_partial_round_key0: Felt,
+    pub poseidon_poseidon_partial_round_key0: F,
     #[cfg_attr(
         feature = "std",
         serde_as(as = "starknet_core::serde::unsigned_field_element::UfeHex")
     )]
-    pub poseidon_poseidon_partial_round_key1: Felt,
+    pub poseidon_poseidon_partial_round_key1: F,
     // Interaction elements.
     #[cfg_attr(
         feature = "std",
         serde_as(as = "starknet_core::serde::unsigned_field_element::UfeHex")
     )]
-    pub memory_multi_column_perm_perm_interaction_elm: Felt,
+    pub memory_multi_column_perm_perm_interaction_elm: F,
     #[cfg_attr(
         feature = "std",
         serde_as(as = "starknet_core::serde::unsigned_field_element::UfeHex")
     )]
-    pub memory_multi_column_perm_hash_interaction_elm0: Felt,
+    pub memory_multi_column_perm_hash_interaction_elm0: F,
     #[cfg_attr(
         feature = "std",
         serde_as(as = "starknet_core::serde::unsigned_field_element::UfeHex")
     )]
-    pub range_check16_perm_interaction_elm: Felt,
+    pub range_check16_perm_interaction_elm: F,
     #[cfg_attr(
         feature = "std",
         serde_as(as = "starknet_core::serde::unsigned_field_element::UfeHex")
     )]
-    pub diluted_check_permutation_interaction_elm: Felt,
+    pub diluted_check_permutation_interaction_elm: F,
     #[cfg_attr(
         feature = "std",
         serde_as(as = "starknet_core::serde::unsigned_field_element::UfeHex")
     )]
-    pub diluted_check_interaction_z: Felt,
+    pub diluted_check_interaction_z: F,
     #[cfg_attr(
         feature = "std",
         serde_as(as = "starknet_core::serde::unsigned_field_element::UfeHex")
     )]
-    pub diluted_check_interaction_alpha: Felt,
+    pub diluted_check_interaction_alpha: F,
     // Permutation products.
     #[cfg_attr(
         feature = "std",
         serde_as(as = "starknet_core::serde::unsigned_field_element::UfeHex")
     )]
-    pub memory_multi_column_perm_perm_public_memory_prod: Felt,
+    pub memory_multi_column_perm_perm_public_memory_prod: F,
     #[cfg_attr(
         feature = "std",
         serde_as(as = "starknet_core::serde::unsigned_field_element::UfeHex")
     )]
-    pub range_check16_perm_public_memory_prod: Felt,
+    pub range_check16_perm_public_memory_prod: F,
     #[cfg_attr(
         feature = "std",
         serde_as(as = "starknet_core::serde::unsigned_field_element::UfeHex")
     )]
-    pub diluted_check_first_elm: Felt,
+    pub diluted_check_first_elm: F,
     #[cfg_attr(
         feature = "std",
         serde_as(as = "starknet_core::serde::unsigned_field_element::UfeHex")
     )]
-    pub diluted_check_permutation_public_memory_prod: Felt,
+    pub diluted_check_permutation_public_memory_prod: F,
     #[cfg_attr(
         feature = "std",
         serde_as(as = "starknet_core::serde::unsigned_field_element::UfeHex")
     )]
-    pub diluted_check_final_cum_val: Felt,
+    pub diluted_check_final_cum_val: F,
 }
 
 // Elements that are sent from the prover after the commitment on the original trace.
 // Used for components after the first interaction, e.g., memory and range check.
 #[serde_as]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct InteractionElements {
+pub struct InteractionElements<F: SimpleField + PoseidonHash> {
     #[cfg_attr(
         feature = "std",
         serde_as(as = "starknet_core::serde::unsigned_field_element::UfeHex")
     )]
-    pub memory_multi_column_perm_perm_interaction_elm: Felt,
+    pub memory_multi_column_perm_perm_interaction_elm: F,
     #[cfg_attr(
         feature = "std",
         serde_as(as = "starknet_core::serde::unsigned_field_element::UfeHex")
     )]
-    pub memory_multi_column_perm_hash_interaction_elm0: Felt,
+    pub memory_multi_column_perm_hash_interaction_elm0: F,
     #[cfg_attr(
         feature = "std",
         serde_as(as = "starknet_core::serde::unsigned_field_element::UfeHex")
     )]
-    pub range_check16_perm_interaction_elm: Felt,
+    pub range_check16_perm_interaction_elm: F,
     #[cfg_attr(
         feature = "std",
         serde_as(as = "starknet_core::serde::unsigned_field_element::UfeHex")
     )]
-    pub diluted_check_permutation_interaction_elm: Felt,
+    pub diluted_check_permutation_interaction_elm: F,
     #[cfg_attr(
         feature = "std",
         serde_as(as = "starknet_core::serde::unsigned_field_element::UfeHex")
     )]
-    pub diluted_check_interaction_z: Felt,
+    pub diluted_check_interaction_z: F,
     #[cfg_attr(
         feature = "std",
         serde_as(as = "starknet_core::serde::unsigned_field_element::UfeHex")
     )]
-    pub diluted_check_interaction_alpha: Felt,
+    pub diluted_check_interaction_alpha: F,
 }
 
-impl InteractionElements {
-    pub fn new(transcript: &mut Transcript) -> Self {
+impl<F: SimpleField + PoseidonHash> InteractionElements<F> {
+    pub fn new(transcript: &mut Transcript<F>) -> Self {
         Self {
             memory_multi_column_perm_perm_interaction_elm: transcript.random_felt_to_prover(),
             memory_multi_column_perm_hash_interaction_elm0: transcript.random_felt_to_prover(),

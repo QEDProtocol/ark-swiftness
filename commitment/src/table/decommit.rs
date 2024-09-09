@@ -11,11 +11,11 @@ use starknet_crypto::Felt;
 // #[cfg(feature = "keccak")]
 // use sha3::Keccak256;
 use swiftness_field::SimpleField;
-use swiftness_hash::poseidon::{poseidon_hash_many, Permute};
+use swiftness_hash::poseidon::{PoseidonHash};
 
 use super::types::{Commitment, Decommitment, Witness};
 
-pub fn table_decommit<F: SimpleField + Permute>(
+pub fn table_decommit<F: SimpleField + PoseidonHash>(
     commitment: Commitment<F>,
     queries: &[F],
     decommitment: Decommitment<F>,
@@ -69,7 +69,7 @@ pub fn table_decommit<F: SimpleField + Permute>(
     )?)
 }
 
-fn generate_vector_queries<F: SimpleField + Permute>(
+fn generate_vector_queries<F: SimpleField + PoseidonHash>(
     queries: &[F],
     values: &[F],
     n_columns: u32,
@@ -81,7 +81,7 @@ fn generate_vector_queries<F: SimpleField + Permute>(
             values[i].clone()
         } else if is_verifier_friendly {
             let slice = &values[(i * n_columns as usize)..((i + 1) * n_columns as usize)];
-            poseidon_hash_many(slice)
+            PoseidonHash::hash_many(slice)
         } else {
             todo!()
             // let slice = &values[(i * n_columns as usize)..((i + 1) * n_columns as usize)];

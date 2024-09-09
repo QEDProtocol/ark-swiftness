@@ -3,8 +3,9 @@ use alloc::vec;
 use alloc::vec::Vec;
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
-use starknet_core::types::NonZeroFelt;
-use starknet_crypto::{pedersen_hash, poseidon_hash_many, Felt};
+use starknet_crypto::{Felt};
+use swiftness_field::SimpleField;
+use swiftness_hash::poseidon::{PoseidonHash};
 
 pub const MAX_LOG_N_STEPS: Felt = Felt::from_hex_unchecked("50");
 pub const MAX_RANGE_CHECK: Felt = Felt::from_hex_unchecked("0xffff");
@@ -13,123 +14,124 @@ pub const INITIAL_PC: Felt = Felt::from_hex_unchecked("0x1");
 
 #[serde_as]
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
-pub struct PublicInput {
+pub struct PublicInput<F: SimpleField + PoseidonHash> {
     #[cfg_attr(
         feature = "std",
         serde_as(as = "starknet_core::serde::unsigned_field_element::UfeHex")
     )]
-    pub log_n_steps: Felt,
+    pub log_n_steps: F,
     #[cfg_attr(
         feature = "std",
         serde_as(as = "starknet_core::serde::unsigned_field_element::UfeHex")
     )]
-    pub range_check_min: Felt,
+    pub range_check_min: F,
     #[cfg_attr(
         feature = "std",
         serde_as(as = "starknet_core::serde::unsigned_field_element::UfeHex")
     )]
-    pub range_check_max: Felt,
+    pub range_check_max: F,
     #[cfg_attr(
         feature = "std",
         serde_as(as = "starknet_core::serde::unsigned_field_element::UfeHex")
     )]
-    pub layout: Felt,
+    pub layout: F,
     #[cfg_attr(
         feature = "std",
         serde_as(as = "Vec<starknet_core::serde::unsigned_field_element::UfeHex>")
     )]
-    pub dynamic_params: Vec<Felt>,
-    pub segments: Vec<SegmentInfo>,
+    pub dynamic_params: Vec<F>,
+    pub segments: Vec<SegmentInfo<F>>,
     #[cfg_attr(
         feature = "std",
         serde_as(as = "starknet_core::serde::unsigned_field_element::UfeHex")
     )]
-    pub padding_addr: Felt,
+    pub padding_addr: F,
     #[cfg_attr(
         feature = "std",
         serde_as(as = "starknet_core::serde::unsigned_field_element::UfeHex")
     )]
-    pub padding_value: Felt,
-    pub main_page: Page,
-    pub continuous_page_headers: Vec<ContinuousPageHeader>,
+    pub padding_value: F,
+    pub main_page: Page<F>,
+    pub continuous_page_headers: Vec<ContinuousPageHeader<F>>,
 }
 
-impl PublicInput {
+impl<F: SimpleField + PoseidonHash> PublicInput<F> {
     // Returns the ratio between the product of all public memory cells and z^|public_memory|.
     // This is the value that needs to be at the memory__multi_column_perm__perm__public_memory_prod
     // member expression.
     pub fn get_public_memory_product_ratio(
         &self,
-        z: Felt,
-        alpha: Felt,
-        public_memory_column_size: Felt,
-    ) -> Felt {
-        let (pages_product, total_length) = self.get_public_memory_product(z, alpha);
+        z: F,
+        alpha: F,
+        public_memory_column_size: F,
+    ) -> F {
+        let (pages_product, total_length) = self.get_public_memory_product(z.clone(), alpha.clone());
 
         // Pad and divide
-        let numerator = z.pow_felt(&public_memory_column_size);
-        let padded = z - (self.padding_addr + alpha * self.padding_value);
+        let numerator = z.powers_felt(&public_memory_column_size);
+        let padded = z - (self.padding_addr.clone() + alpha.clone() * &self.padding_value);
 
-        assert!(total_length <= public_memory_column_size);
-        let denominator_pad = padded.pow_felt(&(public_memory_column_size - total_length));
+        // assert!(total_length <= public_memory_column_size);
+        total_length.assert_lte(&public_memory_column_size);
+        let denominator_pad = padded.powers_felt(&(public_memory_column_size - total_length));
 
         numerator
-            .field_div(&NonZeroFelt::from_felt_unchecked(pages_product))
-            .field_div(&NonZeroFelt::from_felt_unchecked(denominator_pad))
+            .field_div(&pages_product)
+            .field_div(&denominator_pad)
     }
     // Returns the product of all public memory cells.
-    pub fn get_public_memory_product(&self, z: Felt, alpha: Felt) -> (Felt, Felt) {
+    pub fn get_public_memory_product(&self, z: F, alpha: F) -> (F, F) {
         let main_page_prod = self.main_page.get_product(z, alpha);
 
         let (continuous_pages_prod, continuous_pages_total_length) =
             get_continuous_pages_product(&self.continuous_page_headers);
 
         let prod = main_page_prod * continuous_pages_prod;
-        let total_length = Felt::from(self.main_page.len()) + continuous_pages_total_length;
+        let total_length = F::from_constant(self.main_page.len() as u64) + &continuous_pages_total_length;
 
         (prod, total_length)
     }
 
-    pub fn get_hash(&self) -> Felt {
-        let mut main_page_hash = Felt::ZERO;
+    pub fn get_hash(&self) -> F {
+        let mut main_page_hash = F::zero();
         for memory in self.main_page.iter() {
-            main_page_hash = pedersen_hash(&main_page_hash, &memory.address);
-            main_page_hash = pedersen_hash(&main_page_hash, &memory.value);
+            main_page_hash = PoseidonHash::hash(main_page_hash.clone(), memory.address.clone());
+            main_page_hash = PoseidonHash::hash(main_page_hash.clone(), memory.value.clone());
         }
         main_page_hash =
-            pedersen_hash(&main_page_hash, &(Felt::TWO * Felt::from(self.main_page.len())));
+            PoseidonHash::hash(main_page_hash, F::two() * F::from_constant(self.main_page.len() as u128));
 
         let mut hash_data =
-            vec![self.log_n_steps, self.range_check_min, self.range_check_max, self.layout];
-        hash_data.extend(self.dynamic_params.iter());
+            vec![self.log_n_steps.clone(), self.range_check_min.clone(), self.range_check_max.clone(), self.layout.clone()];
+        hash_data.extend(self.dynamic_params.iter().cloned());
 
         // Segments.
-        hash_data.extend(self.segments.iter().flat_map(|s| vec![s.begin_addr, s.stop_ptr]));
+        hash_data.extend(self.segments.iter().flat_map(|s| vec![s.begin_addr.clone(), s.stop_ptr.clone()]));
 
-        hash_data.push(self.padding_addr);
-        hash_data.push(self.padding_value);
-        hash_data.push(Felt::from(self.continuous_page_headers.len() + 1));
+        hash_data.push(self.padding_addr.clone());
+        hash_data.push(self.padding_value.clone());
+        hash_data.push(F::from_constant((self.continuous_page_headers.len() + 1) as u64));
 
         // Main page.
-        hash_data.push(Felt::from(self.main_page.len()));
+        hash_data.push(F::from_constant(self.main_page.len() as u64));
         hash_data.push(main_page_hash);
 
         // Add the rest of the pages.
         hash_data.extend(
-            self.continuous_page_headers.iter().flat_map(|h| vec![h.start_address, h.size, h.hash]),
+            self.continuous_page_headers.iter().flat_map(|h| vec![h.start_address.clone(), h.size.clone(), h.hash.clone()]),
         );
 
-        poseidon_hash_many(&hash_data)
+        PoseidonHash::hash_many(&hash_data)
     }
 }
 
-fn get_continuous_pages_product(page_headers: &[ContinuousPageHeader]) -> (Felt, Felt) {
-    let mut res = Felt::ONE;
-    let mut total_length = Felt::ZERO;
+fn get_continuous_pages_product<F: SimpleField + PoseidonHash>(page_headers: &[ContinuousPageHeader<F>]) -> (F, F) {
+    let mut res = F::one();
+    let mut total_length = F::zero();
 
     for header in page_headers {
-        res *= header.prod;
-        total_length += header.size
+        res *= &header.prod;
+        total_length += &header.size
     }
 
     (res, total_length)

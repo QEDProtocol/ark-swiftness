@@ -9,15 +9,14 @@ use alloc::vec::Vec;
 // #[cfg(feature = "keccak")]
 // use sha3::Keccak256;
 use swiftness_field::SimpleField;
-use swiftness_hash::poseidon::poseidon_hash;
-use swiftness_hash::poseidon::Permute;
+use swiftness_hash::poseidon::PoseidonHash;
 
-pub fn vector_commitment_decommit<F: SimpleField + Permute>(
+pub fn vector_commitment_decommit<F: SimpleField + PoseidonHash>(
     commitment: Commitment<F>,
     queries: &[Query<F>],
     witness: Witness<F>,
 ) -> Result<(), Error<F>> {
-    let shift = F::two().powers_felt(commitment.config.height.clone());
+    let shift = F::two().powers_felt(&commitment.config.height);
     // Shifts the query indices by shift=2**height, to convert index representation to heap-like.
     let shifted_queries: Vec<QueryWithDepth<F>> = queries
         .iter()
@@ -42,7 +41,7 @@ pub fn vector_commitment_decommit<F: SimpleField + Permute>(
     Ok(())
 }
 
-pub fn compute_root_from_queries<F: SimpleField + Permute>(
+pub fn compute_root_from_queries<F: SimpleField + PoseidonHash>(
     queue: &[QueryWithDepth<F>],
     start: usize,
     n_verifier_friendly_layers: F,
@@ -52,12 +51,12 @@ pub fn compute_root_from_queries<F: SimpleField + Permute>(
     let current = queue.get(start).ok_or(Error::IndexInvalid)?;
 
     // Check if we've reached the root
-    let is_root = current.index.is_eq(&F::one());
+    let is_root = current.index.is_equal(&F::one());
     let root_value = current.value.clone();
 
     // Compute non-root case
     let (parent, bit) = current.index.div2_rem();
-    let is_left_child = bit.is_eq(&F::zero());
+    let is_left_child = bit.is_equal(&F::zero());
 
     // TODO: allow non-verifier friendly
     // let is_verifier_friendly = n_verifier_friendly_layers >= current.depth;
@@ -69,9 +68,9 @@ pub fn compute_root_from_queries<F: SimpleField + Permute>(
             <F as SimpleField>::and(
                 &<F as SimpleField>::not(
                     &F::from_constant((start + 1) as u64)
-                        .is_eq(&F::from_constant(queue.len() as u64)),
+                        .is_equal(&F::from_constant(queue.len() as u64)),
                 ),
-                &(current.index.clone() + F::one()).is_eq(&next.index),
+                &(current.index.clone() + F::one()).is_equal(&next.index),
             )
         })
         .ok_or(Error::IndexInvalid)?;
@@ -130,9 +129,9 @@ pub fn compute_root_from_queries<F: SimpleField + Permute>(
     Ok(SimpleField::select(&is_root, root_value, sub_result))
 }
 
-fn hash_friendly_unfriendly<F: SimpleField + Permute>(x: F, y: F, is_verifier_friendly: bool) -> F {
+fn hash_friendly_unfriendly<F: SimpleField + PoseidonHash>(x: F, y: F, is_verifier_friendly: bool) -> F {
     if is_verifier_friendly {
-        poseidon_hash(x, y)
+        PoseidonHash::hash(x, y)
     } else {
         todo!()
         // TODO: implement unfriendly hash
