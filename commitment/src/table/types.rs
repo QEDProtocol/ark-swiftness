@@ -4,11 +4,11 @@ use alloc::vec::Vec;
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 use swiftness_field::SimpleField;
-use swiftness_hash::poseidon::Permute;
+use swiftness_hash::poseidon::PoseidonHash;
 
 // Commitment for a table (n_rows x n_columns) of field elements in montgomery form.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct Commitment<F: SimpleField + Permute> {
+pub struct Commitment<F: SimpleField + PoseidonHash> {
     pub config: Config<F>,
     pub vector_commitment: vector::types::Commitment<F>,
 }
@@ -17,7 +17,7 @@ pub struct Commitment<F: SimpleField + Permute> {
 // Each query corresponds to a full row of the table.
 #[serde_as]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct Decommitment<F: SimpleField + Permute> {
+pub struct Decommitment<F: SimpleField + PoseidonHash> {
     // n_columns * n_queries values to decommit.
     #[cfg_attr(
         feature = "std",
@@ -28,6 +28,6 @@ pub struct Decommitment<F: SimpleField + Permute> {
 
 // Witness for a decommitment over queries.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct Witness<F: SimpleField + Permute> {
+pub struct Witness<F: SimpleField + PoseidonHash> {
     pub vector: vector::types::Witness<F>,
 }

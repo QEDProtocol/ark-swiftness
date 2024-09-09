@@ -292,8 +292,12 @@ dependencies = [
 name = "ark_swiftness_air"
 version = "0.0.1"
 dependencies = [
+ "ark-ec",
+ "ark-ff",
+ "ark-r1cs-std",
  "ark_swiftness_commitment",
  "ark_swiftness_field",
+ "ark_swiftness_hash",
  "ark_swiftness_transcript",
  "ark_swiftness_utils",
  "serde",
@@ -374,30 +378,23 @@ dependencies = [
 name = "ark_swiftness_hash"
 version = "0.0.1"
 dependencies = [
+ "ark-bls12-381",
  "ark-crypto-primitives",
  "ark-ec",
  "ark-ff",
  "ark-poly",
  "ark-r1cs-std",
+ "ark-relations",
  "ark-std",
  "ark_swiftness_field",
  "ark_swiftness_utils",
+ "blake2",
  "num-bigint",
  "num-traits",
  "once_cell",
  "ruint",
  "starknet-core",
  "starknet-crypto",
- "static_assertions",
-]
-
-[[package]]
-name = "ark_swiftness_merkle_tree"
-version = "0.0.1"
-dependencies = [
- "ark-crypto-primitives",
- "ark-ff",
- "ark-std",
  "static_assertions",
 ]
 
@@ -411,6 +408,7 @@ dependencies = [
  "ark_swiftness_transcript",
  "ark_swiftness_utils",
  "blake2",
+ "cfg-if",
  "serde",
  "sha3",
  "starknet-crypto",
@@ -443,10 +441,14 @@ dependencies = [
 name = "ark_swiftness_stark"
 version = "0.0.1"
 dependencies = [
+ "ark-ec",
+ "ark-ff",
+ "ark-r1cs-std",
  "ark_swiftness_air",
  "ark_swiftness_commitment",
  "ark_swiftness_field",
  "ark_swiftness_fri",
+ "ark_swiftness_hash",
  "ark_swiftness_pow",
  "ark_swiftness_transcript",
  "ark_swiftness_utils",
@@ -479,6 +481,7 @@ dependencies = [
  "ark-ec",
  "ark-ff",
  "ark-poly",
+ "ark-r1cs-std",
  "ark-serialize",
  "ark_swiftness_field",
  "bincode",

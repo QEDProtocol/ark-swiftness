@@ -1,17 +1,17 @@
 use alloc::vec::Vec;
 use starknet_crypto::Felt;
 
-pub struct FriLayerComputationParams {
-    pub coset_size: Felt,
-    pub fri_group: Vec<Felt>,
-    pub eval_point: Felt,
+pub struct FriLayerComputationParams<F: SimpleField + PoseidonHash> {
+    pub coset_size: F,
+    pub fri_group: Vec<F>,
+    pub eval_point: F,
 }
 
 #[derive(PartialEq, Eq, Debug)]
-pub struct FriLayerQuery {
-    pub index: Felt,
-    pub y_value: Felt,
-    pub x_inv_value: Felt,
+pub struct FriLayerQuery<F: SimpleField + PoseidonHash> {
+    pub index: F,
+    pub y_value: F,
+    pub x_inv_value: F,
 }
 
 // Computes the elements of the coset starting at coset_start_index.
@@ -27,25 +27,27 @@ pub struct FriLayerQuery {
 //   - coset_elements: the values of the coset elements.
 //   - coset_x_inv: x_inv of the first element in the coset. This value is set only if at least one
 //     query was consumed by this function.
-pub fn compute_coset_elements(
-    queries: &mut Vec<FriLayerQuery>,
-    sibling_witness: &mut Vec<Felt>,
-    coset_size: Felt,
-    coset_start_index: Felt,
-    fri_group: &[Felt],
-) -> (Vec<Felt>, Felt) {
+pub fn compute_coset_elements<F: SimpleField + PoseidonHash>(
+    queries: &mut Vec<FriLayerQuery<F>>,
+    sibling_witness: &mut Vec<F>,
+    coset_size: F,
+    coset_start_index: F,
+    fri_group: &[F],
+) -> (Vec<F>, F) {
     let mut coset_elements = Vec::new();
-    let mut coset_x_inv = Felt::ZERO;
-    let coset_size: usize = coset_size.to_biguint().try_into().unwrap();
+    let mut coset_x_inv = F::zero();
+    let coset_size: usize = coset_size.into_constant().try_into().unwrap();
     for index in 0..coset_size {
         let q = queries.first();
-        if q.is_some() && q.unwrap().index == coset_start_index + Felt::from(index) {
-            let query: Vec<FriLayerQuery> = queries.drain(0..1).collect();
-            coset_elements.push(query[0].y_value);
-            coset_x_inv = query[0].x_inv_value * fri_group.get(index).unwrap();
+        // TODO: enable && q.unwrap().index == coset_start_index + F::from_constant(index as u64)
+        // q.is_some() && && q.unwrap().index == coset_start_index + F::from_constant(index as u64)
+        if q.is_some()  {
+            let query: Vec<FriLayerQuery<F>> = queries.drain(0..1).collect();
+            coset_elements.push(query[0].y_value.clone());
+            coset_x_inv = query[0].x_inv_value.clone() * fri_group.get(index).unwrap();
         } else {
-            let withness: Vec<Felt> = sibling_witness.drain(0..1).collect();
-            coset_elements.push(withness[0]);
+            let withness: Vec<F> = sibling_witness.drain(0..1).collect();
+            coset_elements.push(withness[0].clone());
         }
     }
 
@@ -65,37 +67,37 @@ pub fn compute_coset_elements(
 //   - verify_indices: query indices of the given layer for Merkle verification.
 //   - verify_y_values: query y values of the given layer for Merkle verification.
 #[allow(clippy::type_complexity)]
-pub fn compute_next_layer(
-    queries: &mut Vec<FriLayerQuery>,
-    sibling_witness: &mut Vec<Felt>,
-    params: FriLayerComputationParams,
-) -> Result<(Vec<FriLayerQuery>, Vec<Felt>, Vec<Felt>), FriError> {
+pub fn compute_next_layer<F: SimpleField + PoseidonHash>(
+    queries: &mut Vec<FriLayerQuery<F>>,
+    sibling_witness: &mut Vec<F>,
+    params: FriLayerComputationParams<F>,
+) -> Result<(Vec<FriLayerQuery<F>>, Vec<F>, Vec<F>), FriError> {
     let mut next_queries = Vec::new();
     let mut verify_indices = Vec::new();
     let mut verify_y_values = Vec::new();
 
-    let coset_size = params.coset_size;
+    let coset_size = params.coset_size.clone();
     while !queries.is_empty() {
-        let query_uint = queries.first().unwrap().index.to_biguint();
-        let coset_size_uint = coset_size.to_biguint();
+        let query_uint = queries.first().unwrap().index.into_constant();
+        let coset_size_uint = coset_size.clone().into_constant();
         let coset_index =
-            Felt::from_bytes_be_slice((query_uint / coset_size_uint).to_bytes_be().as_slice());
+            F::from_stark_felt(Felt::from_bytes_be_slice((query_uint / coset_size_uint).to_be_bytes().as_slice()));
 
-        verify_indices.push(coset_index);
+        verify_indices.push(coset_index.clone());
 
         let (coset_elements, coset_x_inv) = compute_coset_elements(
             queries,
             sibling_witness,
-            coset_size,
-            coset_index * coset_size,
+            coset_size.clone(),
+            coset_index.clone() * &coset_size,
             &params.fri_group,
         );
-        verify_y_values.extend(coset_elements.iter());
+        verify_y_values.extend(coset_elements.iter().cloned());
 
         let fri_formula_res =
-            fri_formula(coset_elements, params.eval_point, coset_x_inv, coset_size)?;
+            fri_formula(coset_elements, params.eval_point.clone(), coset_x_inv.clone(), coset_size.clone())?;
 
-        let next_x_inv = coset_x_inv.pow_felt(&params.coset_size);
+        let next_x_inv = coset_x_inv.powers_felt(&params.coset_size);
         next_queries.push(FriLayerQuery {
             index: coset_index,
             y_value: fri_formula_res,
@@ -106,6 +108,8 @@ pub fn compute_next_layer(
     Ok((next_queries, verify_indices, verify_y_values))
 }
 
+use swiftness_field::SimpleField;
+use swiftness_hash::poseidon::PoseidonHash;
 use thiserror_no_std::Error;
 
 use crate::formula::fri_formula;

@@ -10,9 +10,13 @@ use ark_r1cs_std::eq::EqGadget;
 use ark_r1cs_std::fields::fp::FpVar;
 use ark_r1cs_std::fields::FieldVar;
 use ark_r1cs_std::prelude::Boolean;
+use ark_r1cs_std::uint8::UInt8;
 use ark_r1cs_std::ToBitsGadget;
+use ark_r1cs_std::ToBytesGadget;
 use ark_relations::ns;
 use num_integer::Integer;
+use ark_ff::{biginteger::BigInteger256 as B, BigInteger as _};
+
 
 use std::ops::*;
 
@@ -22,6 +26,13 @@ use std::ops::*;
 pub struct FpMontConfig;
 
 pub type Fp = Fp256<MontBackend<FpMontConfig, 4>>;
+
+#[derive(MontConfig)]
+#[modulus = "3618502788666131213697322783095070105526743751716087489154079457884512865583"]
+#[generator = "3"]
+pub struct FrMontConfig;
+
+pub type Fr = Fp256<MontBackend<FrMontConfig, 4>>;
 
 pub trait StarkArkConvert {
     fn to_stark_felt(self) -> starknet_crypto::Felt;
@@ -63,14 +74,17 @@ pub trait SimpleField:
     + for<'a> MulAssign<&'a Self>
 {
     type BooleanType;
+    type ByteType: Clone;
 
     fn zero() -> Self;
     fn one() -> Self;
     fn two() -> Self;
+    fn three() -> Self;
+    fn four() -> Self;
     fn negate(&self) -> Self;
     fn inv(&self) -> Option<Self>;
     fn powers<Exp: AsRef<[u64]>>(&self, n: Exp) -> Self;
-    fn powers_felt(&self, n: Self) -> Self;
+    fn powers_felt(&self, n: &Self) -> Self;
     fn from_constant(value: impl Into<u128>) -> Self;
     fn into_constant(&self) -> u128;
     fn from_felt(value: Fp) -> Self;
@@ -79,15 +93,36 @@ pub trait SimpleField:
     fn assert_not_equal(&self, other: &Self);
     fn div_rem(&self, other: &Self) -> (Self, Self);
     fn div2_rem(&self) -> (Self, Self);
+    fn rsh(&self, n: usize) -> Self;
+    fn lsh(&self, n: usize) -> Self;
+    fn field_div(&self, other: &Self) -> Self;
     fn select(cond: &Self::BooleanType, true_value: Self, false_value: Self) -> Self;
-    fn is_eq(&self, other: &Self) -> Self::BooleanType;
+    fn is_equal(&self, other: &Self) -> Self::BooleanType;
+    fn is_not_equal(&self, other: &Self) -> Self::BooleanType;
     fn and(lhs: &Self::BooleanType, rhs: &Self::BooleanType) -> Self::BooleanType;
     fn or(lhs: &Self::BooleanType, rhs: &Self::BooleanType) -> Self::BooleanType;
     fn not(value: &Self::BooleanType) -> Self::BooleanType;
+    fn gt(&self, other: &Self) -> Self::BooleanType;
+    fn lt(&self, other: &Self) -> Self::BooleanType;
+    fn lte(&self, other: &Self) -> Self::BooleanType;
+    fn gte(&self, other: &Self) -> Self::BooleanType;
+    fn assert_true(value: Self::BooleanType);
+    fn assert_false(value: Self::BooleanType);
+    fn assert_gt(&self, other: &Self);
+    fn assert_lt(&self, other: &Self);
+    fn assert_lte(&self, other: &Self);
+    fn assert_gte(&self, other: &Self);
+    fn to_le_bytes(&self) -> Vec<Self::ByteType>;
+    fn to_be_bytes(&self) -> Vec<Self::ByteType>;
+    fn from_be_bytes(bytes: &[Self::ByteType]) -> Self;
+    fn to_le_bits(&self) -> Vec<Self::BooleanType>;
+    fn to_be_bits(&self) -> Vec<Self::BooleanType>;
+    fn construct_byte(value: u8) -> Self::ByteType;
 }
 
 impl<F: PrimeField + SimpleField> SimpleField for FpVar<F> {
     type BooleanType = Boolean<F>;
+    type ByteType = UInt8<F>;
 
     fn zero() -> Self {
         FpVar::Constant(SimpleField::zero())
@@ -140,8 +175,8 @@ impl<F: PrimeField + SimpleField> SimpleField for FpVar<F> {
         assert!(ark_r1cs_std::eq::EqGadget::enforce_not_equal(self, other).is_ok());
     }
 
-    fn powers_felt(&self, n: Self) -> Self {
-        ark_r1cs_std::bits::ToBitsGadget::to_bits_le(&n)
+    fn powers_felt(&self, n: &Self) -> Self {
+        ark_r1cs_std::bits::ToBitsGadget::to_bits_le(n)
             .and_then(|bits| FieldVar::pow_le(self, &bits))
             .unwrap()
     }
@@ -217,7 +252,7 @@ impl<F: PrimeField + SimpleField> SimpleField for FpVar<F> {
         cond.select(&a, &b).unwrap()
     }
 
-    fn is_eq(&self, other: &Self) -> Self::BooleanType {
+    fn is_equal(&self, other: &Self) -> Self::BooleanType {
         EqGadget::is_eq(self, other).unwrap()
     }
 
@@ -232,10 +267,121 @@ impl<F: PrimeField + SimpleField> SimpleField for FpVar<F> {
     fn not(value: &Self::BooleanType) -> Self::BooleanType {
         Boolean::not(value)
     }
+
+    fn assert_gt(&self, other: &Self) {
+        FpVar::<F>::enforce_cmp(self, other, core::cmp::Ordering::Greater, false).unwrap();
+    }
+
+    fn assert_lt(&self, other: &Self) {
+        FpVar::<F>::enforce_cmp(self, other, core::cmp::Ordering::Less, false).unwrap();
+    }
+
+    fn assert_gte(&self, other: &Self) {
+        FpVar::<F>::enforce_cmp(self, other, core::cmp::Ordering::Greater, true).unwrap();
+    }
+
+    fn assert_lte(&self, other: &Self) {
+        FpVar::<F>::enforce_cmp(self, other, core::cmp::Ordering::Less, true).unwrap();
+    }
+
+    fn field_div(&self, other: &Self) -> Self {
+        self.mul(&other.inv().unwrap())
+    }
+
+    fn rsh(&self, n: usize) -> Self {
+        let bits = self.to_bits_le().unwrap();
+        if bits.is_empty() || n >= bits.len() {
+            return SimpleField::zero();
+        }
+
+        return Boolean::le_bits_to_fp_var(&bits[n..]).unwrap();
+    }
+
+    fn gt(&self, other: &Self) -> Self::BooleanType {
+        FpVar::<F>::is_cmp_unchecked(self, other, core::cmp::Ordering::Greater, false).unwrap()
+    }
+
+    fn lt(&self, other: &Self) -> Self::BooleanType {
+        FpVar::<F>::is_cmp_unchecked(self, other, core::cmp::Ordering::Less, false).unwrap()
+    }
+
+    fn lte(&self, other: &Self) -> Self::BooleanType {
+        FpVar::<F>::is_cmp_unchecked(self, other, core::cmp::Ordering::Less, true).unwrap()
+    }
+
+    fn gte(&self, other: &Self) -> Self::BooleanType {
+        FpVar::<F>::is_cmp_unchecked(self, other, core::cmp::Ordering::Greater, true).unwrap()
+    }
+
+    fn three() -> Self {
+        FpVar::Constant(SimpleField::three())
+    }
+
+    fn four() -> Self {
+        FpVar::Constant(SimpleField::four())
+    }
+
+    fn is_not_equal(&self, other: &Self) -> Self::BooleanType {
+        EqGadget::is_neq(self, other).unwrap()
+    }
+
+    fn assert_true(value: Self::BooleanType) {
+        value.enforce_equal(&Boolean::<F>::TRUE).unwrap()
+    }
+
+    fn assert_false(value: Self::BooleanType) {
+        value.enforce_equal(&Boolean::<F>::FALSE).unwrap()
+    }
+
+    fn lsh(&self, n: usize) -> Self {
+        let bits = self.to_bits_le().unwrap();
+        if bits.is_empty() || n >= bits.len() {
+            return SimpleField::zero();
+        }
+
+        return Boolean::le_bits_to_fp_var(
+            &core::iter::repeat(Boolean::<F>::FALSE)
+                .take(n)
+                .chain(bits.iter().cloned())
+                .collect::<Vec<_>>(),
+        )
+        .unwrap();
+    }
+
+    fn to_le_bytes(&self) -> Vec<Self::ByteType> {
+        ToBytesGadget::to_bytes(self).unwrap()
+    }
+
+    fn to_be_bytes(&self) -> Vec<Self::ByteType> {
+        ToBytesGadget::to_bytes(self)
+            .unwrap()
+            .into_iter()
+            .rev()
+            .collect()
+    }
+
+    fn to_le_bits(&self) -> Vec<Self::BooleanType> {
+        ToBitsGadget::to_bits_le(self).unwrap()
+    }
+
+    fn to_be_bits(&self) -> Vec<Self::BooleanType> {
+        ToBitsGadget::to_bits_be(self).unwrap()
+    }
+
+    fn construct_byte(value: u8) -> Self::ByteType {
+        UInt8::<F>::constant(value)
+    }
+
+    fn from_be_bytes(bytes: &[Self::ByteType]) -> Self {
+        Boolean::le_bits_to_fp_var(&
+            bytes.into_iter().map(|b| b.to_bits_le().unwrap()).flatten().collect::<Vec<_>>()
+        ).unwrap()
+    }
 }
 
 impl SimpleField for ark_bls12_381::Fr {
     type BooleanType = bool;
+    type ByteType = u8;
 
     fn zero() -> Self {
         ark_ff::Zero::zero()
@@ -276,7 +422,7 @@ impl SimpleField for ark_bls12_381::Fr {
     }
 
     fn from_stark_felt(value: starknet_crypto::Felt) -> Self {
-        Self::from_felt(StarkArkConvert::from_stark_felt(value))
+        Self::from_felt(SimpleField::from_stark_felt(value))
     }
 
     fn assert_equal(&self, other: &Self) {
@@ -287,8 +433,8 @@ impl SimpleField for ark_bls12_381::Fr {
         assert!(self != other);
     }
 
-    fn powers_felt(&self, n: Self) -> Self {
-        Field::pow(self, num_bigint::BigUint::from(n).to_u64_digits())
+    fn powers_felt(&self, n: &Self) -> Self {
+        Field::pow(self, num_bigint::BigUint::from(n.clone()).to_u64_digits())
     }
 
     fn div_rem(&self, other: &Self) -> (Self, Self) {
@@ -322,7 +468,7 @@ impl SimpleField for ark_bls12_381::Fr {
         }
     }
 
-    fn is_eq(&self, other: &Self) -> Self::BooleanType {
+    fn is_equal(&self, other: &Self) -> Self::BooleanType {
         self == other
     }
 
@@ -337,10 +483,111 @@ impl SimpleField for ark_bls12_381::Fr {
     fn not(value: &Self::BooleanType) -> Self::BooleanType {
         !value
     }
+
+    fn assert_gt(&self, other: &Self) {
+        assert!(self > other)
+    }
+
+    fn assert_lt(&self, other: &Self) {
+        assert!(self < other)
+    }
+
+    fn assert_lte(&self, other: &Self) {
+        assert!(self <= other)
+    }
+
+    fn assert_gte(&self, other: &Self) {
+        assert!(self >= other)
+    }
+
+    fn field_div(&self, other: &Self) -> Self {
+        self / other
+    }
+
+    fn rsh(&self, n: usize) -> Self {
+        let res = num_bigint::BigUint::from(self.clone()).shr(n);
+        return Self::new(BigInt({
+            let mut limbs = res.to_u64_digits();
+            limbs.reverse();
+            limbs.resize(4, 0);
+            limbs.try_into().unwrap()
+        }));
+    }
+
+    fn gt(&self, other: &Self) -> Self::BooleanType {
+        self > other
+    }
+
+    fn lt(&self, other: &Self) -> Self::BooleanType {
+        self < other
+    }
+
+    fn lte(&self, other: &Self) -> Self::BooleanType {
+        self <= other
+    }
+
+    fn gte(&self, other: &Self) -> Self::BooleanType {
+        self >= other
+    }
+
+    fn three() -> Self {
+        ark_bls12_381::Fr::from(3u64)
+    }
+
+    fn four() -> Self {
+        ark_bls12_381::Fr::from(4u64)
+    }
+
+    fn is_not_equal(&self, other: &Self) -> Self::BooleanType {
+        self != other
+    }
+
+    fn assert_true(value: Self::BooleanType) {
+        assert!(value);
+    }
+
+    fn assert_false(value: Self::BooleanType) {
+        assert!(!value);
+    }
+
+    fn lsh(&self, n: usize) -> Self {
+        let res = num_bigint::BigUint::from(self.clone()).shl(n);
+        return Self::new(BigInt({
+            let mut limbs = res.to_u64_digits();
+            limbs.reverse();
+            limbs.resize(4, 0);
+            limbs.try_into().unwrap()
+        }));
+    }
+
+    fn to_le_bytes(&self) -> Vec<Self::ByteType> {
+        B::to_bytes_le(&self.into_bigint())
+    }
+
+    fn to_be_bytes(&self) -> Vec<Self::ByteType> {
+        B::to_bytes_be(&self.into_bigint())
+    }
+
+    fn to_le_bits(&self) -> Vec<Self::BooleanType> {
+        B::to_bits_le(&self.into_bigint())
+    }
+
+    fn to_be_bits(&self) -> Vec<Self::BooleanType> {
+        B::to_bits_be(&self.into_bigint())
+    }
+
+    fn construct_byte(value: u8) -> Self::ByteType {
+        value
+    }
+
+    fn from_be_bytes(bytes: &[Self::ByteType]) -> Self {
+        Self::from_be_bytes_mod_order(bytes)
+    }
 }
 
 impl SimpleField for Fp {
     type BooleanType = bool;
+    type ByteType = u8;
 
     fn zero() -> Self {
         ark_ff::Zero::zero()
@@ -381,7 +628,11 @@ impl SimpleField for Fp {
     }
 
     fn from_stark_felt(value: starknet_crypto::Felt) -> Self {
-        StarkArkConvert::from_stark_felt(value)
+        Fp::new_unchecked({
+            let mut val = value.to_raw();
+            val.reverse();
+            BigInt(val)
+        })
     }
 
     fn assert_equal(&self, other: &Self) {
@@ -392,8 +643,8 @@ impl SimpleField for Fp {
         assert!(self != other);
     }
 
-    fn powers_felt(&self, n: Self) -> Self {
-        Field::pow(self, num_bigint::BigUint::from(n).to_u64_digits())
+    fn powers_felt(&self, n: &Self) -> Self {
+        Field::pow(self, num_bigint::BigUint::from(n.clone()).to_u64_digits())
     }
 
     fn div_rem(&self, other: &Self) -> (Self, Self) {
@@ -427,7 +678,7 @@ impl SimpleField for Fp {
         }
     }
 
-    fn is_eq(&self, other: &Self) -> Self::BooleanType {
+    fn is_equal(&self, other: &Self) -> Self::BooleanType {
         self == other
     }
 
@@ -441,6 +692,106 @@ impl SimpleField for Fp {
 
     fn not(value: &Self::BooleanType) -> Self::BooleanType {
         !value
+    }
+
+    fn assert_gt(&self, other: &Self) {
+        assert!(self > other)
+    }
+
+    fn assert_lt(&self, other: &Self) {
+        assert!(self < other)
+    }
+
+    fn assert_lte(&self, other: &Self) {
+        assert!(self <= other)
+    }
+
+    fn assert_gte(&self, other: &Self) {
+        assert!(self >= other)
+    }
+
+    fn field_div(&self, other: &Self) -> Self {
+        self / other
+    }
+
+    fn rsh(&self, n: usize) -> Self {
+        let res = num_bigint::BigUint::from(self.clone()).shr(n);
+        return Self::new(BigInt({
+            let mut limbs = res.to_u64_digits();
+            limbs.reverse();
+            limbs.resize(4, 0);
+            limbs.try_into().unwrap()
+        }));
+    }
+
+    fn gt(&self, other: &Self) -> Self::BooleanType {
+        self > other
+    }
+
+    fn lt(&self, other: &Self) -> Self::BooleanType {
+        self < other
+    }
+
+    fn lte(&self, other: &Self) -> Self::BooleanType {
+        self <= other
+    }
+
+    fn gte(&self, other: &Self) -> Self::BooleanType {
+        self >= other
+    }
+
+    fn three() -> Self {
+        Fp::from(3u64)
+    }
+
+    fn four() -> Self {
+        Fp::from(4u64)
+    }
+
+    fn is_not_equal(&self, other: &Self) -> Self::BooleanType {
+        self != other
+    }
+
+    fn assert_true(value: Self::BooleanType) {
+        assert!(value);
+    }
+
+    fn assert_false(value: Self::BooleanType) {
+        assert!(!value);
+    }
+
+    fn lsh(&self, n: usize) -> Self {
+        let res = num_bigint::BigUint::from(self.clone()).shl(n);
+        return Self::new(BigInt({
+            let mut limbs = res.to_u64_digits();
+            limbs.reverse();
+            limbs.resize(4, 0);
+            limbs.try_into().unwrap()
+        }));
+    }
+
+    fn to_le_bytes(&self) -> Vec<Self::ByteType> {
+        B::to_bytes_le(&self.into_bigint())
+    }
+
+    fn to_be_bytes(&self) -> Vec<Self::ByteType> {
+        B::to_bytes_be(&self.into_bigint())
+    }
+
+    fn to_le_bits(&self) -> Vec<Self::BooleanType> {
+        B::to_bits_le(&self.into_bigint())
+    }
+
+    fn to_be_bits(&self) -> Vec<Self::BooleanType> {
+        B::to_bits_be(&self.into_bigint())
+    }
+
+    fn construct_byte(value: u8) -> Self::ByteType {
+        value
+    }
+
+    fn from_be_bytes(bytes: &[Self::ByteType]) -> Self {
+        Self::from_be_bytes_mod_order(bytes)
     }
 }
 
@@ -468,7 +819,7 @@ mod tests {
         assert_eq!(a.inv().unwrap() * a, Fp::from(1u64));
         let c = a.pow([2]);
         assert_eq!(c, Fp::from(9u64));
-        let d = a.powers_felt(Fp::from(2u64));
+        let d = a.powers_felt(&Fp::from(2u64));
         assert_eq!(d, Fp::from(9u64));
 
         let (div, rem) = d.div_rem(&b);
@@ -532,7 +883,7 @@ mod tests {
                 })?;
                 product.enforce_equal(&product_input)?;
 
-                let powers = a.powers_felt(FpVar::two());
+                let powers = a.powers_felt(&FpVar::two());
                 let powers_input = FpVar::new_input(ns!(cs, "powers"), || {
                     self.powers.ok_or(SynthesisError::AssignmentMissing)
                 })?;
@@ -801,8 +1152,38 @@ mod tests {
         let cond_true = Boolean::new_witness(cs.clone(), || Ok(true)).unwrap();
         let cond_false = Boolean::new_witness(cs.clone(), || Ok(false)).unwrap();
 
-        let _result_true = FpVar::select(&cond_true, a.clone(), b.clone());
-        let _result_false = FpVar::select(&cond_false, a, b);
+        FpVar::select(&cond_true, a.clone(), b.clone())
+            .enforce_equal(&a)
+            .unwrap();
+        FpVar::select(&cond_false, a, b.clone())
+            .enforce_equal(&b)
+            .unwrap();
+
+        assert!(cs.is_satisfied().unwrap());
+    }
+
+    #[test]
+    fn test_div() {
+        let a = Fp::from(3);
+        let b = Fp::from(2);
+
+        assert_eq!(a.field_div(&b), a / b);
+    }
+
+    #[test]
+    fn test_shift() {
+        let a = Fp::from(11);
+
+        assert_eq!(a.rsh(2), Fp::from(2));
+        assert_eq!(a.lsh(2), Fp::from(44));
+
+        let cs = ConstraintSystem::<Fp>::new_ref();
+        let a = FpVar::new_witness(cs.clone(), || Ok(Fp::from(11u32))).unwrap();
+        let a_lsh = FpVar::new_witness(cs.clone(), || Ok(Fp::from(44u32))).unwrap();
+        let a_rsh = FpVar::new_witness(cs.clone(), || Ok(Fp::from(2u32))).unwrap();
+
+        a.lsh(2).enforce_equal(&a_lsh).unwrap();
+        a.rsh(2).enforce_equal(&a_rsh).unwrap();
 
         assert!(cs.is_satisfied().unwrap());
     }

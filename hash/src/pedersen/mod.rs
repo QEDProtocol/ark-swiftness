@@ -1,9 +1,19 @@
 use ark_ec::short_weierstrass::Affine;
 use ark_ec::short_weierstrass::Projective;
+use ark_ec::short_weierstrass::SWCurveConfig;
+use ark_ec::CurveConfig;
 use ark_ec::CurveGroup;
 use ark_ec::Group;
 use ark_ff::Field;
 use ark_ff::PrimeField;
+use ark_r1cs_std::fields::fp::FpVar;
+use ark_r1cs_std::fields::FieldOpsBounds;
+use ark_r1cs_std::fields::FieldVar;
+use ark_r1cs_std::groups::curves::short_weierstrass::non_zero_affine::NonZeroAffineVar;
+use ark_r1cs_std::groups::curves::short_weierstrass::AffineVar;
+use ark_r1cs_std::groups::curves::short_weierstrass::ProjectiveVar;
+use ark_r1cs_std::groups::CurveVar;
+use ark_r1cs_std::prelude::Boolean;
 use constants::P0;
 use constants::P1;
 use constants::P2;
@@ -13,10 +23,12 @@ use num_bigint::BigUint;
 use ruint::aliases::U256;
 use ruint::uint;
 use swiftness_field::Fp;
+use swiftness_field::Fr;
+use swiftness_field::SimpleField;
 use swiftness_field::StarkArkConvert;
 use swiftness_utils::binary::PedersenInstance;
 use swiftness_utils::curve::calculate_slope;
-use swiftness_utils::curve::Fr;
+use swiftness_utils::curve::calculate_slope_var;
 use swiftness_utils::curve::StarkwareCurve;
 
 pub mod constants;
@@ -51,11 +63,51 @@ fn process_element(
     p1 * x_low + p2 * x_high
 }
 
+fn process_element_var<
+    P: SWCurveConfig,
+    F: FieldVar<P::BaseField, <P::BaseField as Field>::BasePrimeField> + SimpleField,
+>(
+    x: F,
+    p1: ProjectiveVar<P, F>,
+    p2: ProjectiveVar<P, F>,
+) -> ProjectiveVar<P, F>
+where
+    for<'a> &'a F: FieldOpsBounds<'a, P::BaseField, F>,
+    <P as CurveConfig>::BaseField: SimpleField,
+    F::BooleanType: From<Boolean<<<P as CurveConfig>::BaseField as ark_ff::Field>::BasePrimeField>>,
+{
+    // TODO: enable check
+    // assert_eq!(252, F::MODULUS_BIT_SIZE);
+    let shift = 252 - 4;
+    let high_part = x.rsh(shift);
+    let low_part = x - (&high_part.lsh(shift));
+    let x_high = high_part;
+    let x_low = low_part;
+    p1.scalar_mul_le(x_low.to_bits_le().unwrap().iter())
+        .unwrap()
+        + p2.scalar_mul_le(x_high.to_bits_le().unwrap().iter())
+            .unwrap()
+}
+
 #[derive(Clone, Copy, Debug)]
 pub struct ElementPartialStep {
     pub point: Affine<StarkwareCurve>,
     pub suffix: Fp,
     pub slope: Fp,
+}
+
+#[derive(Clone, Debug)]
+pub struct ElementPartialStepVar<
+    P: SWCurveConfig,
+    F: FieldVar<P::BaseField, <P::BaseField as Field>::BasePrimeField> + SimpleField,
+> where
+    for<'a> &'a F: FieldOpsBounds<'a, P::BaseField, F>,
+    <P as CurveConfig>::BaseField: SimpleField,
+    F::BooleanType: From<Boolean<<<P as CurveConfig>::BaseField as ark_ff::Field>::BasePrimeField>>,
+{
+    pub point: AffineVar<P, F>,
+    pub suffix: F,
+    pub slope: F,
 }
 
 #[derive(Clone, Debug)]
@@ -166,10 +218,178 @@ fn gen_element_steps(
     res
 }
 
+fn gen_element_steps_var<
+    P: SWCurveConfig,
+    F: FieldVar<P::BaseField, <P::BaseField as Field>::BasePrimeField> + SimpleField,
+>(
+    x: F,
+    p0: AffineVar<P, F>,
+    p1: AffineVar<P, F>,
+    p2: AffineVar<P, F>,
+) -> Vec<ElementPartialStepVar<P, F>>
+where
+    for<'a> &'a F: FieldOpsBounds<'a, P::BaseField, F>,
+    <P as CurveConfig>::BaseField: SimpleField,
+    F::BooleanType: From<Boolean<<<P as CurveConfig>::BaseField as ark_ff::Field>::BasePrimeField>>,
+{
+    // generate our constant points
+    let mut constant_points = Vec::new();
+    let mut p1_acc = NonZeroAffineVar::new(p1.x.clone(), p1.y.clone()).into_projective();
+    for _ in 0..252 - 4 {
+        constant_points.push(p1_acc.clone());
+        p1_acc.double_in_place().unwrap();
+    }
+    let mut p2_acc = NonZeroAffineVar::new(p2.x.clone(), p2.y.clone()).into_projective();
+    for _ in 0..4 {
+        constant_points.push(p2_acc.clone());
+        p2_acc.double_in_place().unwrap();
+    }
+
+    // generate partial sums
+    let mut partial_point = NonZeroAffineVar::new(p0.x.clone(), p0.y.clone()).into_projective();
+    let mut res = Vec::new();
+    #[allow(clippy::needless_range_loop)]
+    for i in 0..256 {
+        let suffix = x.rsh(i);
+        let bit = suffix.div2_rem().1;
+
+        let mut slope = SimpleField::zero();
+        let mut partial_point_next = partial_point.clone();
+        let partial_point_affine = partial_point.clone().to_affine().unwrap();
+
+        slope = SimpleField::select(
+            &bit.is_equal(&SimpleField::one()),
+            calculate_slope_var(
+                constant_points[i].to_affine().unwrap(),
+                partial_point_affine.clone(),
+            )
+            .unwrap(),
+            slope,
+        );
+        partial_point_next.x = SimpleField::select(
+            &bit.is_equal(&SimpleField::one()),
+            (partial_point.clone() + constant_points[i].clone()).x,
+            partial_point.x.clone(),
+        );
+
+        partial_point_next.y = SimpleField::select(
+            &bit.is_equal(&SimpleField::one()),
+            (partial_point.clone() + constant_points[i].clone()).y,
+            partial_point.y.clone(),
+        );
+
+        res.push(ElementPartialStepVar {
+            point: partial_point_affine,
+            suffix: suffix,
+            slope,
+        });
+
+        partial_point = partial_point_next;
+    }
+
+    res
+}
+
+pub trait PedersenHash<P: SWCurveConfig>: SimpleField {
+    fn hash(a: Self, b: Self) -> Self
+    where
+        P::BaseField: PrimeField + SimpleField,
+        <P::BaseField as Field>::BasePrimeField: SimpleField,
+        FpVar<P::BaseField>:
+            FieldVar<P::BaseField, <P::BaseField as Field>::BasePrimeField> + SimpleField,
+        for<'a> &'a FpVar<P::BaseField>: FieldOpsBounds<'a, P::BaseField, FpVar<P::BaseField>>,
+        <FpVar<P::BaseField> as SimpleField>::BooleanType:
+            From<Boolean<<P::BaseField as Field>::BasePrimeField>>;
+}
+
+impl<P: SWCurveConfig> PedersenHash<P> for FpVar<P::BaseField>
+where
+    P::BaseField: PrimeField + SimpleField,
+    <P::BaseField as Field>::BasePrimeField: SimpleField,
+{
+    fn hash(a: Self, b: Self) -> Self
+    where
+        FpVar<P::BaseField>:
+            FieldVar<P::BaseField, <P::BaseField as Field>::BasePrimeField> + SimpleField,
+        for<'a> &'a FpVar<P::BaseField>: FieldOpsBounds<'a, P::BaseField, FpVar<P::BaseField>>,
+        <FpVar<P::BaseField> as SimpleField>::BooleanType:
+            From<Boolean<<P::BaseField as Field>::BasePrimeField>>,
+    {
+        let a_p0_proj = ProjectiveVar::<P, FpVar<P::BaseField>>::new(
+            SimpleField::from_felt(P0.x.clone()),
+            SimpleField::from_felt(P0.y.clone()),
+            SimpleField::one(),
+        );
+        let a_p0 = a_p0_proj.to_affine().unwrap();
+        let a_p1_proj = ProjectiveVar::<P, FpVar<P::BaseField>>::new(
+            SimpleField::from_felt(P1.x.clone()),
+            SimpleField::from_felt(P1.y.clone()),
+            SimpleField::one(),
+        );
+        let a_p1 = a_p1_proj.to_affine().unwrap();
+        let a_p2_proj = ProjectiveVar::<P, FpVar<P::BaseField>>::new(
+            SimpleField::from_felt(P2.x.clone()),
+            SimpleField::from_felt(P2.y.clone()),
+            SimpleField::one(),
+        );
+        let a_p2 = a_p2_proj.to_affine().unwrap();
+        let a_steps = gen_element_steps_var::<P, FpVar<P::BaseField>>(a.clone(), a_p0, a_p1, a_p2);
+
+        let b_p0 = (a_p0_proj
+            + process_element_var::<P, FpVar<P::BaseField>>(a.clone(), a_p1_proj, a_p2_proj))
+        .to_affine()
+        .unwrap();
+        let b_p1 = ProjectiveVar::<P, FpVar<P::BaseField>>::new(
+            SimpleField::from_felt(P3.x.clone()),
+            SimpleField::from_felt(P3.y.clone()),
+            SimpleField::one(),
+        )
+        .to_affine()
+        .unwrap();
+        let b_p2 = ProjectiveVar::<P, FpVar<P::BaseField>>::new(
+            SimpleField::from_felt(P4.x.clone()),
+            SimpleField::from_felt(P4.y.clone()),
+            SimpleField::one(),
+        )
+        .to_affine()
+        .unwrap();
+        // check out initial value for the second input is correct
+        // TODO: enable check
+        // assert_eq!(a_steps.last().unwrap().point, b_p0);
+        let b_steps = gen_element_steps_var::<P, FpVar<P::BaseField>>(b.clone(), b_p0, b_p1, b_p2);
+
+        b_steps.last().unwrap().point.x.clone()
+    }
+}
+
+impl<P: SWCurveConfig> PedersenHash<P> for Fp {
+    fn hash(a: Self, b: Self) -> Self
+    where
+        P::BaseField: PrimeField + SimpleField,
+        <P::BaseField as Field>::BasePrimeField: SimpleField,
+        FpVar<P::BaseField>:
+            FieldVar<P::BaseField, <P::BaseField as Field>::BasePrimeField> + SimpleField,
+        for<'a> &'a FpVar<P::BaseField>: FieldOpsBounds<'a, P::BaseField, FpVar<P::BaseField>>,
+        <FpVar<P::BaseField> as SimpleField>::BooleanType:
+            From<Boolean<<P::BaseField as Field>::BasePrimeField>>,
+    {
+        pedersen_hash(a.clone(), b.clone())
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use crate::pedersen::pedersen_hash;
+    use crate::pedersen::{
+        constants::{P0, P1},
+        pedersen_hash,
+    };
     use ark_ff::MontFp as Fp;
+    use ark_r1cs_std::{
+        alloc::AllocVar, fields::fp::FpVar, groups::curves::short_weierstrass::ProjectiveVar,
+    };
+    use ark_relations::r1cs::ConstraintSystem;
+    use swiftness_field::{Fp, SimpleField};
+    use swiftness_utils::curve::{calculate_slope_var, StarkwareCurve};
 
     #[test]
     fn hash_example0_works() {
@@ -199,5 +419,25 @@ mod tests {
             Fp!("2962565761002374879415469392216379291665599807391815720833106117558254791559"),
             output
         )
+    }
+
+    #[test]
+    fn test_function_type_is_ok() {
+        let cs = ConstraintSystem::<Fp>::new_ref();
+        let a = ProjectiveVar::<StarkwareCurve, FpVar<Fp>>::new(
+            FpVar::new_witness(cs.clone(), || Ok(P0.x.clone())).unwrap(),
+            FpVar::new_witness(cs.clone(), || Ok(P0.y.clone())).unwrap(),
+            SimpleField::one(),
+        )
+        .to_affine()
+        .unwrap();
+        let b = ProjectiveVar::<StarkwareCurve, FpVar<Fp>>::new(
+            FpVar::new_witness(cs.clone(), || Ok(P1.x.clone())).unwrap(),
+            FpVar::new_witness(cs.clone(), || Ok(P1.y.clone())).unwrap(),
+            SimpleField::one(),
+        )
+        .to_affine()
+        .unwrap();
+        let _ = calculate_slope_var::<StarkwareCurve, FpVar<Fp>>(a, b).unwrap();
     }
 }

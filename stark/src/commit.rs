@@ -1,19 +1,20 @@
 use alloc::vec::Vec;
-use starknet_crypto::Felt;
 use swiftness_air::{domains::StarkDomains, layout::LayoutTrait, public_memory::PublicInput};
 use swiftness_commitment::table::commit::table_commit;
+use swiftness_field::SimpleField;
 use swiftness_fri::fri::fri_commit;
+use swiftness_hash::{blake2s::Blake2sHash, poseidon::PoseidonHash};
 use swiftness_pow::pow;
 use swiftness_transcript::transcript::Transcript;
 
 // STARK commitment phase.
-pub fn stark_commit<Layout: LayoutTrait>(
-    transcript: &mut Transcript,
-    public_input: &PublicInput,
-    unsent_commitment: &StarkUnsentCommitment,
-    config: &StarkConfig,
-    stark_domains: &StarkDomains,
-) -> Result<StarkCommitment<Layout::InteractionElements>, Error> {
+pub fn stark_commit<F: SimpleField + PoseidonHash + Blake2sHash, Layout: LayoutTrait<F>>(
+    transcript: &mut Transcript<F>,
+    public_input: &PublicInput<F>,
+    unsent_commitment: &StarkUnsentCommitment<F>,
+    config: &StarkConfig<F>,
+    stark_domains: &StarkDomains<F>,
+) -> Result<StarkCommitment<Layout::InteractionElements, F>, Error<F>> {
     // Read the commitment of the 'traces' component.
     let traces_commitment =
         Layout::traces_commit(transcript, &unsent_commitment.traces, config.traces.clone());
@@ -21,11 +22,11 @@ pub fn stark_commit<Layout: LayoutTrait>(
     // Generate interaction values after traces commitment.
     let composition_alpha = transcript.random_felt_to_prover();
     let traces_coefficients =
-        powers_array(Felt::ONE, composition_alpha, Layout::N_CONSTRAINTS as u32);
+        powers_array(F::one(), composition_alpha, Layout::N_CONSTRAINTS as u32);
 
     // Read composition commitment.
     let composition_commitment =
-        table_commit(transcript, unsent_commitment.composition, config.composition.clone());
+        table_commit(transcript, unsent_commitment.composition.clone(), config.composition.clone());
 
     // Generate interaction values after composition.
     let interaction_after_composition = transcript.random_felt_to_prover();
@@ -34,7 +35,7 @@ pub fn stark_commit<Layout: LayoutTrait>(
     transcript.read_felt_vector_from_prover(&unsent_commitment.oods_values);
 
     // Check that the trace and the composition agree at oods_point.
-    verify_oods::<Layout>(
+    verify_oods::<F, Layout>(
         &unsent_commitment.oods_values,
         &traces_commitment.interaction_elements,
         public_input,
@@ -47,7 +48,7 @@ pub fn stark_commit<Layout: LayoutTrait>(
     // Generate interaction values after OODS.
     let oods_alpha = transcript.random_felt_to_prover();
     let oods_coefficients =
-        powers_array(Felt::ONE, oods_alpha, (Layout::MASK_SIZE + Layout::CONSTRAINT_DEGREE) as u32);
+        powers_array(F::one(), oods_alpha, (Layout::MASK_SIZE + Layout::CONSTRAINT_DEGREE) as u32);
 
     // Read fri commitment.
     let fri_commitment = fri_commit(transcript, unsent_commitment.fri.clone(), config.fri.clone());
@@ -66,13 +67,13 @@ pub fn stark_commit<Layout: LayoutTrait>(
     })
 }
 
-fn powers_array(initial: Felt, alpha: Felt, n: u32) -> Vec<Felt> {
+fn powers_array<F: SimpleField + PoseidonHash>(initial: F, alpha: F, n: u32) -> Vec<F> {
     let mut array = Vec::with_capacity(n as usize);
     let mut value = initial;
 
     for _ in 0..n {
-        array.push(value);
-        value *= alpha;
+        array.push(value.clone());
+        value *= &alpha;
     }
 
     array
@@ -89,12 +90,12 @@ use thiserror::Error;
 
 #[cfg(feature = "std")]
 #[derive(Error, Debug)]
-pub enum Error {
+pub enum Error<F: SimpleField + PoseidonHash> {
     #[error("POW Error")]
     POW(#[from] pow::Error),
 
     #[error("OodsVerifyError Error")]
-    Oods(#[from] oods::OodsVerifyError),
+    Oods(#[from] oods::OodsVerifyError<F>),
 }
 
 #[cfg(not(feature = "std"))]
@@ -102,10 +103,10 @@ use thiserror_no_std::Error;
 
 #[cfg(not(feature = "std"))]
 #[derive(Error, Debug)]
-pub enum Error {
+pub enum Error<F: SimpleField> {
     #[error("POW Error")]
     POW(#[from] pow::Error),
 
     #[error("OodsVerifyError Error")]
-    Oods(#[from] oods::OodsVerifyError),
+    Oods(#[from] oods::OodsVerifyError<F>),
 }

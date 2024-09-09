@@ -26,6 +26,7 @@ thiserror = { optional = true, workspace = true }
 thiserror-no-std.workspace = true
 blake2.workspace = true
 ark-ff = { workspace = true }
+cfg-if = { workspace = true }
 
 swiftness_transcript.workspace = true
 swiftness_field = { workspace = true }

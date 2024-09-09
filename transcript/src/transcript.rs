@@ -3,7 +3,7 @@ use alloc::vec::Vec;
 use ark_r1cs_std::{alloc::AllocVar, fields::fp::FpVar};
 use ark_relations::r1cs::{Namespace, SynthesisError};
 use swiftness_field::{Fp, SimpleField};
-use swiftness_hash::poseidon::{poseidon_hash, poseidon_hash_many, Permute};
+use swiftness_hash::poseidon::PoseidonHash;
 
 impl AllocVar<Transcript<Fp>, Fp> for Transcript<FpVar<Fp>> {
     fn new_variable<T: core::borrow::Borrow<Transcript<Fp>>>(
@@ -24,12 +24,12 @@ impl AllocVar<Transcript<Fp>, Fp> for Transcript<FpVar<Fp>> {
 }
 
 #[derive(Clone, Debug)]
-pub struct Transcript<F: SimpleField + Permute> {
+pub struct Transcript<F: SimpleField + PoseidonHash> {
     digest: F,
     counter: F,
 }
 
-impl<F: SimpleField + Permute> Transcript<F> {
+impl<F: SimpleField + PoseidonHash> Transcript<F> {
     pub fn new(digest: F) -> Self {
         Self {
             digest,
@@ -50,7 +50,7 @@ impl<F: SimpleField + Permute> Transcript<F> {
     }
 
     pub fn random_felt_to_prover(&mut self) -> F {
-        let hash = poseidon_hash(self.digest.clone(), self.counter.clone());
+        let hash = PoseidonHash::hash(self.digest.clone(), self.counter.clone());
         self.counter += F::one();
         hash
     }
@@ -68,14 +68,14 @@ impl<F: SimpleField + Permute> Transcript<F> {
     }
 
     pub fn read_felt_from_prover(&mut self, val: &F) {
-        let hash = poseidon_hash_many([&(self.digest.clone() + F::one()), val]);
+        let hash = PoseidonHash::hash_many([&(self.digest.clone() + F::one()), val]);
         self.digest = hash;
         self.counter = F::zero();
     }
 
     pub fn read_felt_vector_from_prover(&mut self, val: &[F]) {
         let digest = self.digest.clone();
-        let hash = poseidon_hash_many(vec![&(digest + F::one())].into_iter().chain(val));
+        let hash = PoseidonHash::hash_many(vec![&(digest + F::one())].into_iter().chain(val));
         self.digest = hash;
         self.counter = F::zero();
     }

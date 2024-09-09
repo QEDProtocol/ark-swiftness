@@ -5,15 +5,12 @@ use blake2::Blake2s256;
 use blake2::Digest;
 #[cfg(feature = "keccak")]
 use sha3::Digest;
-#[cfg(feature = "keccak")]
-use sha3::Keccak256;
 
 use serde::{Deserialize, Serialize};
-use starknet_crypto::Felt;
-use swiftness_field::Fp;
-use swiftness_transcript::{assure, transcript::Transcript};
-
-use ark_ff::BigInteger;
+use swiftness_field::SimpleField;
+use swiftness_hash::blake2s::Blake2sHash;
+use swiftness_hash::poseidon::PoseidonHash;
+use swiftness_transcript::transcript::Transcript;
 
 use crate::config::Config;
 
@@ -25,29 +22,41 @@ pub struct UnsentCommitment {
 }
 
 impl UnsentCommitment {
-    pub fn commit(&self, transcript: &mut Transcript<Fp>, config: &Config) -> Result<(), Error> {
-        verify_pow(transcript.digest().0.to_bytes_be().try_into().unwrap(), config.n_bits, self.nonce)?;
+    pub fn commit<F: SimpleField + Blake2sHash + PoseidonHash>(
+        &self,
+        transcript: &mut Transcript<F>,
+        config: &Config,
+    ) -> Result<(), Error> {
+        verify_pow::<F>(transcript.digest().to_le_bytes(), config.n_bits, self.nonce)?;
         transcript.read_uint64_from_prover(self.nonce);
         Ok(())
     }
 }
 
-pub fn verify_pow(digest: [u8; 32], n_bits: u8, nonce: u64) -> Result<(), Error> {
+pub fn verify_pow<F: SimpleField + Blake2sHash + PoseidonHash>(
+    digest: Vec<<F as SimpleField>::ByteType>,
+    n_bits: u8,
+    nonce: u64,
+) -> Result<(), Error> {
     // Compute the initial hash.
     // Hash(0x0123456789abcded || digest   || n_bits )
     //      8 bytes            || 32 bytes || 1 byte
     // Total of 0x29 = 41 bytes.
 
-    #[cfg(feature = "keccak")]
-    let mut hasher = Keccak256::new();
-    #[cfg(feature = "blake2s")]
-    let mut hasher = Blake2s256::new();
     let mut init_data = Vec::with_capacity(41);
-    init_data.extend_from_slice(&MAGIC.to_be_bytes());
-    init_data.extend_from_slice(&digest);
-    init_data.push(n_bits);
-    hasher.update(&init_data);
-    let init_hash = hasher.finalize().to_vec();
+    init_data.extend_from_slice(F::from_constant(MAGIC).to_be_bytes().as_slice());
+    init_data.extend_from_slice(digest.as_slice());
+    init_data.push(F::construct_byte(n_bits));
+
+    let mut init_hash: Vec<<F as SimpleField>::ByteType>;
+    #[cfg(feature = "keccak")]
+    {
+        todo!()
+    }
+    #[cfg(feature = "blake2s")]
+    {
+        init_hash = <F as Blake2sHash>::hash(&init_data);
+    }
 
     // Reverse the endianness of the initial hash.
     // init_hash.reverse();
@@ -56,20 +65,24 @@ pub fn verify_pow(digest: [u8; 32], n_bits: u8, nonce: u64) -> Result<(), Error>
     //              32 bytes  || 8 bytes
     // Total of 0x28 = 40 bytes.
 
-    #[cfg(feature = "keccak")]
-    let mut hasher = Keccak256::new();
-    #[cfg(feature = "blake2s")]
-    let mut hasher = Blake2s256::new();
     let mut hash_data = Vec::with_capacity(40);
     hash_data.extend_from_slice(&init_hash);
-    hash_data.extend_from_slice(&nonce.to_be_bytes());
-    hasher.update(&hash_data);
-    let final_hash = hasher.finalize();
+    hash_data.extend_from_slice(&F::from_constant(nonce).to_be_bytes());
 
-    assure!(
-        Felt::from_bytes_be_slice(&final_hash.as_slice()[0..16]) < Felt::TWO.pow(128 - n_bits),
-        Error::ProofOfWorkFail
-    )
+    let mut final_hash: Vec<<F as SimpleField>::ByteType>;
+    #[cfg(feature = "keccak")]
+    {
+        todo!()
+    }
+    #[cfg(feature = "blake2s")]
+    {
+        final_hash = <F as Blake2sHash>::hash(&hash_data);
+    }
+
+    F::from_be_bytes(&final_hash.as_slice()[0..16])
+        .assert_lt(&F::two().powers([(128 - n_bits) as u64]));
+
+    Ok(())
 }
 
 #[cfg(feature = "std")]

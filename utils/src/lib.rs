@@ -4,8 +4,8 @@ use ark_poly::univariate::DensePolynomial;
 use ark_poly::EvaluationDomain;
 use ark_poly::Evaluations;
 use ark_poly::Radix2EvaluationDomain;
-use swiftness_field::SimpleField;
 use std::ops::*;
+use swiftness_field::SimpleField;
 
 /// Generates a periodic table comprising of values in the matrix.
 /// The columns of the periodic table are are represented by polynomials that
@@ -67,16 +67,16 @@ impl<F: SimpleField> Mat3x3<F> {
 
     pub fn inverse(self) -> Option<Self> {
         let [[a, b, c], [d, e, f], [g, h, i]] = self.0;
-        let a_prime = e.clone() * i.clone() - f.clone() * h.clone();
-        let b_prime = (b.clone() * i.clone() - c.clone() * h.clone()).negate();
-        let c_prime = b.clone() * f.clone() - c.clone() * e.clone();
-        let d_prime = (d.clone() * i.clone() - f.clone() * g.clone()).negate();
-        let e_prime = a.clone() * i.clone() - c.clone() * g.clone();
-        let f_prime = (a.clone() * f.clone() - c.clone() * d.clone()).negate();
-        let g_prime = d.clone() * h.clone() - e.clone() * g.clone();
-        let h_prime = (a.clone() * h.clone() - b.clone() * g.clone()).negate();
-        let i_prime = a.clone() * e.clone() - b.clone() * d.clone();
-        let determinant = a.clone() * a_prime.clone() + b.clone() * d_prime.clone() + c.clone() * g_prime.clone();
+        let a_prime = e.clone() * &i - f.clone() * &h;
+        let b_prime = (b.clone() * &i - c.clone() * &h).negate();
+        let c_prime = b.clone() * &f - c.clone() * &e;
+        let d_prime = (d.clone() * &i - f.clone() * &g).negate();
+        let e_prime = a.clone() * &i - c.clone() * &g;
+        let f_prime = (a.clone() * &f - c.clone() * &d).negate();
+        let g_prime = d.clone() * &h - e.clone() * &g;
+        let h_prime = (a.clone() * &h - b.clone() * &g).negate();
+        let i_prime = a.clone() * &e - b.clone() * &d;
+        let determinant = a.clone() * &a_prime + b.clone() * &d_prime + c.clone() * &g_prime;
         let inv = Self([
             [a_prime, b_prime, c_prime],
             [d_prime, e_prime, f_prime],
@@ -124,17 +124,82 @@ pub mod curve {
     use ark_ec::short_weierstrass::SWCurveConfig;
     use ark_ec::CurveConfig;
     use ark_ff::Field;
-    use ark_ff::Fp256;
-    use ark_ff::MontBackend;
-    use ark_ff::MontConfig;
     use ark_ff::MontFp as Fp;
+    use ark_r1cs_std::fields::FieldOpsBounds;
+    use ark_r1cs_std::fields::FieldVar;
+    use ark_r1cs_std::groups::curves::short_weierstrass::AffineVar;
+    use ark_r1cs_std::prelude::Boolean;
     use swiftness_field::Fp;
+    use swiftness_field::Fr;
+    use swiftness_field::SimpleField;
 
-    #[derive(MontConfig)]
-    #[modulus = "3618502788666131213697322783095070105526743751716087489154079457884512865583"]
-    #[generator = "3"]
-    pub struct FrConfig;
-    pub type Fr = Fp256<MontBackend<FrConfig, 4>>;
+    /// calculates the slope between points `p1` and `p2`
+    /// Returns None if one of the points is the point at infinity
+    pub fn calculate_slope<P: SWCurveConfig>(
+        p1: Affine<P>,
+        p2: Affine<P>,
+    ) -> Option<<P as CurveConfig>::BaseField>
+    where
+        <P as CurveConfig>::BaseField: SimpleField,
+    {
+        if p1.infinity || p2.infinity || (p1.x == p2.x && p1.y != p2.y) {
+            return None;
+        }
+
+        let y1 = p1.y;
+        let y2 = p2.y;
+        let x1 = p1.x;
+        let x2 = p2.x;
+
+        Some(if x1 == x2 {
+            // use tangent line
+            assert_eq!(y1, y2);
+            let xx = x1.square();
+            (xx + xx + xx + P::COEFF_A) / (y1 + y1)
+        } else {
+            // use slope
+            (y2 - y1) / (x2 - x1)
+        })
+    }
+
+    pub fn calculate_slope_var<
+        P: SWCurveConfig,
+        F: FieldVar<P::BaseField, <P::BaseField as Field>::BasePrimeField> + SimpleField,
+    >(
+        p1: AffineVar<P, F>,
+        p2: AffineVar<P, F>,
+    ) -> Option<F>
+    where
+        for<'a> &'a F: FieldOpsBounds<'a, P::BaseField, F>,
+        <P as CurveConfig>::BaseField: SimpleField,
+        F::BooleanType: From<Boolean<<<P as CurveConfig>::BaseField as ark_ff::Field>::BasePrimeField>>
+    {
+        // TODO: enable check
+        // if p1.infinity || p2.infinity || (p1.x == p2.x && p1.y != p2.y) {
+        //     return None;
+        // }
+
+        let y1 = p1.y;
+        let y2 = p2.y;
+        let x1 = p1.x;
+        let x2 = p2.x;
+
+        // TODO: enable check
+        // SimpleField::assert_true(x1.is_neq(&x2).unwrap().or(&y1.is_eq(&y2).unwrap()));
+
+        Some(SimpleField::select(
+            &F::BooleanType::from(x1.is_eq(&x2).unwrap()),
+            {
+                // use tangent line
+                let xx = x1.square().ok()?;
+                (xx.clone() + &xx + &xx + P::COEFF_A).field_div(&(y1.clone() + &y1))
+            },
+            {
+                // use slope
+                (y2 - y1).field_div(&(x2 - x1))
+            },
+        ))
+    }
 
     // StarkWare's Cairo curve params: https://docs.starkware.co/starkex/crypto/pedersen-hash-function.html
     pub struct StarkwareCurve;
@@ -156,29 +221,6 @@ pub mod curve {
             Fp!("874739451078007766457464989774322083649278607533249481151382481072868806602"),
             Fp!("152666792071518830868575557812948353041420400780739481342941381225525861407"),
         );
-    }
-
-    /// calculates the slope between points `p1` and `p2`
-    /// Returns None if one of the points is the point at infinity
-    pub fn calculate_slope(p1: Affine<StarkwareCurve>, p2: Affine<StarkwareCurve>) -> Option<Fp> {
-        if p1.infinity || p2.infinity || (p1.x == p2.x && p1.y != p2.y) {
-            return None;
-        }
-
-        let y1 = p1.y;
-        let y2 = p2.y;
-        let x1 = p1.x;
-        let x2 = p2.x;
-
-        Some(if x1 == x2 {
-            // use tangent line
-            assert_eq!(y1, y2);
-            let xx = x1.square();
-            (xx + xx + xx + StarkwareCurve::COEFF_A) / (y1 + y1)
-        } else {
-            // use slope
-            (y2 - y1) / (x2 - x1)
-        })
     }
 }
 

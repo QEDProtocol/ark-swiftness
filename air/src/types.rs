@@ -1,55 +1,56 @@
 use alloc::vec::Vec;
+use swiftness_field::SimpleField;
+use swiftness_hash::poseidon::PoseidonHash;
 use core::ops::Deref;
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
-use starknet_crypto::Felt;
 
 #[serde_as]
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
-pub struct SegmentInfo {
+pub struct SegmentInfo<F: SimpleField + PoseidonHash> {
     // Start address of the memory segment.
     #[cfg_attr(
         feature = "std",
         serde_as(as = "starknet_core::serde::unsigned_field_element::UfeHex")
     )]
-    pub begin_addr: Felt,
+    pub begin_addr: F,
     // Stop pointer of the segment - not necessarily the end of the segment.
     #[cfg_attr(
         feature = "std",
         serde_as(as = "starknet_core::serde::unsigned_field_element::UfeHex")
     )]
-    pub stop_ptr: Felt,
+    pub stop_ptr: F
 }
 
 #[serde_as]
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
-pub struct AddrValue {
+pub struct AddrValue<F: SimpleField + PoseidonHash> {
     #[cfg_attr(
         feature = "std",
         serde_as(as = "starknet_core::serde::unsigned_field_element::UfeHex")
     )]
-    pub address: Felt,
+    pub address: F,
     #[cfg_attr(
         feature = "std",
         serde_as(as = "starknet_core::serde::unsigned_field_element::UfeHex")
     )]
-    pub value: Felt,
+    pub value: F,
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
-pub struct Page(pub Vec<AddrValue>);
+pub struct Page<F: SimpleField + PoseidonHash>(pub Vec<AddrValue<F>>);
 
-impl Deref for Page {
-    type Target = Vec<AddrValue>;
+impl<F: SimpleField + PoseidonHash> Deref for Page<F> {
+    type Target = Vec<AddrValue<F>>;
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 
-impl Page {
+impl<F: SimpleField + PoseidonHash> Page<F> {
     // Returns the product of (z - (addr + alpha * val)) over a single page.
-    pub fn get_product(&self, z: Felt, alpha: Felt) -> Felt {
-        let mut res = Felt::ONE;
+    pub fn get_product(&self, z: F, alpha: F) -> F {
+        let mut res = F::one();
         let mut i = 0;
         loop {
             if i == self.len() {
@@ -57,7 +58,7 @@ impl Page {
             }
             let current = &self[i];
 
-            res *= z - (current.address + alpha * current.value);
+            res *= z.clone() - (current.address.clone() + alpha.clone() * &current.value);
             i += 1;
         }
     }
@@ -74,29 +75,29 @@ impl Page {
 //   alpha = interaction_elements.memory_multi_column_perm_hash_interaction_elm0
 #[serde_as]
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
-pub struct ContinuousPageHeader {
+pub struct ContinuousPageHeader<F: SimpleField + PoseidonHash> {
     // Start address.
     #[cfg_attr(
         feature = "std",
         serde_as(as = "starknet_core::serde::unsigned_field_element::UfeHex")
     )]
-    pub start_address: Felt,
+    pub start_address: F,
     // Size of the page.
     #[cfg_attr(
         feature = "std",
         serde_as(as = "starknet_core::serde::unsigned_field_element::UfeHex")
     )]
-    pub size: Felt,
+    pub size: F,
     // Hash of the page.
     #[cfg_attr(
         feature = "std",
         serde_as(as = "starknet_core::serde::unsigned_field_element::UfeHex")
     )]
-    pub hash: Felt,
+    pub hash: F,
     // Cumulative product of the page.
     #[cfg_attr(
         feature = "std",
         serde_as(as = "starknet_core::serde::unsigned_field_element::UfeHex")
     )]
-    pub prod: Felt,
+    pub prod: F,
 }
