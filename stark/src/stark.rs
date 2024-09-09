@@ -18,14 +18,14 @@ impl<F: SimpleField + PoseidonHash + Blake2sHash> StarkProof<F> {
 
         // Validate the public input.
         let stark_domains =
-            StarkDomains::new(self.config.log_trace_domain_size, self.config.log_n_cosets);
+            StarkDomains::new(self.config.log_trace_domain_size.clone(), self.config.log_n_cosets.clone());
 
         Layout::validate_public_input(&self.public_input, &stark_domains)?;
 
         // Compute the initial hash seed for the Fiat-Shamir transcript.
         let digest = self.public_input.get_hash();
         // Construct the transcript.
-        let mut transcript = Transcript::new_variable(digest);
+        let mut transcript = Transcript::new(digest);
 
         // STARK commitment phase.
         let stark_commitment = stark_commit::<F, Layout>(
@@ -39,8 +39,8 @@ impl<F: SimpleField + PoseidonHash + Blake2sHash> StarkProof<F> {
         // Generate queries.
         let queries = generate_queries(
             &mut transcript,
-            self.config.n_queries,
-            stark_domains.eval_domain_size,
+            self.config.n_queries.clone(),
+            stark_domains.eval_domain_size.clone(),
         );
 
         // STARK verify phase.

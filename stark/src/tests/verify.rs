@@ -8,14 +8,14 @@ use swiftness_fri::fixtures::queries;
 
 #[test]
 pub fn test_stark_verify() {
-    let queries = queries::get();
-    let commitment = commitment::get();
-    let witness = witness::get();
-    let stark_domains = domains::get();
+    let queries = queries::get::<Fp>();
+    let commitment = commitment::get::<Fp>();
+    let witness = witness::get::<Fp>();
+    let stark_domains = domains::get::<Fp>();
 
     stark_verify::<Fp, Layout>(
-        Layout::NUM_COLUMNS_FIRST,
-        Layout::NUM_COLUMNS_SECOND,
+        <Layout as LayoutTrait<Fp>>::NUM_COLUMNS_FIRST,
+        <Layout as LayoutTrait<Fp>>::NUM_COLUMNS_SECOND,
         &queries,
         commitment,
         &witness,
