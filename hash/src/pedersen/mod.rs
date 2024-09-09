@@ -25,14 +25,30 @@ use ruint::uint;
 use swiftness_field::Fp;
 use swiftness_field::Fr;
 use swiftness_field::SimpleField;
-use swiftness_field::StarkArkConvert;
+// use swiftness_field::StarkArkConvert;
 use swiftness_utils::binary::PedersenInstance;
-use swiftness_utils::curve::calculate_slope;
 use swiftness_utils::curve::calculate_slope_var;
 use swiftness_utils::curve::StarkwareCurve;
 
 pub mod constants;
 pub mod periodic;
+
+pub fn pedersen_hash(a: Fp, b: Fp) -> Fp {
+    let a_p0 = P0;
+    let a_p1 = P1;
+    let a_p2 = P2;
+    let a_steps = gen_element_steps(a, a_p0, a_p1, a_p2);
+
+    let b_p0 = (a_p0 + process_element(a, a_p1.into(), a_p2.into())).into();
+    let b_p1 = P3;
+    let b_p2 = P4;
+    // check out initial value for the second input is correct
+    // TODO: enable check
+    // assert_eq!(a_steps.last().unwrap().point, b_p0);
+    let b_steps = gen_element_steps(b, b_p0, b_p1, b_p2);
+
+    b_steps.last().unwrap().point.x
+}
 
 /// Computes the Pedersen hash of a and b using StarkWare's parameters.
 ///
@@ -41,12 +57,12 @@ pub mod periodic;
 /// where x_low is the 248 low bits of x, x_high is the 4 high bits of x and
 /// similarly for y. shift_point, P_0, P_1, P_2, P_3 are constant points
 /// generated from the digits of pi.
-pub fn pedersen_hash(a: Fp, b: Fp) -> Fp {
-    let a = a.to_stark_felt();
-    let b = b.to_stark_felt();
-    let res = starknet_crypto::pedersen_hash(&a, &b);
-    StarkArkConvert::from_stark_felt(res)
-}
+// pub fn pedersen_hash(a: Fp, b: Fp) -> Fp {
+//     let a = a.to_stark_felt();
+//     let b = b.to_stark_felt();
+//     let res = starknet_crypto::pedersen_hash(&a, &b);
+//     StarkArkConvert::from_stark_felt(res)
+// }
 
 fn process_element(
     x: Fp,
@@ -197,12 +213,12 @@ fn gen_element_steps(
         let suffix = x_int >> i;
         let bit = suffix & uint!(1_U256);
 
-        let mut slope: Fp = Fp::ZERO;
+        let slope: Fp = Fp::ZERO;
         let mut partial_point_next = partial_point;
         let partial_point_affine = partial_point.into_affine();
         if bit == uint!(1_U256) {
             let constant_point = constant_points[i];
-            slope = calculate_slope(constant_point.into(), partial_point_affine).unwrap();
+            // slope = calculate_slope(constant_point.into(), partial_point_affine).unwrap();
             partial_point_next += constant_point;
         }
 
@@ -251,36 +267,45 @@ where
     #[allow(clippy::needless_range_loop)]
     for i in 0..256 {
         let suffix = x.rsh(i);
+        // Normally it's padded so this is not necessary
         let bit = suffix.div2_rem().1;
 
         let mut slope = SimpleField::zero();
         let mut partial_point_next = partial_point.clone();
         let partial_point_affine = partial_point.clone().to_affine().unwrap();
 
+        let constant_point = constant_points.get(i).unwrap_or(&partial_point);
         slope = SimpleField::select(
             &bit.is_equal(&SimpleField::one()),
             calculate_slope_var(
-                constant_points[i].to_affine().unwrap(),
+                constant_point.to_affine().unwrap(),
                 partial_point_affine.clone(),
             )
             .unwrap(),
             slope,
         );
+        let partial_point_add_constant_point = partial_point.clone() + constant_point.clone();
         partial_point_next.x = SimpleField::select(
             &bit.is_equal(&SimpleField::one()),
-            (partial_point.clone() + constant_points[i].clone()).x,
+            partial_point_add_constant_point.x,
             partial_point.x.clone(),
         );
 
         partial_point_next.y = SimpleField::select(
             &bit.is_equal(&SimpleField::one()),
-            (partial_point.clone() + constant_points[i].clone()).y,
+            partial_point_add_constant_point.y,
             partial_point.y.clone(),
+        );
+
+        partial_point_next.z = SimpleField::select(
+            &bit.is_equal(&SimpleField::one()),
+            partial_point_add_constant_point.z,
+            partial_point.z.clone(),
         );
 
         res.push(ElementPartialStepVar {
             point: partial_point_affine,
-            suffix: suffix,
+            suffix,
             slope,
         });
 
@@ -316,20 +341,20 @@ where
             From<Boolean<<P::BaseField as Field>::BasePrimeField>>,
     {
         let a_p0_proj = ProjectiveVar::<P, FpVar<P::BaseField>>::new(
-            SimpleField::from_felt(P0.x.clone()),
-            SimpleField::from_felt(P0.y.clone()),
+            SimpleField::from_felt(P0.x),
+            SimpleField::from_felt(P0.y),
             SimpleField::one(),
         );
         let a_p0 = a_p0_proj.to_affine().unwrap();
         let a_p1_proj = ProjectiveVar::<P, FpVar<P::BaseField>>::new(
-            SimpleField::from_felt(P1.x.clone()),
-            SimpleField::from_felt(P1.y.clone()),
+            SimpleField::from_felt(P1.x),
+            SimpleField::from_felt(P1.y),
             SimpleField::one(),
         );
         let a_p1 = a_p1_proj.to_affine().unwrap();
         let a_p2_proj = ProjectiveVar::<P, FpVar<P::BaseField>>::new(
-            SimpleField::from_felt(P2.x.clone()),
-            SimpleField::from_felt(P2.y.clone()),
+            SimpleField::from_felt(P2.x),
+            SimpleField::from_felt(P2.y),
             SimpleField::one(),
         );
         let a_p2 = a_p2_proj.to_affine().unwrap();
@@ -339,16 +364,17 @@ where
             + process_element_var::<P, FpVar<P::BaseField>>(a.clone(), a_p1_proj, a_p2_proj))
         .to_affine()
         .unwrap();
+
         let b_p1 = ProjectiveVar::<P, FpVar<P::BaseField>>::new(
-            SimpleField::from_felt(P3.x.clone()),
-            SimpleField::from_felt(P3.y.clone()),
+            SimpleField::from_felt(P3.x),
+            SimpleField::from_felt(P3.y),
             SimpleField::one(),
         )
         .to_affine()
         .unwrap();
         let b_p2 = ProjectiveVar::<P, FpVar<P::BaseField>>::new(
-            SimpleField::from_felt(P4.x.clone()),
-            SimpleField::from_felt(P4.y.clone()),
+            SimpleField::from_felt(P4.x),
+            SimpleField::from_felt(P4.y),
             SimpleField::one(),
         )
         .to_affine()
@@ -373,23 +399,18 @@ impl<P: SWCurveConfig> PedersenHash<P> for Fp {
         <FpVar<P::BaseField> as SimpleField>::BooleanType:
             From<Boolean<<P::BaseField as Field>::BasePrimeField>>,
     {
-        pedersen_hash(a.clone(), b.clone())
+        pedersen_hash(a, b)
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::pedersen::{
-        constants::{P0, P1},
-        pedersen_hash,
-    };
+    use crate::pedersen::pedersen_hash;
     use ark_ff::MontFp as Fp;
-    use ark_r1cs_std::{
-        alloc::AllocVar, fields::fp::FpVar, groups::curves::short_weierstrass::ProjectiveVar,
-    };
+    use ark_r1cs_std::{alloc::AllocVar, fields::fp::FpVar};
     use ark_relations::r1cs::ConstraintSystem;
     use swiftness_field::{Fp, SimpleField};
-    use swiftness_utils::curve::{calculate_slope_var, StarkwareCurve};
+    use swiftness_utils::curve::StarkwareCurve;
 
     #[test]
     fn hash_example0_works() {
@@ -422,22 +443,23 @@ mod tests {
     }
 
     #[test]
-    fn test_function_type_is_ok() {
+    fn test_pedersen_hash_fpvar() {
         let cs = ConstraintSystem::<Fp>::new_ref();
-        let a = ProjectiveVar::<StarkwareCurve, FpVar<Fp>>::new(
-            FpVar::new_witness(cs.clone(), || Ok(P0.x.clone())).unwrap(),
-            FpVar::new_witness(cs.clone(), || Ok(P0.y.clone())).unwrap(),
-            SimpleField::one(),
-        )
-        .to_affine()
-        .unwrap();
-        let b = ProjectiveVar::<StarkwareCurve, FpVar<Fp>>::new(
-            FpVar::new_witness(cs.clone(), || Ok(P1.x.clone())).unwrap(),
-            FpVar::new_witness(cs.clone(), || Ok(P1.y.clone())).unwrap(),
-            SimpleField::one(),
-        )
-        .to_affine()
-        .unwrap();
-        let _ = calculate_slope_var::<StarkwareCurve, FpVar<Fp>>(a, b).unwrap();
+
+        // Create FpVar inputs
+        let a = FpVar::new_witness(cs.clone(), || Ok(Fp::from(123u64))).unwrap();
+        let b = FpVar::new_witness(cs.clone(), || Ok(Fp::from(456u64))).unwrap();
+
+        // Compute the hash using FpVar
+        let hash_var = super::PedersenHash::<StarkwareCurve>::hash(a.clone(), b.clone());
+
+        // Compute the hash using regular Fp for comparison
+        let expected_hash = pedersen_hash(Fp::from(123u64), Fp::from(456u64));
+
+        // Assert that the computed hash matches the expected hash
+        FpVar::assert_equal(&hash_var, &FpVar::Constant(expected_hash));
+
+        // Check that the constraint system is satisfied
+        assert!(cs.is_satisfied().unwrap());
     }
 }

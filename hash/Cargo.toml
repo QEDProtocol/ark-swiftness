@@ -10,6 +10,7 @@ version.workspace = true
 [dependencies]
 ark-ff = { workspace = true }
 ark-std = { workspace = true }
+ark-relations = { workspace = true }
 ark-ec = { workspace = true }
 static_assertions = { workspace = true }
 ark-crypto-primitives = { workspace = true }

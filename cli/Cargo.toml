@@ -11,7 +11,10 @@ version = "0.0.8"
 clap = { workspace = true }
 
 swiftness_air = { workspace = true }
+swiftness_field = { workspace = true }
+swiftness_hash = { workspace = true }
 swiftness_stark = { workspace = true }
+swiftness_utils = { workspace = true }
 swiftness_proof_parser = { workspace = true }
 
 [features]

@@ -172,7 +172,8 @@ pub mod curve {
     where
         for<'a> &'a F: FieldOpsBounds<'a, P::BaseField, F>,
         <P as CurveConfig>::BaseField: SimpleField,
-        F::BooleanType: From<Boolean<<<P as CurveConfig>::BaseField as ark_ff::Field>::BasePrimeField>>
+        F::BooleanType:
+            From<Boolean<<<P as CurveConfig>::BaseField as ark_ff::Field>::BasePrimeField>>,
     {
         // TODO: enable check
         // if p1.infinity || p2.infinity || (p1.x == p2.x && p1.y != p2.y) {
@@ -226,9 +227,17 @@ pub mod curve {
 
 #[cfg(test)]
 mod tests {
-    use swiftness_field::Fp;
-
-    use super::Mat3x3;
+    use super::*;
+    use ark_ec::{
+        short_weierstrass::{Affine, Projective},
+        AffineRepr, CurveGroup,
+    };
+    use ark_r1cs_std::alloc::AllocVar;
+    use ark_r1cs_std::{
+        fields::fp::FpVar, groups::curves::short_weierstrass::ProjectiveVar, prelude::*,
+    };
+    use ark_relations::r1cs::ConstraintSystem;
+    use swiftness_field::{Fp, Fr};
 
     #[test]
     fn matrix_multiplication() {
@@ -270,6 +279,84 @@ mod tests {
                 g * c + h * f + i * i,
             ]
         );
+    }
+
+    #[test]
+    fn test_calculate_slope_var_1() {
+        use curve::StarkwareCurve;
+
+        let cs = ConstraintSystem::<Fp>::new_ref();
+        let p1_affine = Affine::<StarkwareCurve>::generator();
+        let p1_proj = Projective::from(p1_affine);
+        let p2_proj = p1_proj.mul(Fr::from(3));
+        let p2_affine = p2_proj.into_affine();
+
+        let p1_proj_var =
+            ProjectiveVar::<StarkwareCurve, FpVar<Fp>>::new_witness(cs.clone(), || Ok(p1_proj))
+                .unwrap();
+        let p1_affine_var = p1_proj_var.to_affine().unwrap();
+
+        let p2_proj_var =
+            ProjectiveVar::<StarkwareCurve, FpVar<Fp>>::new_witness(cs.clone(), || Ok(p2_proj))
+                .unwrap();
+        let p2_affine_var = p2_proj_var.to_affine().unwrap();
+
+        p2_affine_var
+            .x
+            .enforce_equal(&FpVar::Constant(p2_affine.x))
+            .unwrap();
+        p2_affine_var
+            .y
+            .enforce_equal(&FpVar::Constant(p2_affine.y))
+            .unwrap();
+
+        let slope_var = curve::calculate_slope_var(p1_affine_var, p2_affine_var).unwrap();
+        let slope = curve::calculate_slope(p1_affine, p2_affine).unwrap();
+
+        assert_eq!(slope_var.value().unwrap(), slope);
+
+        assert!(cs.is_satisfied().unwrap());
+    }
+
+    #[test]
+    fn test_calculate_slope_var_2() {
+        use curve::StarkwareCurve;
+        use ark_ff::MontFp as Fp;
+
+        let cs = ConstraintSystem::<Fp>::new_ref();
+        let p1_affine = Affine::new(
+            Fp!("163637187735534881657873805276162479037864365531085927085109320674493728224"),
+            Fp!("2716166568522807705172708228845609579049129132263999535306570107375881002867"),
+        );
+        let p1_proj = Projective::from(p1_affine);
+        let p2_proj = p1_proj.clone();
+        let p2_affine = p2_proj.into_affine();
+
+        let p1_proj_var =
+            ProjectiveVar::<StarkwareCurve, FpVar<Fp>>::new_witness(cs.clone(), || Ok(p1_proj))
+                .unwrap();
+        let p1_affine_var = p1_proj_var.to_affine().unwrap();
+
+        let p2_proj_var =
+            ProjectiveVar::<StarkwareCurve, FpVar<Fp>>::new_witness(cs.clone(), || Ok(p2_proj))
+                .unwrap();
+        let p2_affine_var = p2_proj_var.to_affine().unwrap();
+
+        p2_affine_var
+            .x
+            .enforce_equal(&FpVar::Constant(p2_affine.x))
+            .unwrap();
+        p2_affine_var
+            .y
+            .enforce_equal(&FpVar::Constant(p2_affine.y))
+            .unwrap();
+
+        let slope_var = curve::calculate_slope_var(p1_affine_var, p2_affine_var).unwrap();
+        let slope = curve::calculate_slope(p1_affine, p2_affine).unwrap();
+
+        assert_eq!(slope_var.value().unwrap(), slope);
+
+        assert!(cs.is_satisfied().unwrap());
     }
 }
 

@@ -16,9 +16,7 @@ pub fn generate_queries<F: SimpleField + PoseidonHash>(
     let mut samples: Vec<F> = (0..n)
         .map(|_| {
             let res = transcript.random_felt_to_prover();
-            let (_, low) = res.div_rem(&
-                F::from_stark_felt(Felt::from_hex_unchecked("0x100000000000000000000000000000000")),
-            );
+            let (_, low) = res.div_rem(&F::from_stark_felt(Felt::from_hex_unchecked("0x100000000000000000000000000000000")));
             let (_, sample) = low.div_rem(&query_upper_bound);
             sample
         })

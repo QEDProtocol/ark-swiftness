@@ -43,3 +43,5 @@ swiftness_fri = { workspace = true }
 swiftness_pow = { workspace = true }
 swiftness_stark = { workspace = true }
 swiftness_transcript = { workspace = true }
+swiftness_field = { workspace = true }
+swiftness_hash = { workspace = true }

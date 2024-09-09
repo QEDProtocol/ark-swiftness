@@ -28,7 +28,7 @@ impl<F: SimpleField> StarkDomains<F> {
         let eval_domain_size = F::two().powers_felt(&log_eval_domain_size);
         let trace_domain_size = F::two().powers_felt(&log_trace_domain_size);
         Self {
-            log_eval_domain_size: log_trace_domain_size.clone() + log_n_cosets,
+            log_eval_domain_size: log_eval_domain_size.clone(),
             eval_domain_size: F::two().powers_felt(&log_eval_domain_size),
             eval_generator: F::from_stark_felt(FIELD_GENERATOR).powers_felt(
                 &F::from_stark_felt(STARK_PRIME_MINUS_ONE).field_div(&eval_domain_size),

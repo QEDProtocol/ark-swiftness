@@ -23,7 +23,7 @@ impl Blake2sHash for Fp {
 impl<F: PrimeField + SimpleField> Blake2sHash for FpVar<F> {
     fn hash(data: &[<Self as SimpleField>::ByteType]) -> Vec<<Self as SimpleField>::ByteType> {
         let mut input_bits = vec![];
-        for input_byte in data.into_iter() {
+        for input_byte in data.iter() {
             input_bits.extend(ToBitsGadget::<F>::to_bits_le(input_byte).unwrap());
         }
 

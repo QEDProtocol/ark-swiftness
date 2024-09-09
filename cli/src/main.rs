@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+use swiftness_field::Fp;
 pub use swiftness_proof_parser::*;
 pub use swiftness_stark::*;
 
@@ -16,6 +17,7 @@ use swiftness_air::layout::starknet::Layout;
 use swiftness_air::layout::starknet_with_keccak::Layout;
 
 use clap::Parser;
+use swiftness_utils::curve::StarkwareCurve;
 
 #[derive(Parser)]
 #[command(author, version, about)]
@@ -28,8 +30,8 @@ struct CairoVMVerifier {
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cli = CairoVMVerifier::parse();
     let stark_proof = parse(std::fs::read_to_string(cli.proof)?)?;
-    let security_bits = stark_proof.config.security_bits();
-    let result = stark_proof.verify::<Layout>(security_bits)?;
+    let security_bits: Fp = stark_proof.config.security_bits();
+    let result = stark_proof.verify::<StarkwareCurve, Layout>(security_bits)?;
     println!("{:?}", result);
     Ok(())
 }

@@ -25,6 +25,7 @@ impl<F: SimpleField + PoseidonHash + Blake2sHash> StarkProof<F> {
         // Compute the initial hash seed for the Fiat-Shamir transcript.
         let digest = self.public_input.get_hash();
         // Construct the transcript.
+        // TODO: is this correct?
         let mut transcript = Transcript::new(digest);
 
         // STARK commitment phase.
