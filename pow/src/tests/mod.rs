@@ -1,5 +1,4 @@
-use starknet_crypto::Felt;
-use swiftness_field::{Fp, SimpleField};
+use swiftness_field::Fp;
 
 use crate::pow::verify_pow;
 
@@ -12,8 +11,7 @@ fn test_verify_proof_of_work_0() {
     ];
     let nonce: u64 = 0xd65397f;
     let n_bits: u8 = 0x1e;
-    let (a, b) = verify_pow::<Fp>(digest.to_vec(), n_bits, nonce).unwrap();
-    std::dbg!(Fp::from_stark_felt(Felt::from_hex_unchecked("0x252c2a7bfa056465aee9b480a")),  a, b, a < b);
+    verify_pow::<Fp>(digest.to_vec(), n_bits, nonce).unwrap();
 }
 
 #[test]

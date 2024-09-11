@@ -32,7 +32,7 @@ pub fn verify_pow<F: SimpleField + Blake2sHash + KeccakHash + PoseidonHash>(
     digest: Vec<<F as SimpleField>::ByteType>,
     n_bits: u8,
     nonce: u64,
-) -> Result<(F, F), Error> {
+) -> Result<(), Error> {
     // Compute the initial hash.
     // Hash(0x0123456789abcded || digest   || n_bits )
     //      8 bytes            || 32 bytes || 1 byte
@@ -50,14 +50,15 @@ pub fn verify_pow<F: SimpleField + Blake2sHash + KeccakHash + PoseidonHash>(
     init_data.extend_from_slice(digest.as_slice());
     init_data.push(F::construct_byte(n_bits));
 
-    let mut init_hash: Vec<<F as SimpleField>::ByteType>;
-    #[cfg(feature = "keccak")]
-    {
-        init_hash = <F as KeccakHash>::hash(&init_data);
-    }
-    #[cfg(feature = "blake2s")]
-    {
-        init_hash = <F as Blake2sHash>::hash(&init_data);
+    let init_hash: Vec<<F as SimpleField>::ByteType>;
+    cfg_if::cfg_if! {
+        if #[cfg(feature = "keccak")] {
+            init_hash = <F as KeccakHash>::hash(&init_data);
+        } else if #[cfg(feature = "blake2s")] {
+            init_hash = <F as Blake2sHash>::hash(&init_data);
+        } else {
+            compile_error!("Either 'keccak' or 'blake2s' feature must be enabled");
+        }
     }
 
     // Reverse the endianness of the initial hash.
@@ -78,23 +79,21 @@ pub fn verify_pow<F: SimpleField + Blake2sHash + KeccakHash + PoseidonHash>(
             .as_slice(),
     );
 
-    let mut final_hash: Vec<<F as SimpleField>::ByteType>;
-    #[cfg(feature = "keccak")]
-    {
-        final_hash = <F as KeccakHash>::hash(&hash_data);
-    }
-    #[cfg(feature = "blake2s")]
-    {
-        final_hash = <F as Blake2sHash>::hash(&hash_data);
+    let final_hash: Vec<<F as SimpleField>::ByteType>;
+    cfg_if::cfg_if! {
+        if #[cfg(feature = "keccak")] {
+            final_hash = <F as KeccakHash>::hash(&hash_data);
+        } else if #[cfg(feature = "blake2s")] {
+            final_hash = <F as Blake2sHash>::hash(&hash_data);
+        } else {
+            compile_error!("Either 'keccak' or 'blake2s' feature must be enabled");
+        }
     }
 
     F::from_be_bytes(&final_hash.as_slice()[0..16])
         .assert_lt(&F::two().powers([(128 - n_bits) as u64]));
 
-    Ok((
-        F::from_be_bytes(&final_hash.as_slice()[0..16]),
-        F::two().powers([(128 - n_bits) as u64]),
-    ))
+    Ok(())
 }
 
 #[cfg(feature = "std")]
