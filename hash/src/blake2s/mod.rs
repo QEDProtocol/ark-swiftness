@@ -39,3 +39,34 @@ impl<F: PrimeField + SimpleField> Blake2sHash for FpVar<F> {
         res
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use ark_r1cs_std::{alloc::AllocVar, uint8::UInt8, R1CSVar};
+    use ark_relations::r1cs::ConstraintSystem;
+    use num_traits::ToPrimitive;
+
+    #[test]
+    fn test_blake2s_fp_and_fpvar_match() {
+        let cs = ConstraintSystem::<Fp>::new_ref();
+
+        let test_data: Vec<u8> = vec![1, 2, 3, 4, 5];
+
+        let fp_hash = Fp::hash(&test_data);
+
+        let fpvar_input: Vec<UInt8<Fp>> = test_data
+            .iter()
+            .map(|&byte| UInt8::new_witness(cs.clone(), || Ok(byte)).unwrap())
+            .collect();
+
+        let fpvar_hash = FpVar::<Fp>::hash(fpvar_input.as_slice());
+
+        assert_eq!(fp_hash.len(), fpvar_hash.len());
+        for (fp_byte, fpvar_byte) in fp_hash.iter().zip(fpvar_hash.iter()) {
+            assert_eq!(fp_byte.to_u8(), fpvar_byte.value().unwrap().to_u8());
+        }
+
+        assert!(cs.is_satisfied().unwrap());
+    }
+}
