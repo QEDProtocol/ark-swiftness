@@ -1,14 +1,9 @@
 use alloc::vec::Vec;
-#[cfg(feature = "blake2s")]
-use blake2::Blake2s256;
-#[cfg(feature = "blake2s")]
-use blake2::Digest;
-#[cfg(feature = "keccak")]
-use sha3::Digest;
 
 use serde::{Deserialize, Serialize};
 use swiftness_field::SimpleField;
 use swiftness_hash::blake2s::Blake2sHash;
+use swiftness_hash::keccak::KeccakHash;
 use swiftness_hash::poseidon::PoseidonHash;
 use swiftness_transcript::transcript::Transcript;
 
@@ -22,7 +17,7 @@ pub struct UnsentCommitment {
 }
 
 impl UnsentCommitment {
-    pub fn commit<F: SimpleField + Blake2sHash + PoseidonHash>(
+    pub fn commit<F: SimpleField + Blake2sHash + KeccakHash + PoseidonHash>(
         &self,
         transcript: &mut Transcript<F>,
         config: &Config,
@@ -33,25 +28,32 @@ impl UnsentCommitment {
     }
 }
 
-pub fn verify_pow<F: SimpleField + Blake2sHash + PoseidonHash>(
+pub fn verify_pow<F: SimpleField + Blake2sHash + KeccakHash + PoseidonHash>(
     digest: Vec<<F as SimpleField>::ByteType>,
     n_bits: u8,
     nonce: u64,
-) -> Result<(), Error> {
+) -> Result<(F, F), Error> {
     // Compute the initial hash.
     // Hash(0x0123456789abcded || digest   || n_bits )
     //      8 bytes            || 32 bytes || 1 byte
     // Total of 0x29 = 41 bytes.
 
     let mut init_data = Vec::with_capacity(41);
-    init_data.extend_from_slice(F::from_constant(MAGIC).to_be_bytes().as_slice());
+    init_data.extend_from_slice(
+        MAGIC
+            .to_be_bytes()
+            .into_iter()
+            .map(|b| F::construct_byte(b))
+            .collect::<Vec<_>>()
+            .as_slice(),
+    );
     init_data.extend_from_slice(digest.as_slice());
     init_data.push(F::construct_byte(n_bits));
 
     let mut init_hash: Vec<<F as SimpleField>::ByteType>;
     #[cfg(feature = "keccak")]
     {
-        todo!()
+        init_hash = <F as KeccakHash>::hash(&init_data);
     }
     #[cfg(feature = "blake2s")]
     {
@@ -67,12 +69,19 @@ pub fn verify_pow<F: SimpleField + Blake2sHash + PoseidonHash>(
 
     let mut hash_data = Vec::with_capacity(40);
     hash_data.extend_from_slice(&init_hash);
-    hash_data.extend_from_slice(&F::from_constant(nonce).to_be_bytes());
+    hash_data.extend_from_slice(
+        &nonce
+            .to_be_bytes()
+            .into_iter()
+            .map(|b| F::construct_byte(b))
+            .collect::<Vec<_>>()
+            .as_slice(),
+    );
 
     let mut final_hash: Vec<<F as SimpleField>::ByteType>;
     #[cfg(feature = "keccak")]
     {
-        todo!()
+        final_hash = <F as KeccakHash>::hash(&hash_data);
     }
     #[cfg(feature = "blake2s")]
     {
@@ -82,7 +91,10 @@ pub fn verify_pow<F: SimpleField + Blake2sHash + PoseidonHash>(
     F::from_be_bytes(&final_hash.as_slice()[0..16])
         .assert_lt(&F::two().powers([(128 - n_bits) as u64]));
 
-    Ok(())
+    Ok((
+        F::from_be_bytes(&final_hash.as_slice()[0..16]),
+        F::two().powers([(128 - n_bits) as u64]),
+    ))
 }
 
 #[cfg(feature = "std")]

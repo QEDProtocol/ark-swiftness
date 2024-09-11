@@ -437,9 +437,10 @@ macro_rules! impl_simple_field_for {
                 <$field>::from(num_bigint::BigUint::from(value))
             }
 
-            #[allow(unconditional_recursion)]
             fn from_stark_felt(value: starknet_crypto::Felt) -> Self {
-                Self::from_felt(SimpleField::from_stark_felt(value))
+                let mut val = value.to_raw();
+                val.reverse();
+                Self::new_unchecked(BigInt(val))
             }
 
             fn assert_equal(&self, other: &Self) {

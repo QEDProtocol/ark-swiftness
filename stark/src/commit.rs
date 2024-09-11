@@ -3,12 +3,12 @@ use swiftness_air::{domains::StarkDomains, layout::LayoutTrait, public_memory::P
 use swiftness_commitment::table::commit::table_commit;
 use swiftness_field::SimpleField;
 use swiftness_fri::fri::fri_commit;
-use swiftness_hash::{blake2s::Blake2sHash, poseidon::PoseidonHash};
+use swiftness_hash::{blake2s::Blake2sHash, keccak::KeccakHash, poseidon::PoseidonHash};
 use swiftness_pow::pow;
 use swiftness_transcript::transcript::Transcript;
 
 // STARK commitment phase.
-pub fn stark_commit<F: SimpleField + PoseidonHash + Blake2sHash, Layout: LayoutTrait<F>>(
+pub fn stark_commit<F: SimpleField + PoseidonHash + Blake2sHash + KeccakHash, Layout: LayoutTrait<F>>(
     transcript: &mut Transcript<F>,
     public_input: &PublicInput<F>,
     unsent_commitment: &StarkUnsentCommitment<F>,

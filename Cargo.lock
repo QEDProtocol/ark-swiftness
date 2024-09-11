@@ -396,6 +396,7 @@ dependencies = [
  "num-traits",
  "once_cell",
  "ruint",
+ "sha3",
  "starknet-core",
  "starknet-crypto",
  "static_assertions",

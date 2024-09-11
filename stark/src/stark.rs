@@ -2,7 +2,7 @@ use crate::{
     commit::stark_commit, queries::generate_queries, types::StarkProof, verify::stark_verify,
 };
 
-impl<F: SimpleField + PoseidonHash + Blake2sHash> StarkProof<F> {
+impl<F: SimpleField + PoseidonHash + Blake2sHash + KeccakHash> StarkProof<F> {
     pub fn verify<P: SWCurveConfig, Layout: LayoutTrait<F>>(&self, security_bits: F) -> Result<(F, F), Error<F>>
     where
         F: PedersenHash<P>,
@@ -66,7 +66,7 @@ use swiftness_air::{
     layout::{LayoutTrait, PublicInputError},
 };
 use swiftness_field::SimpleField;
-use swiftness_hash::{blake2s::Blake2sHash, pedersen::PedersenHash, poseidon::PoseidonHash};
+use swiftness_hash::{blake2s::Blake2sHash, keccak::KeccakHash, pedersen::PedersenHash, poseidon::PoseidonHash};
 use swiftness_transcript::transcript::Transcript;
 
 #[cfg(feature = "std")]
