@@ -331,6 +331,7 @@ dependencies = [
  "ark_swiftness_transcript",
  "ark_swiftness_utils",
  "blake2",
+ "cfg-if",
  "serde",
  "serde_with 3.9.0",
  "sha3",

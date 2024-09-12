@@ -119,6 +119,7 @@ pub trait SimpleField:
     fn to_le_bits(&self) -> Vec<Self::BooleanType>;
     fn to_be_bits(&self) -> Vec<Self::BooleanType>;
     fn construct_byte(value: u8) -> Self::ByteType;
+    fn construct_bool(value: bool) -> Self::BooleanType;
 }
 
 impl<F: PrimeField + SimpleField> SimpleField for FpVar<F> {
@@ -367,6 +368,10 @@ impl<F: PrimeField + SimpleField> SimpleField for FpVar<F> {
 
     fn construct_byte(value: u8) -> Self::ByteType {
         UInt8::<F>::constant(value)
+    }
+
+    fn construct_bool(value: bool) -> Self::BooleanType {
+        Boolean::<F>::constant(value)
     }
 
     fn from_be_bytes(bytes: &[Self::ByteType]) -> Self {
@@ -618,6 +623,10 @@ macro_rules! impl_simple_field_for {
             }
 
             fn construct_byte(value: u8) -> Self::ByteType {
+                value
+            }
+
+            fn construct_bool(value: bool) -> Self::BooleanType {
                 value
             }
 
