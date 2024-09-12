@@ -28,7 +28,7 @@ pub fn vector_commitment_decommit<F: SimpleField + PoseidonHash>(
         .collect();
 
     let expected_commitment = compute_root_from_queries(
-        &shifted_queries,
+        shifted_queries,
         0,
         commitment.config.n_verifier_friendly_commitment_layers,
         &witness.authentications,
@@ -42,94 +42,106 @@ pub fn vector_commitment_decommit<F: SimpleField + PoseidonHash>(
 }
 
 pub fn compute_root_from_queries<F: SimpleField + PoseidonHash>(
-    queue: &[QueryWithDepth<F>],
-    start: usize,
-    n_verifier_friendly_layers: F,
+    mut queue: Vec<QueryWithDepth<F>>,
+    mut start: usize,
+    _n_verifier_friendly_layers: F,
     authentications: &[F],
-    auth_start: usize,
+    mut auth_start: usize,
 ) -> Result<F, Error<F>> {
-    let current = queue.get(start).ok_or(Error::IndexInvalid)?;
+    if queue.is_empty() {
+        return Err(Error::IndexInvalid);
+    }
 
-    // Check if we've reached the root
-    let is_root = current.index.is_equal(&F::one());
-    let root_value = current.value.clone();
+    while queue.len() > start {
+        let current = queue.get(start).ok_or(Error::IndexInvalid)?;
 
-    // Compute non-root case
-    let (parent, bit) = current.index.div2_rem();
-    let is_left_child = bit.is_equal(&F::zero());
+        // Check if we've reached the root
+        let is_root = current.index.is_equal(&F::one());
+        let root_value = current.value.clone();
 
-    // TODO: allow non-verifier friendly
-    // let is_verifier_friendly = n_verifier_friendly_layers >= current.depth;
-    let is_verifier_friendly = true;
+        // Compute non-root case
+        let (parent, bit) = current.index.div2_rem();
+        let current_is_left_child = bit.is_equal(&F::zero());
 
-    let next_sibling = queue
-        .get(start + 1)
-        .map(|next| {
-            <F as SimpleField>::and(
-                &<F as SimpleField>::not(
-                    &F::from_constant((start + 1) as u64)
-                        .is_equal(&F::from_constant(queue.len() as u64)),
-                ),
-                &(current.index.clone() + F::one()).is_equal(&next.index),
-            )
-        })
-        .ok_or(Error::IndexInvalid)?;
+        // TODO: allow non-verifier friendly
+        // let is_verifier_friendly = n_verifier_friendly_layers >= current.depth;
+        let is_verifier_friendly = true;
 
-    let sibling_value = SimpleField::select(
-        &<F as SimpleField>::and(&is_left_child, &next_sibling),
-        queue
+        let merge = queue
             .get(start + 1)
-            .map(|next| next.value.clone())
-            .ok_or(Error::IndexInvalid)?,
-        authentications
-            .get(auth_start)
-            .cloned()
-            .ok_or(Error::IndexInvalid)?,
-    );
+            .map(|next| {
+                <F as SimpleField>::and(
+                    &current_is_left_child,
+                    &(current.index.clone() + F::one()).is_equal(&next.index),
+                )
+            })
+            .unwrap_or(<F as SimpleField>::construct_bool(false));
 
-    let hash = SimpleField::select(
-        &is_left_child,
-        hash_friendly_unfriendly(
-            current.value.clone(),
-            sibling_value.clone(),
-            is_verifier_friendly,
-        ),
-        hash_friendly_unfriendly(sibling_value, current.value.clone(), is_verifier_friendly),
-    );
+        let sibling_value = SimpleField::select(
+            &merge,
+            queue
+                .get(start + 1)
+                .map(|next| next.value.clone())
+                .unwrap_or(current.value.clone()),
+            authentications
+                .get(auth_start)
+                .cloned()
+                .unwrap_or(current.value.clone()),
+        );
 
-    let next_query = QueryWithDepth {
-        index: parent.clone(),
-        value: hash.clone(),
-        depth: current.depth.clone() - F::one(),
-    };
+        let hash = SimpleField::select(
+            &is_root,
+            root_value,
+            SimpleField::select(
+                &current_is_left_child,
+                hash_friendly_unfriendly(
+                    current.value.clone(),
+                    sibling_value.clone(),
+                    is_verifier_friendly,
+                ),
+                hash_friendly_unfriendly(
+                    sibling_value,
+                    current.value.clone(),
+                    is_verifier_friendly,
+                ),
+            ),
+        );
 
-    let next_start = SimpleField::select(
-        &next_sibling,
-        F::from_constant((start + 2) as u64),
-        F::from_constant((start + 1) as u64),
-    );
+        let next_query = QueryWithDepth {
+            index: parent.clone(),
+            value: hash.clone(),
+            depth: current.depth.clone() - F::one(),
+        };
 
-    let next_auth_start = SimpleField::select(
-        &next_sibling,
-        F::from_constant(auth_start as u64),
-        F::from_constant((auth_start + 1) as u64),
-    );
+        let next_start = SimpleField::select(
+            &<F as SimpleField>::or(&merge, &is_root),
+            F::from_constant((start + 2) as u64),
+            F::from_constant((start + 1) as u64),
+        );
 
-    let sub_result = compute_root_from_queries(
-        &queue.iter().cloned()
-            .into_iter()
-            .chain([next_query].into_iter())
-            .collect::<Vec<_>>(),
-        next_start.into_constant() as usize,
-        n_verifier_friendly_layers,
-        authentications,
-        next_auth_start.into_constant() as usize,
-    )?;
+        let next_auth_start = SimpleField::select(
+            &<F as SimpleField>::or(&merge, &is_root),
+            F::from_constant(auth_start as u64),
+            F::from_constant((auth_start + 1) as u64),
+        );
 
-    Ok(SimpleField::select(&is_root, root_value, sub_result))
+        start = next_start.into_constant() as usize;
+        auth_start = next_auth_start.into_constant() as usize;
+        queue.push(next_query);
+    }
+
+    Ok(queue
+        .get(start - 1)
+        .ok_or(Error::IndexInvalid)?
+        .value
+        .clone())
 }
 
-fn hash_friendly_unfriendly<F: SimpleField + PoseidonHash>(x: F, y: F, is_verifier_friendly: bool) -> F {
+fn hash_friendly_unfriendly<F: SimpleField + PoseidonHash>(
+    x: F,
+    y: F,
+    is_verifier_friendly: bool,
+) -> F {
     if is_verifier_friendly {
         PoseidonHash::hash(x, y)
     } else {
