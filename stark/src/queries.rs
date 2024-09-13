@@ -12,8 +12,8 @@ pub fn generate_queries<F: SimpleField + PoseidonHash>(
     n_samples: F,
     query_upper_bound: F,
 ) -> Vec<F> {
-    let n: u128 = n_samples.into_constant().try_into().unwrap();
-    let mut samples: Vec<F> = (0..n)
+    let samples: Vec<F> = F::range(&F::zero(), &n_samples)
+        .into_iter()
         .map(|_| {
             let res = transcript.random_felt_to_prover();
             let (_, low) = res.div_rem(&F::from_stark_felt(Felt::from_hex_unchecked("0x100000000000000000000000000000000")));
@@ -22,9 +22,7 @@ pub fn generate_queries<F: SimpleField + PoseidonHash>(
         })
         .collect();
 
-    // TODO: should sort
-    // samples.sort();
-    samples
+    F::sort(samples)
 }
 
 pub fn queries_to_points<F: SimpleField + PoseidonHash>(queries: &[F], stark_domains: &StarkDomains<F>) -> Vec<F> {
@@ -39,8 +37,8 @@ pub fn queries_to_points<F: SimpleField + PoseidonHash>(queries: &[F], stark_dom
     let shift = F::two().powers_felt(&(F::from_constant(64_u128) - stark_domains.log_eval_domain_size.clone()));
 
     for query in queries {
-        let index: u64 = (query.clone() * &shift).into_constant().try_into().unwrap();
-        points.push(F::from_stark_felt(FIELD_GENERATOR) * stark_domains.eval_generator.powers([index.reverse_bits()]))
+        let index = (query.clone() * &shift).reverse_bits();
+        points.push(F::from_stark_felt(FIELD_GENERATOR) * stark_domains.eval_generator.powers_felt(&index))
     }
     points
 }

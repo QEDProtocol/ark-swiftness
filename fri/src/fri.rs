@@ -50,7 +50,7 @@ pub fn fri_commit_rounds<F: SimpleField + PoseidonHash>(
     let mut commitments = Vec::<TableCommitment<F>>::new();
     let mut eval_points = Vec::<F>::new();
 
-    let len: usize = n_layers.into_constant().try_into().unwrap();
+    let len: usize = n_layers.into_biguint().try_into().unwrap();
     for i in 0..len {
         // Read commitments.
         commitments.push(table_commit(
@@ -108,7 +108,7 @@ fn fri_verify_layers<F: SimpleField + PoseidonHash>(
     step_sizes: Vec<F>,
     mut queries: Vec<FriLayerQuery<F>>,
 ) -> Vec<FriLayerQuery<F>> {
-    let len: usize = n_layers.into_constant().try_into().unwrap();
+    let len: usize = n_layers.into_biguint().try_into().unwrap();
 
     for i in 0..len {
         let target_layer_witness = layer_witness.get(i).unwrap();

@@ -59,7 +59,7 @@ impl<F: SimpleField + PoseidonHash> Config<F> {
         //     return Err(Error::FirstFriStepInvalid);
         // }
 
-        let n_layers: usize = self.n_layers.into_constant().try_into().unwrap();
+        let n_layers: usize = self.n_layers.into_biguint().try_into().unwrap();
         let mut sum_of_step_sizes = F::zero();
         let mut log_input_size = self.log_input_size.clone();
 
@@ -73,7 +73,7 @@ impl<F: SimpleField + PoseidonHash> Config<F> {
             // if fri_step < MIN_FRI_STEP.into() || fri_step > MAX_FRI_STEP.into() {
             //     return Err(Error::OutOfBounds { min: MIN_FRI_STEP, max: MAX_FRI_STEP });
             // }
-            let fri_step: u64 = fri_step.into_constant().try_into().unwrap();
+            let fri_step: u64 = fri_step.into_biguint().try_into().unwrap();
             let expected_n_columns = F::from_constant(2_u128).powers([fri_step]);
             // if table_commitment.n_columns != expected_n_columns {
             //     return Err(Error::InvalidColumnCount {

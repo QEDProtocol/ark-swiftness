@@ -11,7 +11,7 @@ use starknet_crypto::Felt;
 // #[cfg(feature = "keccak")]
 // use sha3::Keccak256;
 use swiftness_field::SimpleField;
-use swiftness_hash::poseidon::{PoseidonHash};
+use swiftness_hash::poseidon::PoseidonHash;
 
 use super::types::{Commitment, Decommitment, Witness};
 
@@ -23,7 +23,7 @@ pub fn table_decommit<F: SimpleField + PoseidonHash>(
 ) -> Result<(), Error<F>> {
     // An extra layer is added to the height since the table is considered as a layer, which is not
     // included in vector_commitment.config.
-    let bottom_layer_depth = commitment.vector_commitment.config.height.clone() + F::one();
+    // let bottom_layer_depth = commitment.vector_commitment.config.height.clone() + F::one();
 
     // Determine if the table commitment should use a verifier friendly hash function for the bottom
     // layer. The other layers' hash function will be determined in the vector_commitment logic.
@@ -32,16 +32,11 @@ pub fn table_decommit<F: SimpleField + PoseidonHash>(
     //         >= bottom_layer_depth;
     let is_bottom_layer_verifier_friendly = true;
 
-    // TODO: may panic
-    let n_columns: u32 = commitment
-        .config
-        .n_columns
-        .into_constant()
-        .try_into()
-        .unwrap();
-    if n_columns as usize * queries.len() != decommitment.values.len() {
-        return Err(Error::DecommitmentLength);
-    }
+    // if n_columns as usize * queries.len() != decommitment.values.len() {
+    //     return Err(Error::DecommitmentLength);
+    // }
+    (commitment.config.n_columns.clone() * &F::from_constant(queries.len()))
+        .assert_not_equal(&F::from_constant(decommitment.values.len()));
 
     // Convert decommitment values to Montgomery form, since the commitment is in that form.
     let montgomery_values: Vec<F> = decommitment
@@ -58,7 +53,7 @@ pub fn table_decommit<F: SimpleField + PoseidonHash>(
     let vector_queries = generate_vector_queries(
         queries,
         &montgomery_values,
-        n_columns,
+        commitment.config.n_columns.clone(),
         is_bottom_layer_verifier_friendly,
     );
 
@@ -72,30 +67,38 @@ pub fn table_decommit<F: SimpleField + PoseidonHash>(
 fn generate_vector_queries<F: SimpleField + PoseidonHash>(
     queries: &[F],
     values: &[F],
-    n_columns: u32,
-    is_verifier_friendly: bool,
+    n_columns: F,
+    _is_verifier_friendly: bool,
 ) -> Vec<Query<F>> {
     let mut vector_queries = Vec::new();
     for i in 0..queries.len() {
-        let hash = if n_columns == 1 {
-            values[i].clone()
-        } else if is_verifier_friendly {
-            let slice = &values[(i * n_columns as usize)..((i + 1) * n_columns as usize)];
-            PoseidonHash::hash_many(slice)
-        } else {
-            todo!()
-            // let slice = &values[(i * n_columns as usize)..((i + 1) * n_columns as usize)];
-            // let mut data = Vec::new();
-            // data.extend(slice.iter().flat_map(|x| x.to_bytes_be().to_vec()));
-            //
-            // #[cfg(feature = "keccak")]
-            // let mut hasher = Keccak256::new();
-            // #[cfg(feature = "blake2s")]
-            // let mut hasher = Blake2s256::new();
-            //
-            // hasher.update(&data);
-            // Felt::from_bytes_be_slice(&hasher.finalize().to_vec().as_slice()[12..32])
-        };
+        let hash = SimpleField::select(&n_columns.is_equal(&F::one()), values[i].clone(), {
+            let slice = <F as SimpleField>::slice(
+                &values,
+                &n_columns.mul_by_constant(i),
+                &n_columns.mul_by_constant(i + 1),
+            );
+            PoseidonHash::hash_many(&slice)
+        });
+        // if n_columns == 1 {
+        //     values[i].clone()
+        // } else if is_verifier_friendly {
+        //     let slice = &values[(i * n_columns as usize)..((i + 1) * n_columns as usize)];
+        //     PoseidonHash::hash_many(slice)
+        // } else {
+        // todo!()
+        // let slice = &values[(i * n_columns as usize)..((i + 1) * n_columns as usize)];
+        // let mut data = Vec::new();
+        // data.extend(slice.iter().flat_map(|x| x.to_bytes_be().to_vec()));
+        //
+        // #[cfg(feature = "keccak")]
+        // let mut hasher = Keccak256::new();
+        // #[cfg(feature = "blake2s")]
+        // let mut hasher = Blake2s256::new();
+        //
+        // hasher.update(&data);
+        // Felt::from_bytes_be_slice(&hasher.finalize().to_vec().as_slice()[12..32])
+        // };
 
         vector_queries.push(Query {
             index: queries[i].clone(),

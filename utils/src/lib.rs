@@ -81,7 +81,7 @@ impl<F: SimpleField> Mat3x3<F> {
             [a_prime, b_prime, c_prime],
             [d_prime, e_prime, f_prime],
             [g_prime, h_prime, i_prime],
-        ]) * determinant.inv()?;
+        ]) * determinant.inv();
         Some(inv)
     }
 }
