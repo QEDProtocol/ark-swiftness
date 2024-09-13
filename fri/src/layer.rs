@@ -1,5 +1,6 @@
 use alloc::vec::Vec;
 use starknet_crypto::Felt;
+use num_traits::ops::bytes::ToBytes;
 
 pub struct FriLayerComputationParams<F: SimpleField + PoseidonHash> {
     pub coset_size: F,
@@ -36,15 +37,14 @@ pub fn compute_coset_elements<F: SimpleField + PoseidonHash>(
 ) -> (Vec<F>, F) {
     let mut coset_elements = Vec::new();
     let mut coset_x_inv = F::zero();
-    let coset_size: usize = coset_size.into_constant().try_into().unwrap();
-    for index in 0..coset_size {
+    for index in F::range(&F::zero(), &coset_size) {
         let q = queries.first();
         // TODO: enable && q.unwrap().index == coset_start_index + F::from_constant(index as u64)
         // q.is_some() && && q.unwrap().index == coset_start_index + F::from_constant(index as u64)
         if q.is_some()  {
             let query: Vec<FriLayerQuery<F>> = queries.drain(0..1).collect();
             coset_elements.push(query[0].y_value.clone());
-            coset_x_inv = query[0].x_inv_value.clone() * fri_group.get(index).unwrap();
+            coset_x_inv = query[0].x_inv_value.clone() * F::at(fri_group, &index);
         } else {
             let withness: Vec<F> = sibling_witness.drain(0..1).collect();
             coset_elements.push(withness[0].clone());
@@ -78,10 +78,9 @@ pub fn compute_next_layer<F: SimpleField + PoseidonHash>(
 
     let coset_size = params.coset_size.clone();
     while !queries.is_empty() {
-        let query_uint = queries.first().unwrap().index.into_constant();
-        let coset_size_uint = coset_size.clone().into_constant();
-        let coset_index =
-            F::from_stark_felt(Felt::from_bytes_be_slice((query_uint / coset_size_uint).to_be_bytes().as_slice()));
+        let query_uint = queries.first().unwrap().index.clone();
+        let coset_size_uint = coset_size.clone();
+        let coset_index = query_uint.field_div(&coset_size_uint);
 
         verify_indices.push(coset_index.clone());
 

@@ -501,21 +501,19 @@ impl<F: SimpleField + PoseidonHash> LayoutTrait<F> for Layout {
 
         let program_end_pc = initial_fp - F::two();
 
-        let program: Vec<&F> = memory
-            .iter()
-            .skip(initial_pc.into_constant().try_into().unwrap())
+        let program: Vec<F> = F::take(&F::skip(memory.as_slice(), &initial_pc)
+            .into_iter()
             .step_by(2)
-            .take((program_end_pc - F::one()).into_constant().try_into().unwrap())
-            .collect();
+            .collect::<Vec<_>>(), &(program_end_pc - F::one()));
 
-        let hash = program.iter().fold(F::zero(), |acc, &e| PedersenHash::<P>::hash(acc.clone(), e.clone()));
-        let program_hash = PedersenHash::<P>::hash(hash, F::from_constant(program.len() as u128));
+        let hash = program.iter().fold(F::zero(), |acc, e| PedersenHash::<P>::hash(acc.clone(), e.clone()));
+        let program_hash = PedersenHash::<P>::hash(hash, F::from_constant(program.len()));
 
-        let output_len: usize = (output_stop - output_start).into_constant().try_into().unwrap();
-        let output = &memory[memory.len() - output_len * 2..];
+        let output_len = output_stop - output_start;
+        let output = F::skip(&memory, &(F::from_constant(memory.len()) - output_len.mul_by_constant(2u64)));
         let hash =
             output.iter().skip(1).step_by(2).fold(F::zero(), |acc, e| PedersenHash::<P>::hash(acc.clone(), e.clone()));
-        let output_hash = PedersenHash::<P>::hash(hash, F::from_constant(output_len as u128));
+        let output_hash = PedersenHash::<P>::hash(hash, output_len);
 
         Ok((program_hash, output_hash))
     }

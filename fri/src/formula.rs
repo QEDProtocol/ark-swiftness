@@ -122,7 +122,7 @@ pub fn fri_formula<F: SimpleField + PoseidonHash>(
     x_inv: F,
     coset_size: F,
 ) -> Result<F, Error> {
-    let coset_size: u64 = coset_size.into_constant().try_into().unwrap();
+    let coset_size: u64 = coset_size.into_biguint().try_into().unwrap();
     // Sort by usage frequency.
     match coset_size {
         2 => {

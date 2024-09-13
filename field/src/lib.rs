@@ -16,6 +16,8 @@ use ark_r1cs_std::ToBitsGadget;
 use ark_r1cs_std::ToBytesGadget;
 use num_integer::Integer;
 
+use std::fmt::Debug;
+
 use std::ops::*;
 
 #[derive(MontConfig)]
@@ -71,6 +73,7 @@ pub trait SimpleField:
     + for<'a> SubAssign<&'a Self>
     + for<'a> MulAssign<&'a Self>
 {
+    type Value;
     type BooleanType;
     type ByteType: Clone;
 
@@ -79,13 +82,20 @@ pub trait SimpleField:
     fn two() -> Self;
     fn three() -> Self;
     fn four() -> Self;
+    fn get_value(&self) -> Self::Value;
     fn negate(&self) -> Self;
-    fn inv(&self) -> Option<Self>;
+    fn inv(&self) -> Self;
+    fn mul_by_constant(&self, n: impl Into<num_bigint::BigUint>) -> Self;
     fn powers<Exp: AsRef<[u64]>>(&self, n: Exp) -> Self;
     fn powers_felt(&self, n: &Self) -> Self;
-    fn from_constant(value: impl Into<u128>) -> Self;
+    fn from_constant(value: impl Into<num_bigint::BigUint>) -> Self;
+    fn from_boolean(value: Self::BooleanType) -> Self;
+    fn into_boolean(&self) -> Self::BooleanType;
     fn from_biguint(value: num_bigint::BigUint) -> Self;
-    fn into_constant(&self) -> u128;
+    fn into_biguint(&self) -> num_bigint::BigUint;
+    fn into_constant<T: TryFrom<num_bigint::BigUint>>(&self) -> T
+    where
+        <T as TryFrom<num_bigint::BigUint>>::Error: Debug;
     fn from_felt(value: Fp) -> Self;
     fn from_stark_felt(value: starknet_crypto::Felt) -> Self;
     fn assert_equal(&self, other: &Self);
@@ -99,8 +109,11 @@ pub trait SimpleField:
     fn select(cond: &Self::BooleanType, true_value: Self, false_value: Self) -> Self;
     fn is_equal(&self, other: &Self) -> Self::BooleanType;
     fn is_not_equal(&self, other: &Self) -> Self::BooleanType;
+    fn is_zero(&self) -> Self::BooleanType;
+    fn is_one(&self) -> Self::BooleanType;
     fn and(lhs: &Self::BooleanType, rhs: &Self::BooleanType) -> Self::BooleanType;
     fn or(lhs: &Self::BooleanType, rhs: &Self::BooleanType) -> Self::BooleanType;
+    fn xor(lhs: &Self::BooleanType, rhs: &Self::BooleanType) -> Self::BooleanType;
     fn not(value: &Self::BooleanType) -> Self::BooleanType;
     fn greater_than(&self, other: &Self) -> Self::BooleanType;
     fn less_than(&self, other: &Self) -> Self::BooleanType;
@@ -118,11 +131,22 @@ pub trait SimpleField:
     fn from_le_bytes(bytes: &[Self::ByteType]) -> Self;
     fn to_le_bits(&self) -> Vec<Self::BooleanType>;
     fn to_be_bits(&self) -> Vec<Self::BooleanType>;
+    fn from_le_bits(bits: &[Self::BooleanType]) -> Self;
+    fn from_be_bits(bits: &[Self::BooleanType]) -> Self;
+    fn reverse_bits(&self) -> Self;
     fn construct_byte(value: u8) -> Self::ByteType;
     fn construct_bool(value: bool) -> Self::BooleanType;
+
+    fn sort(values: Vec<Self>) -> Vec<Self>;
+    fn slice(values: &[Self], start: &Self, end: &Self) -> Vec<Self>;
+    fn skip(values: &[Self], n: &Self) -> Vec<Self>;
+    fn take(values: &[Self], n: &Self) -> Vec<Self>;
+    fn range(start: &Self, end: &Self) -> Vec<Self>;
+    fn at(values: &[Self], i: &Self) -> Self;
 }
 
 impl<F: PrimeField + SimpleField> SimpleField for FpVar<F> {
+    type Value = F;
     type BooleanType = Boolean<F>;
     type ByteType = UInt8<F>;
 
@@ -142,30 +166,64 @@ impl<F: PrimeField + SimpleField> SimpleField for FpVar<F> {
         FieldVar::<F, F>::negate(self).unwrap()
     }
 
-    fn inv(&self) -> Option<Self> {
-        FpVar::new_witness(self.cs(), || {
-            Ok(self.value()?.inverse().unwrap_or_else(SimpleField::zero))
-        })
-        .ok()
+    fn is_zero(&self) -> Self::BooleanType {
+        EqGadget::is_eq(self, &SimpleField::zero()).unwrap()
     }
 
-    fn from_constant(value: impl Into<u128>) -> Self {
+    fn is_one(&self) -> Self::BooleanType {
+        EqGadget::is_eq(self, &SimpleField::one()).unwrap()
+    }
+
+    fn inv(&self) -> Self {
+        if self.is_constant() {
+            FpVar::Constant(self.value().unwrap().inv().clone())
+        } else {
+            let is_zero = <Self as SimpleField>::is_zero(self);
+            let inv = FpVar::new_witness(self.cs(), || Ok(self.value()?.inv())).unwrap();
+            self.mul_equals(&inv, &Self::from_boolean(Self::not(&is_zero)))
+                .unwrap();
+            inv
+        }
+    }
+
+    fn from_constant(value: impl Into<num_bigint::BigUint>) -> Self {
         FpVar::Constant(F::from_constant(value))
+    }
+
+    fn from_boolean(value: Self::BooleanType) -> Self {
+        Self::from(value)
+    }
+
+    fn into_boolean(&self) -> Self::BooleanType {
+        Self::assert_true(Self::or(
+            &SimpleField::is_zero(self),
+            &SimpleField::is_one(self),
+        ));
+        Boolean::select(
+            &SimpleField::is_zero(self),
+            &Boolean::<F>::FALSE,
+            &Boolean::<F>::TRUE,
+        )
+        .unwrap()
     }
 
     fn from_biguint(value: num_bigint::BigUint) -> Self {
         FpVar::Constant(F::from_biguint(value))
     }
 
-    fn into_constant(&self) -> u128 {
-        match self {
-            FpVar::Constant(value) => value.into_constant(),
-            FpVar::Var(_) => unreachable!(),
-        }
+    fn into_biguint(&self) -> num_bigint::BigUint {
+        self.value().unwrap().try_into().unwrap()
+    }
+
+    fn into_constant<T: TryFrom<num_bigint::BigUint>>(&self) -> T
+    where
+        <T as TryFrom<num_bigint::BigUint>>::Error: Debug,
+    {
+        self.into_biguint().try_into().unwrap()
     }
 
     fn powers<Exp: AsRef<[u64]>>(&self, n: Exp) -> Self {
-        FieldVar::<F, F>::pow_by_constant(self, n).unwrap()
+        self.pow_by_constant(n).unwrap()
     }
 
     fn from_felt(value: Fp) -> Self {
@@ -244,6 +302,10 @@ impl<F: PrimeField + SimpleField> SimpleField for FpVar<F> {
         Boolean::or(lhs, rhs).unwrap()
     }
 
+    fn xor(lhs: &Self::BooleanType, rhs: &Self::BooleanType) -> Self::BooleanType {
+        Boolean::xor(lhs, rhs).unwrap()
+    }
+
     fn not(value: &Self::BooleanType) -> Self::BooleanType {
         Boolean::not(value)
     }
@@ -265,13 +327,7 @@ impl<F: PrimeField + SimpleField> SimpleField for FpVar<F> {
     }
 
     fn field_div(&self, other: &Self) -> Self {
-        other
-            .is_equal(&SimpleField::zero())
-            .select(
-                &SimpleField::zero(),
-                &self.mul(&other.inv().unwrap_or(SimpleField::zero())),
-            )
-            .unwrap()
+        self.mul(other.inv())
     }
 
     fn rsh(&self, n: usize) -> Self {
@@ -394,11 +450,192 @@ impl<F: PrimeField + SimpleField> SimpleField for FpVar<F> {
         )
         .unwrap()
     }
+
+    fn from_le_bits(bits: &[Self::BooleanType]) -> Self {
+        Boolean::le_bits_to_fp_var(&bits).unwrap()
+    }
+
+    fn from_be_bits(bits: &[Self::BooleanType]) -> Self {
+        Boolean::le_bits_to_fp_var(
+            bits.into_iter()
+                .cloned()
+                .rev()
+                .collect::<Vec<_>>()
+                .as_slice(),
+        )
+        .unwrap()
+    }
+
+    // Unsafe
+    fn reverse_bits(&self) -> Self {
+        if self.is_constant() {
+            return FpVar::Constant(self.value().unwrap().reverse_bits());
+        }
+
+        let r = Self::new_witness(self.cs(), || Ok(self.value().unwrap().reverse_bits())).unwrap();
+
+        // TODO: we should have been able to write this in circuits but arkworks' to_non_unique_bits looks buggy
+        r
+    }
+
+    fn get_value(&self) -> Self::Value {
+        self.value().unwrap().clone()
+    }
+
+    // Unsafe
+    fn sort(values: Vec<Self>) -> Vec<Self> {
+        if values.is_empty() {
+            return vec![];
+        }
+
+        let cs = values.cs();
+
+        // All should be constants
+        if cs.is_none() {
+            let mut new_values = values.value().unwrap();
+            new_values.sort();
+            return new_values.into_iter().map(|v| FpVar::Constant(v)).collect();
+        }
+
+        let new_values = Vec::<Self>::new_witness(cs, || {
+            let mut values = values.value().unwrap();
+            values.sort();
+            Ok(values)
+        })
+        .unwrap();
+
+        // TODO: check new_values come from the original vector
+        new_values.iter().reduce(|prev, next| {
+            SimpleField::assert_lte(prev, next);
+            next
+        });
+
+        new_values
+    }
+
+    // Unsafe
+    fn slice(values: &[Self], start: &Self, end: &Self) -> Vec<Self> {
+        let cs = values.cs();
+
+        // All should be constants
+        if cs.is_none() {
+            let start = start.get_value();
+            let end = end.get_value();
+            return values[start.into_constant()..end.into_constant()].to_vec();
+        }
+
+        let slice = Vec::<Self>::new_witness(cs, || {
+            let start = start.get_value();
+            let end = end.get_value();
+            let values = values.value().unwrap();
+            Ok(values[start.into_constant()..end.into_constant()].to_vec())
+        })
+        .unwrap();
+
+        // TODO: check new slice comes from the original slice
+        slice
+    }
+
+    fn skip(values: &[Self], n: &Self) -> Vec<Self> {
+        let cs = values.cs();
+
+        // All should be constants
+        if cs.is_none() {
+            let start = n.get_value();
+            return values[start.into_constant()..].to_vec();
+        }
+
+        let slice = Vec::<Self>::new_witness(cs, || {
+            let start = n.get_value();
+            let values = values.value().unwrap();
+            Ok(values[start.into_constant()..].to_vec())
+        })
+        .unwrap();
+
+        // TODO: check new slice comes from the original slice
+        slice
+    }
+
+    fn take(values: &[Self], n: &Self) -> Vec<Self> {
+        let cs = values.cs();
+
+        // All should be constants
+        if cs.is_none() {
+            let start = n.get_value();
+            return values[..start.into_constant()].to_vec();
+        }
+
+        let slice = Vec::<Self>::new_witness(cs, || {
+            let start = n.get_value();
+            let values = values.value().unwrap();
+            Ok(values[..start.into_constant()].to_vec())
+        })
+        .unwrap();
+
+        // TODO: check new slice comes from the original slice
+        slice
+    }
+
+    // Unsafe
+    fn range(start: &Self, end: &Self) -> Vec<Self> {
+        let cs = start.cs().or(end.cs());
+
+        if cs.is_none() {
+            return (start.value().unwrap().into_constant::<usize>()
+                ..end.value().unwrap().into_constant::<usize>())
+                .map(|v| Self::from_constant(v))
+                .collect::<Vec<_>>();
+        }
+
+        let range = Vec::<Self>::new_witness(cs, || {
+            Ok((start.value().unwrap().into_constant::<usize>()
+                ..end.value().unwrap().into_constant::<usize>())
+                .map(|v| F::from_constant(v))
+                .collect::<Vec<_>>())
+        })
+        .unwrap();
+
+        if let Some(first) = range.first() {
+            first.assert_equal(start);
+        }
+
+        if let Some(last) = range.last() {
+            last.assert_equal(&(end.clone() - &SimpleField::one()))
+        }
+
+        range.iter().reduce(|prev, next| {
+            next.assert_equal(&(prev + &SimpleField::one()));
+            next
+        });
+
+        return range;
+    }
+
+    // Unsafe
+    fn at(values: &[Self], i: &Self) -> Self {
+        let cs = values.cs();
+        if i.is_constant() || cs.is_none() {
+            return values[i.into_constant::<usize>()].clone();
+        }
+
+        let value = Self::new_witness(cs, || {
+            Ok(<Self as R1CSVar<F>>::value(&values[i.into_constant::<usize>()]).unwrap())
+        })
+        .unwrap();
+
+        // TODO: check value equals to element at i position
+        value
+    }
+
+    fn mul_by_constant(&self, n: impl Into<num_bigint::BigUint>) -> Self {
+        self.mul(&Self::from_constant(n))
+    }
 }
 
 macro_rules! impl_simple_field_for {
     ($field:ty) => {
         impl SimpleField for $field {
+            type Value = $field;
             type BooleanType = bool;
             type ByteType = u8;
 
@@ -414,24 +651,48 @@ macro_rules! impl_simple_field_for {
                 <$field>::from(2u64)
             }
 
+            fn is_zero(&self) -> Self::BooleanType {
+                self == &SimpleField::zero()
+            }
+
+            fn is_one(&self) -> Self::BooleanType {
+                self == &SimpleField::one()
+            }
+
             fn negate(&self) -> Self {
                 Neg::neg(*self)
             }
 
-            fn inv(&self) -> Option<Self> {
-                Field::inverse(self)
+            fn inv(&self) -> Self {
+                Field::inverse(self).unwrap_or(SimpleField::zero())
             }
 
-            fn from_constant(value: impl Into<u128>) -> Self {
+            fn from_constant(value: impl Into<num_bigint::BigUint>) -> Self {
                 <$field>::from(value.into())
+            }
+
+            fn from_boolean(value: Self::BooleanType) -> Self {
+                Self::from(value)
+            }
+
+            fn into_boolean(&self) -> Self::BooleanType {
+                assert!(self == &Self::zero() || self == &Self::one());
+                self == &Self::one()
             }
 
             fn from_biguint(value: num_bigint::BigUint) -> Self {
                 <$field>::from(value)
             }
 
-            fn into_constant(&self) -> u128 {
-                num_bigint::BigUint::from(self.clone()).try_into().unwrap()
+            fn into_biguint(&self) -> num_bigint::BigUint {
+                num_bigint::BigUint::from(self.clone())
+            }
+
+            fn into_constant<T: TryFrom<num_bigint::BigUint>>(&self) -> T
+            where
+                <T as TryFrom<num_bigint::BigUint>>::Error: Debug,
+            {
+                self.into_biguint().try_into().unwrap()
             }
 
             fn powers<Exp: AsRef<[u64]>>(&self, n: Exp) -> Self {
@@ -503,6 +764,10 @@ macro_rules! impl_simple_field_for {
                 lhs | rhs
             }
 
+            fn xor(lhs: &Self::BooleanType, rhs: &Self::BooleanType) -> Self::BooleanType {
+                lhs ^ rhs
+            }
+
             fn not(value: &Self::BooleanType) -> Self::BooleanType {
                 !value
             }
@@ -524,11 +789,7 @@ macro_rules! impl_simple_field_for {
             }
 
             fn field_div(&self, other: &Self) -> Self {
-                if let Some(inv) = other.inv() {
-                    inv.clone() * self
-                } else {
-                    SimpleField::zero()
-                }
+                self.mul(&other.inv())
             }
 
             fn rsh(&self, n: usize) -> Self {
@@ -637,6 +898,60 @@ macro_rules! impl_simple_field_for {
             fn from_le_bytes(bytes: &[Self::ByteType]) -> Self {
                 Self::from_le_bytes_mod_order(bytes)
             }
+
+            fn from_be_bits(bits: &[Self::BooleanType]) -> Self {
+                Self::from_bigint(B::from_bits_be(bits)).unwrap()
+            }
+
+            fn from_le_bits(bits: &[Self::BooleanType]) -> Self {
+                Self::from_bigint(B::from_bits_le(bits)).unwrap()
+            }
+
+            fn reverse_bits(&self) -> Self {
+                Self::from_le_bits(
+                    &self
+                        .to_be_bits()
+                        .into_iter()
+                        .skip_while(|x| !x)
+                        .collect::<Vec<_>>(),
+                )
+            }
+
+            fn get_value(&self) -> Self::Value {
+                self.clone()
+            }
+
+            fn sort(mut values: Vec<Self>) -> Vec<Self> {
+                values.sort();
+                values
+            }
+
+            fn slice(values: &[Self], start: &Self, end: &Self) -> Vec<Self> {
+                values[start.into_constant()..end.into_constant()].to_vec()
+            }
+
+            fn skip(values: &[Self], n: &Self) -> Vec<Self> {
+                values[n.into_constant()..].to_vec()
+            }
+
+            fn take(values: &[Self], n: &Self) -> Vec<Self> {
+                values[..n.into_constant()].to_vec()
+            }
+
+            fn range(start: &Self, end: &Self) -> Vec<Self> {
+                (start.get_value().into_constant::<usize>()
+                    ..end.get_value().into_constant::<usize>())
+                    .map(|v| Self::from(v as u64))
+                    .collect()
+            }
+
+            fn at(values: &[Self], i: &Self) -> Self {
+                values[i.into_constant::<usize>()].clone()
+            }
+
+            fn mul_by_constant(&self, n: impl Into<num_bigint::BigUint>) -> Self {
+                self * &Self::from_constant(n)
+            }
         }
     };
 }
@@ -668,7 +983,7 @@ mod tests {
         let b = Fp::from(5u64);
         assert_eq!(a + b, Fp::from(8u64));
         assert_eq!(a * b, Fp::from(15u64));
-        assert_eq!(a.inv().unwrap() * a, Fp::from(1u64));
+        assert_eq!(a.inv() * a, Fp::from(1u64));
         let c = a.pow([2]);
         assert_eq!(c, Fp::from(9u64));
         let d = a.powers_felt(&Fp::from(2u64));
@@ -678,18 +993,20 @@ mod tests {
         assert_eq!(div, Fp::from(1u64));
         assert_eq!(rem, Fp::from(4u64));
 
-        assert_eq!(Fp::from(1u64).inv().unwrap(), Fp::from(1));
+        assert_eq!(Fp::from(1u64).inv(), Fp::from(1));
     }
 
     #[test]
     fn test_field_operations_fpvar() {
         let cs = ConstraintSystem::<Fp>::new_ref();
         let a = FpVar::new_witness(cs.clone(), || Ok(Fp::from(3u64))).unwrap();
+        let a_const = FpVar::Constant(Fp::from(3u64));
         let b = FpVar::new_witness(cs.clone(), || Ok(Fp::from(5u64))).unwrap();
 
         let sum = a.clone() + b.clone();
         let product = a.clone() * b.clone();
-        let inv_a = a.inv().unwrap();
+        let inv_a = a.inv();
+        let inv_a_constant = a_const.inv();
         let c = a.pow_by_constant([2]).unwrap();
         let d = a.powers_felt(&FpVar::constant(Fp::from(2u64)));
 
@@ -698,6 +1015,9 @@ mod tests {
             .enforce_equal(&FpVar::constant(Fp::from(15u64)))
             .unwrap();
         (inv_a * a.clone())
+            .enforce_equal(&FpVar::constant(Fp::from(1u64)))
+            .unwrap();
+        (inv_a_constant * a_const.clone())
             .enforce_equal(&FpVar::constant(Fp::from(1u64)))
             .unwrap();
         c.enforce_equal(&FpVar::constant(Fp::from(9u64))).unwrap();
@@ -891,6 +1211,8 @@ mod tests {
         assert!(!Fp::or(&f, &f));
         assert!(!Fp::not(&t));
         assert!(Fp::not(&f));
+        assert!(!Fp::xor(&f, &f));
+        assert!(Fp::xor(&f, &t));
     }
 
     #[test]
@@ -905,6 +1227,8 @@ mod tests {
         FpVar::assert_false(FpVar::or(&f, &f));
         FpVar::assert_false(FpVar::not(&t));
         FpVar::assert_true(FpVar::not(&f));
+        FpVar::assert_false(FpVar::xor(&f, &f));
+        FpVar::assert_true(FpVar::xor(&f, &t));
 
         assert!(cs.is_satisfied().unwrap());
     }
@@ -1000,6 +1324,62 @@ mod tests {
     }
 
     #[test]
+    fn test_from_constant_and_biguint_fp() {
+        let value = 42u64;
+        let biguint = num_bigint::BigUint::from(value);
+
+        let from_constant = Fp::from_constant(value);
+        let from_biguint = Fp::from_biguint(biguint.clone());
+
+        assert_eq!(from_constant, from_biguint);
+        assert_eq!(from_constant, Fp::from(value));
+    }
+
+    #[test]
+    fn test_into_constant_and_biguint_fp() {
+        let value = Fp::from(42u64);
+
+        let into_biguint: num_bigint::BigUint = value.into_biguint();
+        let into_constant: u64 = value.into_constant();
+
+        assert_eq!(into_biguint, num_bigint::BigUint::from(42u64));
+        assert_eq!(into_constant, 42u64);
+    }
+
+    #[test]
+    fn test_from_constant_and_biguint_fpvar() {
+        let cs = ConstraintSystem::<Fp>::new_ref();
+        let value = 42u64;
+        let biguint = num_bigint::BigUint::from(value);
+
+        let from_constant = FpVar::from_constant(value);
+        let from_biguint = FpVar::from_biguint(biguint.clone());
+
+        from_constant
+            .enforce_equal(&FpVar::constant(Fp::from(value)))
+            .unwrap();
+        from_biguint
+            .enforce_equal(&FpVar::constant(Fp::from(value)))
+            .unwrap();
+
+        assert!(cs.is_satisfied().unwrap());
+    }
+
+    #[test]
+    fn test_into_constant_and_biguint_fpvar() {
+        let cs = ConstraintSystem::<Fp>::new_ref();
+        let value = FpVar::new_witness(cs.clone(), || Ok(Fp::from(42u64))).unwrap();
+
+        let into_biguint: num_bigint::BigUint = value.into_biguint();
+        let into_constant: u64 = value.into_constant();
+
+        assert_eq!(into_biguint, num_bigint::BigUint::from(42u64));
+        assert_eq!(into_constant, 42u64);
+
+        assert!(cs.is_satisfied().unwrap());
+    }
+
+    #[test]
     fn test_groth16_bls12381() {
         use ark_bls12_381::{Bls12_381 as Curve, Fr as F};
         // use ark_bn254::{Bn254 as Curve, Fr as F};
@@ -1079,5 +1459,214 @@ mod tests {
             Groth16::<Curve>::verify_with_processed_vk(&processed_vk, &public_inputs, &proof)
                 .unwrap()
         );
+    }
+
+    #[test]
+    fn test_sort() {
+        let mut values_fp = vec![Fp::from(3), Fp::from(1), Fp::from(4), Fp::from(2)];
+        let sorted_fp = Fp::sort(values_fp.clone());
+        values_fp.sort();
+        assert_eq!(sorted_fp, values_fp);
+    }
+
+    #[test]
+    fn test_sort_fpvar() {
+        let cs = ConstraintSystem::<Fp>::new_ref();
+        let values_fpvar: Vec<FpVar<Fp>> = vec![3, 1, 4, 2]
+            .into_iter()
+            .map(|v| FpVar::new_witness(cs.clone(), || Ok(Fp::from(v))).unwrap())
+            .collect();
+        let sorted_fpvar = FpVar::sort(values_fpvar.clone());
+
+        // Check if the constraint system is satisfied
+        assert!(cs.is_satisfied().unwrap());
+
+        // Check if the sorted FpVar values match the sorted Fp values
+        let sorted_fp_values: Vec<Fp> = sorted_fpvar.iter().map(|v| v.value().unwrap()).collect();
+        let expected_sorted: Vec<Fp> = vec![1, 2, 3, 4].into_iter().map(Fp::from).collect();
+        assert_eq!(sorted_fp_values, expected_sorted);
+    }
+    #[test]
+    fn test_slice_fp() {
+        let values_fp = vec![
+            Fp::from(1),
+            Fp::from(2),
+            Fp::from(3),
+            Fp::from(4),
+            Fp::from(5),
+        ];
+        let start = Fp::from(1);
+        let end = Fp::from(4);
+        let sliced_fp = Fp::slice(&values_fp, &start, &end);
+        let expected_slice = vec![Fp::from(2), Fp::from(3), Fp::from(4)];
+        assert_eq!(sliced_fp, expected_slice);
+    }
+
+    #[test]
+    fn test_slice_fpvar() {
+        let cs = ConstraintSystem::<Fp>::new_ref();
+        let values_fpvar: Vec<FpVar<Fp>> = vec![1, 2, 3, 4, 5]
+            .into_iter()
+            .map(|v| FpVar::new_witness(cs.clone(), || Ok(Fp::from(v))).unwrap())
+            .collect();
+        let start = FpVar::new_witness(cs.clone(), || Ok(Fp::from(1))).unwrap();
+        let end = FpVar::new_witness(cs.clone(), || Ok(Fp::from(4))).unwrap();
+        let sliced_fpvar = FpVar::slice(&values_fpvar, &start, &end);
+
+        // Check if the constraint system is satisfied
+        assert!(cs.is_satisfied().unwrap());
+
+        // Check if the sliced FpVar values match the expected slice
+        let sliced_fp_values: Vec<Fp> = sliced_fpvar.iter().map(|v| v.value().unwrap()).collect();
+        let expected_slice: Vec<Fp> = vec![2, 3, 4].into_iter().map(Fp::from).collect();
+        assert_eq!(sliced_fp_values, expected_slice);
+    }
+
+    #[test]
+    fn test_range_fp() {
+        let start = Fp::from(1);
+        let end = Fp::from(5);
+        let range = Fp::range(&start, &end);
+        let expected_range: Vec<Fp> = vec![1, 2, 3, 4].into_iter().map(Fp::from).collect();
+        assert_eq!(range, expected_range);
+    }
+
+    #[test]
+    fn test_range_fpvar() {
+        let cs = ConstraintSystem::<Fp>::new_ref();
+        let start = FpVar::new_witness(cs.clone(), || Ok(Fp::from(1))).unwrap();
+        let end = FpVar::new_witness(cs.clone(), || Ok(Fp::from(5))).unwrap();
+        let range = FpVar::range(&start, &end);
+
+        // Check if the constraint system is satisfied
+        assert!(cs.is_satisfied().unwrap());
+
+        // Check if the range FpVar values match the expected range
+        let range_fp_values: Vec<Fp> = range.iter().map(|v| v.value().unwrap()).collect();
+        let expected_range: Vec<Fp> = vec![1, 2, 3, 4].into_iter().map(Fp::from).collect();
+        assert_eq!(range_fp_values, expected_range);
+    }
+
+    #[test]
+    fn test_at_fp() {
+        let values = vec![
+            Fp::from(1),
+            Fp::from(2),
+            Fp::from(3),
+            Fp::from(4),
+            Fp::from(5),
+        ];
+        let index = Fp::from(2);
+        let result = Fp::at(&values, &index);
+        assert_eq!(result, Fp::from(3));
+    }
+
+    #[test]
+    fn test_at_fpvar() {
+        let cs = ConstraintSystem::<Fp>::new_ref();
+        let values: Vec<FpVar<Fp>> = vec![1, 2, 3, 4, 5]
+            .into_iter()
+            .map(|v| FpVar::new_witness(cs.clone(), || Ok(Fp::from(v))).unwrap())
+            .collect();
+        let index = FpVar::new_witness(cs.clone(), || Ok(Fp::from(2))).unwrap();
+        let result = FpVar::at(&values, &index);
+
+        // Check if the constraint system is satisfied
+        assert!(cs.is_satisfied().unwrap());
+
+        // Check if the result matches the expected value
+        assert_eq!(result.value().unwrap(), Fp::from(3));
+    }
+
+    #[test]
+    fn test_mul_by_constant_fp() {
+        let a = Fp::from(5u64);
+        let result = a.mul_by_constant(3u64);
+        assert_eq!(result, Fp::from(15u64));
+    }
+
+    #[test]
+    fn test_mul_by_constant_fpvar() {
+        let cs = ConstraintSystem::<Fp>::new_ref();
+        let a = FpVar::new_witness(cs.clone(), || Ok(Fp::from(5u64))).unwrap();
+        let result = a.mul_by_constant(3u64);
+
+        // Check if the constraint system is satisfied
+        assert!(cs.is_satisfied().unwrap());
+
+        // Check if the result matches the expected value
+        assert_eq!(result.value().unwrap(), Fp::from(15u64));
+    }
+
+    #[test]
+    fn test_reverse_bits_fp() {
+        let a = Fp::from(0b1010u64); // 10 in binary
+        let reversed = a.reverse_bits();
+        assert_eq!(reversed, Fp::from(0b0101u64));
+    }
+
+    #[test]
+    fn test_reverse_bits_fpvar() {
+        let cs = ConstraintSystem::<Fp>::new_ref();
+        let a = FpVar::new_witness(cs.clone(), || Ok(Fp::from(0b1010u64))).unwrap(); // 10 in binary
+        let reversed = a.reverse_bits();
+
+        // Check if the constraint system is satisfied
+        assert!(cs.is_satisfied().unwrap());
+
+        // Check if the result matches the expected value
+        assert_eq!(reversed.value().unwrap(), Fp::from(0b0101u64)); // 5 shifted left by 252 bits
+    }
+
+    #[test]
+    fn test_skip_fp() {
+        let values = vec![Fp::from(1), Fp::from(2), Fp::from(3), Fp::from(4), Fp::from(5)];
+        let n = Fp::from(2);
+        let result = Fp::skip(&values, &n);
+        assert_eq!(result, vec![Fp::from(3), Fp::from(4), Fp::from(5)]);
+    }
+
+    #[test]
+    fn test_skip_fpvar() {
+        let cs = ConstraintSystem::<Fp>::new_ref();
+        let values: Vec<FpVar<Fp>> = vec![1, 2, 3, 4, 5]
+            .into_iter()
+            .map(|v| FpVar::new_witness(cs.clone(), || Ok(Fp::from(v))).unwrap())
+            .collect();
+        let n = FpVar::new_witness(cs.clone(), || Ok(Fp::from(2))).unwrap();
+        let result = FpVar::skip(&values, &n);
+
+        // Check if the constraint system is satisfied
+        assert!(cs.is_satisfied().unwrap());
+
+        // Check if the result matches the expected values
+        let result_values: Vec<Fp> = result.iter().map(|v| v.value().unwrap()).collect();
+        assert_eq!(result_values, vec![Fp::from(3), Fp::from(4), Fp::from(5)]);
+    }
+
+    #[test]
+    fn test_take_fp() {
+        let values = vec![Fp::from(1), Fp::from(2), Fp::from(3), Fp::from(4), Fp::from(5)];
+        let n = Fp::from(3);
+        let result = Fp::take(&values, &n);
+        assert_eq!(result, vec![Fp::from(1), Fp::from(2), Fp::from(3)]);
+    }
+
+    #[test]
+    fn test_take_fpvar() {
+        let cs = ConstraintSystem::<Fp>::new_ref();
+        let values: Vec<FpVar<Fp>> = vec![1, 2, 3, 4, 5]
+            .into_iter()
+            .map(|v| FpVar::new_witness(cs.clone(), || Ok(Fp::from(v))).unwrap())
+            .collect();
+        let n = FpVar::new_witness(cs.clone(), || Ok(Fp::from(3))).unwrap();
+        let result = FpVar::take(&values, &n);
+
+        // Check if the constraint system is satisfied
+        assert!(cs.is_satisfied().unwrap());
+
+        // Check if the result matches the expected values
+        let result_values: Vec<Fp> = result.iter().map(|v| v.value().unwrap()).collect();
+        assert_eq!(result_values, vec![Fp::from(1), Fp::from(2), Fp::from(3)]);
     }
 }
