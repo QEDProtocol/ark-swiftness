@@ -22,7 +22,7 @@ impl UnsentCommitment {
         transcript: &mut Transcript<F>,
         config: &Config,
     ) -> Result<(), Error> {
-        verify_pow::<F>(transcript.digest().to_le_bytes(), config.n_bits, self.nonce)?;
+        verify_pow::<F>(transcript.digest().to_be_bytes(), config.n_bits, self.nonce)?;
         transcript.read_uint64_from_prover(self.nonce);
         Ok(())
     }

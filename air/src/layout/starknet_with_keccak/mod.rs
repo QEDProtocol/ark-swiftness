@@ -23,7 +23,7 @@ use global_values::{CurveConfig, EcPoint, EcdsaSigConfig, GlobalValues, Interact
 use starknet_crypto::Felt;
 use swiftness_commitment::table::{commit::table_commit, decommit::table_decommit};
 use swiftness_field::SimpleField;
-use swiftness_hash::{pedersen::PedersenHash, poseidon::PoseidonHash};
+use swiftness_hash::{blake2s::Blake2sHash, keccak::KeccakHash, pedersen::PedersenHash, poseidon::PoseidonHash};
 use swiftness_transcript::ensure;
 
 use super::{CompositionPolyEvalError, LayoutTrait, PublicInputError};
@@ -368,7 +368,7 @@ impl<F: SimpleField + PoseidonHash> LayoutTrait<F> for Layout {
         commitment: crate::trace::Commitment<Self::InteractionElements, F>,
         decommitment: crate::trace::Decommitment<F>,
         witness: crate::trace::Witness<F>,
-    ) -> Result<(), crate::trace::decommit::Error<F>> {
+    ) -> Result<(), crate::trace::decommit::Error<F>> where F: KeccakHash + Blake2sHash {
         Ok(table_decommit(commitment.original, queries, decommitment.original, witness.original)
             .and(table_decommit(
                 commitment.interaction,

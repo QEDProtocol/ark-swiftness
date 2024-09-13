@@ -3,7 +3,7 @@ use ark_ec::short_weierstrass::SWCurveConfig;
 use ark_ff::{Field, PrimeField};
 use ark_r1cs_std::{fields::{fp::FpVar, FieldOpsBounds, FieldVar}, prelude::Boolean};
 use swiftness_field::SimpleField;
-use swiftness_hash::{pedersen::PedersenHash, poseidon::PoseidonHash};
+use swiftness_hash::{blake2s::Blake2sHash, keccak::KeccakHash, pedersen::PedersenHash, poseidon::PoseidonHash};
 use swiftness_transcript::transcript::Transcript;
 
 pub mod dex;
@@ -76,7 +76,7 @@ pub trait LayoutTrait<F: SimpleField + PoseidonHash> {
         commitment: crate::trace::Commitment<Self::InteractionElements, F>,
         decommitment: crate::trace::Decommitment<F>,
         witness: crate::trace::Witness<F>,
-    ) -> Result<(), crate::trace::decommit::Error<F>>;
+    ) -> Result<(), crate::trace::decommit::Error<F>> where F: KeccakHash + Blake2sHash;
 
     fn verify_public_input<P: SWCurveConfig>(
         public_input: &PublicInput<F>,

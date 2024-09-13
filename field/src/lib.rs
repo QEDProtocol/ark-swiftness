@@ -73,9 +73,9 @@ pub trait SimpleField:
     + for<'a> SubAssign<&'a Self>
     + for<'a> MulAssign<&'a Self>
 {
-    type Value;
-    type BooleanType;
-    type ByteType: Clone;
+    type Value: PrimeField + SimpleField;
+    type BooleanType: Clone + Debug;
+    type ByteType: Clone + Debug;
 
     fn zero() -> Self;
     fn one() -> Self;

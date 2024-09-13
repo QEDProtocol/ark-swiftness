@@ -6,7 +6,7 @@ use swiftness_fri::{
     fri::{self, fri_verify},
     types,
 };
-use swiftness_hash::poseidon::PoseidonHash;
+use swiftness_hash::{blake2s::Blake2sHash, keccak::KeccakHash, poseidon::PoseidonHash};
 
 use crate::{
     oods::{eval_oods_boundary_poly_at_points, OodsEvaluationInfo},
@@ -15,7 +15,7 @@ use crate::{
 };
 
 // STARK verify phase.
-pub fn stark_verify<F: SimpleField + PoseidonHash, Layout: LayoutTrait<F>>(
+pub fn stark_verify<F: SimpleField + PoseidonHash + KeccakHash + Blake2sHash, Layout: LayoutTrait<F>>(
     n_original_columns: usize,
     n_interaction_columns: usize,
     queries: &[F],

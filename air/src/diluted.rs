@@ -33,10 +33,10 @@ pub fn get_diluted_product<F: SimpleField + PoseidonHash>(n_bits: F, spacing: F,
 
     let mut i = F::zero();
     loop {
-        // TODO: fix this
-        // if i == n_bits - F::one() {
-        //     break p + q * alpha;
-        // }
+        // TODO: remove get_value()
+        if (i).get_value() == (n_bits.clone() - F::one()).get_value() {
+            break p + q * alpha;
+        }
 
         x += &diff_x;
         diff_x *= &diff_multiplier;

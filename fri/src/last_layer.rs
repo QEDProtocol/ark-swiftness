@@ -15,8 +15,7 @@ pub fn verify_last_layer<F: SimpleField + PoseidonHash>(
             &coefficients,
             F::one().field_div(&query.x_inv_value),
         );
-
-        horner_eval_result.assert_not_equal(&query.y_value);
+        horner_eval_result.assert_equal(&query.y_value);
         // if horner_eval_result != query.y_value {
         //     return Err(Error::QueryMismatch { expected: query.y_value, got: horner_eval_result });
         // }
@@ -31,7 +30,7 @@ pub fn verify_last_layer<F: SimpleField + PoseidonHash>(
 fn horner_eval<F: SimpleField + PoseidonHash>(coefs: &[F], point: F) -> F {
     let mut result = F::zero();
     for coef in coefs.iter().rev() {
-        result = result * point.clone() + coef;
+        result = result * &point + coef;
     }
     result
 }

@@ -1,17 +1,10 @@
 use super::types::{Commitment, Query, QueryWithDepth, Witness};
 use alloc::vec::Vec;
-// #[cfg(feature = "blake2s")]
-// use blake2::Blake2s256;
-// #[cfg(feature = "blake2s")]
-// use blake2::Digest;
-// #[cfg(feature = "keccak")]
-// use sha3::Digest;
-// #[cfg(feature = "keccak")]
-// use sha3::Keccak256;
-use swiftness_field::SimpleField;
-use swiftness_hash::poseidon::PoseidonHash;
 
-pub fn vector_commitment_decommit<F: SimpleField + PoseidonHash>(
+use swiftness_field::SimpleField;
+use swiftness_hash::{blake2s::Blake2sHash, keccak::KeccakHash, poseidon::PoseidonHash};
+
+pub fn vector_commitment_decommit<F: SimpleField + PoseidonHash + KeccakHash + Blake2sHash>(
     commitment: Commitment<F>,
     queries: &[Query<F>],
     witness: Witness<F>,
@@ -41,10 +34,10 @@ pub fn vector_commitment_decommit<F: SimpleField + PoseidonHash>(
     Ok(())
 }
 
-pub fn compute_root_from_queries<F: SimpleField + PoseidonHash>(
+pub fn compute_root_from_queries<F: SimpleField + PoseidonHash + KeccakHash + Blake2sHash>(
     mut queue: Vec<QueryWithDepth<F>>,
     mut start: usize,
-    _n_verifier_friendly_layers: F,
+    n_verifier_friendly_layers: F,
     authentications: &[F],
     mut auth_start: usize,
 ) -> Result<F, Error<F>> {
@@ -62,11 +55,7 @@ pub fn compute_root_from_queries<F: SimpleField + PoseidonHash>(
         // Compute non-root case
         let (parent, bit) = current.index.div2_rem();
         let current_is_left_child = bit.is_equal(&F::zero());
-
-        // TODO: allow non-verifier friendly
-        // let is_verifier_friendly = n_verifier_friendly_layers >= current.depth;
-        let is_verifier_friendly = true;
-
+        let is_verifier_friendly = n_verifier_friendly_layers.greater_than(&current.depth);
         let merge = queue
             .get(start + 1)
             .map(|next| {
@@ -88,23 +77,24 @@ pub fn compute_root_from_queries<F: SimpleField + PoseidonHash>(
                 .cloned()
                 .unwrap_or(current.value.clone()),
         );
+        let non_root_value = SimpleField::select(
+            &current_is_left_child,
+            hash_friendly_unfriendly(
+                current.value.clone(),
+                sibling_value.clone(),
+                is_verifier_friendly.clone(),
+            ),
+            hash_friendly_unfriendly(
+                sibling_value,
+                current.value.clone(),
+                is_verifier_friendly,
+            ),
+        );
 
         let hash = SimpleField::select(
             &is_root,
             root_value,
-            SimpleField::select(
-                &current_is_left_child,
-                hash_friendly_unfriendly(
-                    current.value.clone(),
-                    sibling_value.clone(),
-                    is_verifier_friendly,
-                ),
-                hash_friendly_unfriendly(
-                    sibling_value,
-                    current.value.clone(),
-                    is_verifier_friendly,
-                ),
-            ),
+            non_root_value
         );
 
         let next_query = QueryWithDepth {
@@ -138,29 +128,34 @@ pub fn compute_root_from_queries<F: SimpleField + PoseidonHash>(
         .clone())
 }
 
-fn hash_friendly_unfriendly<F: SimpleField + PoseidonHash>(
+fn hash_friendly_unfriendly<F: SimpleField + PoseidonHash + KeccakHash + Blake2sHash>(
     x: F,
     y: F,
-    is_verifier_friendly: bool,
+    is_verifier_friendly: F::BooleanType,
 ) -> F {
-    if is_verifier_friendly {
-        PoseidonHash::hash(x, y)
-    } else {
-        todo!()
-        // TODO: implement unfriendly hash
-        // keccak hash
-        // let mut hash_data = Vec::with_capacity(64);
-        // hash_data.extend(&x.to_bytes_be());
-        // hash_data.extend(&y.to_bytes_be());
-        //
-        // #[cfg(feature = "keccak")]
-        // let mut hasher = Keccak256::new();
-        // #[cfg(feature = "blake2s")]
-        // let mut hasher = Blake2s256::new();
-        //
-        // hasher.update(&hash_data);
-        // Felt::from_bytes_be_slice(&hasher.finalize().to_vec().as_slice()[12..32])
-    }
+    F::select(
+        &is_verifier_friendly,
+        {
+            PoseidonHash::hash(x.clone(), y.clone())
+        },
+        {
+            let mut hash_data = Vec::with_capacity(64);
+            hash_data.extend(x.to_be_bytes());
+            hash_data.extend(y.to_be_bytes());
+
+
+            let final_hash: Vec<<F as SimpleField>::ByteType>;
+            cfg_if::cfg_if! {
+                if #[cfg(feature = "keccak")] {
+                    final_hash = <F as KeccakHash>::hash(&hash_data);
+                } else if #[cfg(feature = "blake2s")] {
+                    final_hash = <F as Blake2sHash>::hash(&hash_data);
+                } else {
+                    compile_error!("Either 'keccak' or 'blake2s' feature must be enabled");
+                }
+            }
+            F::from_be_bytes(&final_hash.as_slice()[12..32])
+        })
 }
 
 #[cfg(feature = "std")]
