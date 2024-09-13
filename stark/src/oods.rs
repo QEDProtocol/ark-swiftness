@@ -50,7 +50,6 @@ pub fn verify_oods<F: SimpleField + PoseidonHash, Layout: LayoutTrait<F>>(
 
 use swiftness_field::SimpleField;
 use swiftness_hash::poseidon::PoseidonHash;
-use swiftness_transcript::assure;
 #[cfg(feature = "std")]
 use thiserror::Error;
 

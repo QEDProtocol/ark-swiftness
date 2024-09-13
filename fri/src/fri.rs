@@ -6,7 +6,7 @@ use swiftness_commitment::table::{
     types::{Commitment as TableCommitment, Decommitment as TableDecommitment},
 };
 use swiftness_field::SimpleField;
-use swiftness_hash::poseidon::PoseidonHash;
+use swiftness_hash::{blake2s::Blake2sHash, keccak::KeccakHash, poseidon::PoseidonHash};
 use swiftness_transcript::transcript::Transcript;
 
 use crate::{
@@ -99,7 +99,7 @@ pub fn fri_commit<F: SimpleField + PoseidonHash>(
     }
 }
 
-fn fri_verify_layers<F: SimpleField + PoseidonHash>(
+fn fri_verify_layers<F: SimpleField + PoseidonHash + KeccakHash + Blake2sHash>(
     fri_group: Vec<F>,
     n_layers: F,
     commitment: Vec<TableCommitment<F>>,
@@ -145,7 +145,7 @@ fn fri_verify_layers<F: SimpleField + PoseidonHash>(
 }
 
 // FRI protocol component decommitment.
-pub fn fri_verify<F: SimpleField + PoseidonHash>(
+pub fn fri_verify<F: SimpleField + PoseidonHash + KeccakHash + Blake2sHash>(
     queries: &[F],
     commitment: FriCommitment<F>,
     decommitment: FriDecommitment<F>,

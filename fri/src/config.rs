@@ -81,7 +81,7 @@ impl<F: SimpleField + PoseidonHash> Config<F> {
             //         actual: table_commitment.n_columns,
             //     });
             // }
-            table_commitment.n_columns.assert_not_equal(&expected_n_columns);
+            table_commitment.n_columns.assert_equal(&expected_n_columns);
             table_commitment
                 .vector
                 .validate(log_input_size.clone(), n_verifier_friendly_commitment_layers.clone())?;
@@ -94,8 +94,7 @@ impl<F: SimpleField + PoseidonHash> Config<F> {
         //         actual: self.log_input_size,
         //     });
         // }
-        (log_expected_input_degree.clone() + &log_n_cosets).assert_not_equal(&self.log_input_size);
-
+        (log_expected_input_degree.clone() + &log_n_cosets).assert_equal(&self.log_input_size);
         Ok(log_expected_input_degree)
     }
 }

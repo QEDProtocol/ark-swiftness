@@ -1,11 +1,14 @@
 use crate::types::{ContinuousPageHeader, Page, SegmentInfo};
 use alloc::vec;
 use alloc::vec::Vec;
+use ark_ec::short_weierstrass::SWCurveConfig;
+use ark_ff::{Field, PrimeField};
+use ark_r1cs_std::{fields::{fp::FpVar, FieldOpsBounds, FieldVar}, prelude::Boolean};
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 use starknet_crypto::{Felt};
 use swiftness_field::SimpleField;
-use swiftness_hash::poseidon::{PoseidonHash};
+use swiftness_hash::{pedersen::PedersenHash, poseidon::PoseidonHash};
 
 pub const MAX_LOG_N_STEPS: Felt = Felt::from_hex_unchecked("50");
 pub const MAX_RANGE_CHECK: Felt = Felt::from_hex_unchecked("0xffff");
@@ -92,14 +95,23 @@ impl<F: SimpleField + PoseidonHash> PublicInput<F> {
         (prod, total_length)
     }
 
-    pub fn get_hash(&self) -> F {
+    pub fn get_hash<P: SWCurveConfig>(&self) -> F
+    where
+        F: PedersenHash<P>,
+        P::BaseField: PrimeField + SimpleField,
+        <P::BaseField as Field>::BasePrimeField: SimpleField,
+        FpVar<P::BaseField>:
+            FieldVar<P::BaseField, <P::BaseField as Field>::BasePrimeField> + SimpleField,
+        for<'a> &'a FpVar<P::BaseField>: FieldOpsBounds<'a, P::BaseField, FpVar<P::BaseField>>,
+        <FpVar<P::BaseField> as SimpleField>::BooleanType:
+            From<Boolean<<P::BaseField as Field>::BasePrimeField>> {
         let mut main_page_hash = F::zero();
         for memory in self.main_page.iter() {
-            main_page_hash = PoseidonHash::hash(main_page_hash.clone(), memory.address.clone());
-            main_page_hash = PoseidonHash::hash(main_page_hash.clone(), memory.value.clone());
+            main_page_hash = PedersenHash::hash(main_page_hash.clone(), memory.address.clone());
+            main_page_hash = PedersenHash::hash(main_page_hash.clone(), memory.value.clone());
         }
         main_page_hash =
-            PoseidonHash::hash(main_page_hash, F::two() * F::from_constant(self.main_page.len() as u128));
+            PedersenHash::hash(main_page_hash, F::two() * F::from_constant(self.main_page.len() as u128));
 
         let mut hash_data =
             vec![self.log_n_steps.clone(), self.range_check_min.clone(), self.range_check_max.clone(), self.layout.clone()];
