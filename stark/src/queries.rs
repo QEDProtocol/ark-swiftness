@@ -37,10 +37,8 @@ pub fn queries_to_points<F: SimpleField + PoseidonHash>(queries: &[F], stark_dom
     let shift = F::two().powers_felt(&(F::from_constant(64_u128) - stark_domains.log_eval_domain_size.clone()));
 
     for query in queries {
-        // TODO: fix
-        // let index = (query.clone() * &shift).reverse_bits();
-        let index: u64 = (query.clone() * &shift).into_biguint().try_into().unwrap();
-        points.push(F::from_stark_felt(FIELD_GENERATOR) * stark_domains.eval_generator.powers([index.reverse_bits()]))
+        let index = (query.clone() * &shift).reverse_bits(64);
+        points.push(F::from_stark_felt(FIELD_GENERATOR) * stark_domains.eval_generator.powers_felt(&index))
     }
     points
 }

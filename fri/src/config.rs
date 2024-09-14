@@ -73,8 +73,7 @@ impl<F: SimpleField + PoseidonHash> Config<F> {
             // if fri_step < MIN_FRI_STEP.into() || fri_step > MAX_FRI_STEP.into() {
             //     return Err(Error::OutOfBounds { min: MIN_FRI_STEP, max: MAX_FRI_STEP });
             // }
-            let fri_step: u64 = fri_step.into_biguint().try_into().unwrap();
-            let expected_n_columns = F::from_constant(2_u128).powers([fri_step]);
+            let expected_n_columns = F::two().powers_felt(&fri_step);
             // if table_commitment.n_columns != expected_n_columns {
             //     return Err(Error::InvalidColumnCount {
             //         expected: expected_n_columns,

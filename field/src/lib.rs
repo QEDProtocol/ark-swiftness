@@ -133,7 +133,7 @@ pub trait SimpleField:
     fn to_be_bits(&self) -> Vec<Self::BooleanType>;
     fn from_le_bits(bits: &[Self::BooleanType]) -> Self;
     fn from_be_bits(bits: &[Self::BooleanType]) -> Self;
-    fn reverse_bits(&self) -> Self;
+    fn reverse_bits(&self, n: usize) -> Self;
     fn construct_byte(value: u8) -> Self::ByteType;
     fn construct_bool(value: bool) -> Self::BooleanType;
 
@@ -467,12 +467,12 @@ impl<F: PrimeField + SimpleField> SimpleField for FpVar<F> {
     }
 
     // Unsafe
-    fn reverse_bits(&self) -> Self {
+    fn reverse_bits(&self, n: usize) -> Self {
         if self.is_constant() {
-            return FpVar::Constant(self.value().unwrap().reverse_bits());
+            return FpVar::Constant(self.value().unwrap().reverse_bits(n));
         }
 
-        let r = Self::new_witness(self.cs(), || Ok(self.value().unwrap().reverse_bits())).unwrap();
+        let r = Self::new_witness(self.cs(), || Ok(self.value().unwrap().reverse_bits(n))).unwrap();
 
         // TODO: we should have been able to write this in circuits but arkworks' to_non_unique_bits looks buggy
         r
@@ -536,6 +536,7 @@ impl<F: PrimeField + SimpleField> SimpleField for FpVar<F> {
         slice
     }
 
+    // Unsafe
     fn skip(values: &[Self], n: &Self) -> Vec<Self> {
         let cs = values.cs();
 
@@ -556,6 +557,7 @@ impl<F: PrimeField + SimpleField> SimpleField for FpVar<F> {
         slice
     }
 
+    // Unsafe
     fn take(values: &[Self], n: &Self) -> Vec<Self> {
         let cs = values.cs();
 
@@ -794,7 +796,6 @@ macro_rules! impl_simple_field_for {
                 let res = num_bigint::BigUint::from(self.clone()).shr(n);
                 return Self::new(BigInt({
                     let mut limbs = res.to_u64_digits();
-                    limbs.reverse();
                     limbs.resize(4, 0);
                     limbs.try_into().unwrap()
                 }));
@@ -806,13 +807,11 @@ macro_rules! impl_simple_field_for {
                 return (
                     Self::new(BigInt({
                         let mut limbs = quotient.to_u64_digits();
-                        limbs.reverse();
                         limbs.resize(4, 0);
                         limbs.try_into().unwrap()
                     })),
                     Self::new(BigInt({
                         let mut limbs = remainder.to_u64_digits();
-                        limbs.reverse();
                         limbs.resize(4, 0);
                         limbs.try_into().unwrap()
                     })),
@@ -859,7 +858,6 @@ macro_rules! impl_simple_field_for {
                 let res = num_bigint::BigUint::from(self.clone()).shl(n);
                 return Self::new(BigInt({
                     let mut limbs = res.to_u64_digits();
-                    limbs.reverse();
                     limbs.resize(4, 0);
                     limbs.try_into().unwrap()
                 }));
@@ -905,14 +903,13 @@ macro_rules! impl_simple_field_for {
                 Self::from_bigint(B::from_bits_le(bits)).unwrap()
             }
 
-            fn reverse_bits(&self) -> Self {
-                Self::from_le_bits(
-                    &self
-                        .to_be_bits()
-                        .into_iter()
-                        .skip_while(|x| !x)
-                        .collect::<Vec<_>>(),
-                )
+            fn reverse_bits(&self, n: usize) -> Self {
+                Self::from_be_bits({
+                    let mut bits = self.to_le_bits();
+                    bits.resize(n, false);
+
+                    &bits.into_iter().skip_while(|x| !x).collect::<Vec<_>>()
+                })
             }
 
             fn get_value(&self) -> Self::Value {
@@ -1047,11 +1044,23 @@ mod tests {
         assert_eq!(quotient, Fr::from(2));
         assert_eq!(remainder, Fr::from(1));
 
-        let divisor = <Fp as SimpleField>::from_stark_felt(Felt::from_dec_str("340282366920938463463374607431768211456").unwrap());
-        let dividend = <Fp as SimpleField>::from_stark_felt(Felt::from_dec_str("3385124832881611382833133824023403256452994652181471147230480383584863118128").unwrap());
+        let divisor = <Fp as SimpleField>::from_stark_felt(
+            Felt::from_dec_str("340282366920938463463374607431768211456").unwrap(),
+        );
+        let dividend = <Fp as SimpleField>::from_stark_felt(
+            Felt::from_dec_str(
+                "3385124832881611382833133824023403256452994652181471147230480383584863118128",
+            )
+            .unwrap(),
+        );
 
         let (_, remainder) = dividend.div_rem(&divisor);
-        assert_eq!(remainder, <Fp as SimpleField>::from_stark_felt(Felt::from_dec_str("217609915070804396630239679827883451184").unwrap()));
+        assert_eq!(
+            remainder,
+            <Fp as SimpleField>::from_stark_felt(
+                Felt::from_dec_str("217609915070804396630239679827883451184").unwrap()
+            )
+        );
     }
 
     #[test]
@@ -1156,22 +1165,56 @@ mod tests {
     #[test]
     fn test_shift() {
         let a = Fp::from(11);
+        let large_a = Fp::from_biguint(num_bigint::BigUint::from(1u64) << 129);
 
         assert_eq!(a.rsh(2), Fp::from(2));
         assert_eq!(a.lsh(2), Fp::from(44));
-
         assert_eq!(a.rshm(2), (Fp::from(2), Fp::from(3)));
+
+        assert_eq!(
+            large_a.rsh(50),
+            Fp::from_biguint(num_bigint::BigUint::from(1u64) << 79)
+        );
+        assert_eq!(
+            large_a.lsh(50),
+            Fp::from_biguint(num_bigint::BigUint::from(1u64) << 179)
+        );
+        assert_eq!(
+            large_a.rshm(75),
+            (
+                Fp::from_biguint(num_bigint::BigUint::from(1u64) << 54),
+                Fp::zero()
+            )
+        );
     }
 
     #[test]
     fn test_shift_fpvar() {
         let cs = ConstraintSystem::<Fp>::new_ref();
         let a = FpVar::new_witness(cs.clone(), || Ok(Fp::from(11))).unwrap();
+        let large_a = FpVar::new_witness(cs.clone(), || {
+            Ok(Fp::from_biguint(num_bigint::BigUint::from(1u64) << 129))
+        })
+        .unwrap();
 
-        FpVar::assert_equal(&a.rsh(2), &FpVar::from_constant(2_u128));
-        FpVar::assert_equal(&a.lsh(2), &FpVar::from_constant(44_u128));
-        FpVar::assert_equal(&a.rshm(2).0, &FpVar::from_constant(2_u128));
-        FpVar::assert_equal(&a.rshm(2).1, &FpVar::from_constant(3_u128));
+        FpVar::assert_equal(&a.rsh(2), &FpVar::constant(Fp::from(2)));
+        FpVar::assert_equal(&a.lsh(2), &FpVar::constant(Fp::from(44)));
+        FpVar::assert_equal(&a.rshm(2).0, &FpVar::constant(Fp::from(2)));
+        FpVar::assert_equal(&a.rshm(2).1, &FpVar::constant(Fp::from(3)));
+
+        FpVar::assert_equal(
+            &large_a.rsh(50),
+            &FpVar::constant(Fp::from_biguint(num_bigint::BigUint::from(1u64) << 79)),
+        );
+        FpVar::assert_equal(
+            &large_a.lsh(50),
+            &FpVar::constant(Fp::from_biguint(num_bigint::BigUint::from(1u64) << 179)),
+        );
+        FpVar::assert_equal(
+            &large_a.rshm(75).0,
+            &FpVar::constant(Fp::from_biguint(num_bigint::BigUint::from(1u64) << 54)),
+        );
+        FpVar::assert_equal(&large_a.rshm(75).1, &FpVar::constant(Fp::zero()));
 
         assert!(cs.is_satisfied().unwrap());
     }
@@ -1606,26 +1649,98 @@ mod tests {
     #[test]
     fn test_reverse_bits_fp() {
         let a = Fp::from(0b1010u64); // 10 in binary
-        let reversed = a.reverse_bits();
+        let reversed = a.reverse_bits(4);
         assert_eq!(reversed, Fp::from(0b0101u64));
+
+        let test_cases: [(u64, u64); 20] = [
+            (4144050528994721792, 344476),
+            (5968430590544838656, 273226),
+            (6366541760729972736, 88602),
+            (8952241265538236416, 212030),
+            (10013736179272253440, 1044305),
+            (10263474852358782976, 849521),
+            (10917956949769191424, 401897),
+            (11399455081804857344, 52345),
+            (12228803508496760832, 961941),
+            (18014556839156383744, 589919),
+            (4144050528994721792, 344476),
+            (5968430590544838656, 273226),
+            (6366541760729972736, 88602),
+            (8952241265538236416, 212030),
+            (10013736179272253440, 1044305),
+            (10263474852358782976, 849521),
+            (10917956949769191424, 401897),
+            (11399455081804857344, 52345),
+            (12228803508496760832, 961941),
+            (18014556839156383744, 589919),
+        ];
+
+        for (value, reversed) in &test_cases {
+            eprintln!(
+                "DEBUGPRINT[1]: lib.rs:1680: Fp::from(*value).reverse_bits()={:#?}",
+                Fp::from(*value).reverse_bits(64)
+            );
+            assert_eq!(Fp::from(*value).reverse_bits(64), Fp::from(*reversed));
+        }
     }
 
     #[test]
     fn test_reverse_bits_fpvar() {
         let cs = ConstraintSystem::<Fp>::new_ref();
         let a = FpVar::new_witness(cs.clone(), || Ok(Fp::from(0b1010u64))).unwrap(); // 10 in binary
-        let reversed = a.reverse_bits();
+        let reversed = a.reverse_bits(4);
 
         // Check if the constraint system is satisfied
         assert!(cs.is_satisfied().unwrap());
 
         // Check if the result matches the expected value
         assert_eq!(reversed.value().unwrap(), Fp::from(0b0101u64)); // 5 shifted left by 252 bits
+
+        let test_cases: [(u64, u64); 20] = [
+            (4144050528994721792, 344476),
+            (5968430590544838656, 273226),
+            (6366541760729972736, 88602),
+            (8952241265538236416, 212030),
+            (10013736179272253440, 1044305),
+            (10263474852358782976, 849521),
+            (10917956949769191424, 401897),
+            (11399455081804857344, 52345),
+            (12228803508496760832, 961941),
+            (18014556839156383744, 589919),
+            (4144050528994721792, 344476),
+            (5968430590544838656, 273226),
+            (6366541760729972736, 88602),
+            (8952241265538236416, 212030),
+            (10013736179272253440, 1044305),
+            (10263474852358782976, 849521),
+            (10917956949769191424, 401897),
+            (11399455081804857344, 52345),
+            (12228803508496760832, 961941),
+            (18014556839156383744, 589919),
+        ];
+
+        for (value, reversed) in &test_cases {
+            FpVar::enforce_equal(
+                &FpVar::new_witness(cs.clone(), || Ok(Fp::from(*value)))
+                    .unwrap()
+                    .reverse_bits(64),
+                &FpVar::from_constant(*reversed),
+            )
+            .unwrap();
+        }
+
+        assert!(cs.is_satisfied().unwrap());
     }
 
     #[test]
     fn test_skip_fp() {
-        let values = vec![Fp::from(1), Fp::from(2), Fp::from(3), Fp::from(4), Fp::from(5)];
+        let values = vec![
+            Fp::from(1),
+            Fp::from(2),
+            Fp::from(3),
+            Fp::from(4),
+            Fp::from(5),
+        ];
         let n = Fp::from(2);
         let result = Fp::skip(&values, &n);
         assert_eq!(result, vec![Fp::from(3), Fp::from(4), Fp::from(5)]);
@@ -1651,7 +1766,13 @@ mod tests {
 
     #[test]
     fn test_take_fp() {
-        let values = vec![Fp::from(1), Fp::from(2), Fp::from(3), Fp::from(4), Fp::from(5)];
+        let values = vec![
+            Fp::from(1),
+            Fp::from(2),
+            Fp::from(3),
+            Fp::from(4),
+            Fp::from(5),
+        ];
         let n = Fp::from(3);
         let result = Fp::take(&values, &n);
         assert_eq!(result, vec![Fp::from(1), Fp::from(2), Fp::from(3)]);
@@ -1673,5 +1794,23 @@ mod tests {
         // Check if the result matches the expected values
         let result_values: Vec<Fp> = result.iter().map(|v| v.value().unwrap()).collect();
         assert_eq!(result_values, vec![Fp::from(1), Fp::from(2), Fp::from(3)]);
+    }
+
+    #[test]
+    fn test_u64_array_to_fp() {
+        let array: [u64; 4] = [1, 2, 3, 4];
+        let fp = Fp::new(BigInt(array));
+
+        // Check if the conversion is correct
+        assert_eq!(
+            fp,
+            Fp::new(ark_ff::BigInt!(
+                "25108406941546723056364004793593481054836439088298861789185"
+            ))
+        );
+
+        // Check if we can retrieve the original array
+        let retrieved_array: [u64; 4] = fp.into_bigint().0;
+        assert_eq!(retrieved_array, array);
     }
 }
