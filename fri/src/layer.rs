@@ -39,9 +39,8 @@ pub fn compute_coset_elements<F: SimpleField + PoseidonHash>(
     let mut coset_x_inv = F::zero();
     for index in F::range(&F::zero(), &coset_size) {
         let q = queries.first();
-        // TODO: enable && q.unwrap().index == coset_start_index + F::from_constant(index as u64)
-        // q.is_some() && && q.unwrap().index == coset_start_index + F::from_constant(index as u64)
-        if q.is_some()  {
+        // TODO: fix q.unwrap().index == coset_start_index + F::from_constant(index as u64)
+        if q.is_some() && F::from_boolean(q.unwrap().index.is_equal(&(coset_start_index.clone() + &index))).get_value() == F::one().get_value() {
             let query: Vec<FriLayerQuery<F>> = queries.drain(0..1).collect();
             coset_elements.push(query[0].y_value.clone());
             coset_x_inv = query[0].x_inv_value.clone() * F::at(fri_group, &index);
@@ -78,9 +77,10 @@ pub fn compute_next_layer<F: SimpleField + PoseidonHash>(
 
     let coset_size = params.coset_size.clone();
     while !queries.is_empty() {
-        let query_uint = queries.first().unwrap().index.clone();
-        let coset_size_uint = coset_size.clone();
-        let coset_index = query_uint.field_div(&coset_size_uint);
+        let query_uint = queries.first().unwrap().index.into_biguint();
+        let coset_size_uint = coset_size.into_biguint();
+        let coset_index =
+            F::from_stark_felt(Felt::from_bytes_be_slice((query_uint / coset_size_uint).to_bytes_be().as_slice()));
 
         verify_indices.push(coset_index.clone());
 

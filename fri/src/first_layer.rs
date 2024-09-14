@@ -5,6 +5,9 @@ use swiftness_hash::poseidon::PoseidonHash;
 
 use crate::layer::FriLayerQuery;
 
+const FIELD_GENERATOR_INVERSE: Felt =
+    Felt::from_hex_unchecked("0x2AAAAAAAAAAAAB0555555555555555555555555555555555555555555555556");
+
 pub fn gather_first_layer_queries<F: SimpleField + PoseidonHash>(
     queries: &[F],
     evaluations: Vec<F>,
@@ -12,9 +15,7 @@ pub fn gather_first_layer_queries<F: SimpleField + PoseidonHash>(
 ) -> Vec<FriLayerQuery<F>> {
     let mut fri_queries = Vec::new();
 
-    let field_generator_inverse: F = F::from_stark_felt(Felt::from_hex_unchecked(
-        "0x2AAAAAAAAAAAAB0555555555555555555555555555555555555555555555556",
-    ));
+    let field_generator_inverse: F = F::from_stark_felt(FIELD_GENERATOR_INVERSE);
 
     for (index, query) in queries.iter().enumerate() {
         // Translate the coset to the homogenous group to have simple FRI equations.

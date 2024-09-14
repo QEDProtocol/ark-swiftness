@@ -356,7 +356,7 @@ pub fn eval_composition_polynomial_inner<F: SimpleField + PoseidonHash>(
     let cpu_decode_opcode_range_check_bit_12 = column0_row12.clone() - &(column0_row13.clone() + &column0_row13);
     let cpu_decode_opcode_range_check_bit_13 = column0_row13.clone() - &(column0_row14.clone() + &column0_row14);
     let cpu_decode_fp_update_regular_0 =
-        F::one().clone() - &(cpu_decode_opcode_range_check_bit_12.clone().clone() + &cpu_decode_opcode_range_check_bit_13.clone());
+        F::one().clone() - &(cpu_decode_opcode_range_check_bit_12.clone() + &cpu_decode_opcode_range_check_bit_13.clone());
     let cpu_decode_opcode_range_check_bit_1 = column0_row1.clone() - &(column0_row2.clone() + &column0_row2);
     let npc_reg_0 = column1_row0.clone() + cpu_decode_opcode_range_check_bit_2.clone() + &F::one();
     let cpu_decode_opcode_range_check_bit_10 = column0_row10.clone() - &(column0_row11.clone() + &column0_row11);
@@ -494,7 +494,7 @@ pub fn eval_composition_polynomial_inner<F: SimpleField + PoseidonHash>(
     total_sum += constraint_coefficients[9].clone() * &value;
 
     // Constraint: cpu/operands/ops_mul.
-    value = (column5_row4.clone().clone() - column1_row5.clone() * &column1_row13)
+    value = (column5_row4.clone() - column1_row5.clone() * &column1_row13)
         .field_div(&(domain5));
     total_sum += constraint_coefficients[10].clone() * &value;
 
@@ -507,12 +507,12 @@ pub fn eval_composition_polynomial_inner<F: SimpleField + PoseidonHash>(
     total_sum += constraint_coefficients[11].clone() * &value;
 
     // Constraint: cpu/update_registers/update_pc/tmp0.
-    value = (column5_row2.clone().clone() - cpu_decode_opcode_range_check_bit_9.clone() * &column1_row9)
+    value = (column5_row2.clone() - cpu_decode_opcode_range_check_bit_9.clone() * &column1_row9)
        .clone() * &domain24.field_div(&(domain5));
     total_sum += constraint_coefficients[12].clone() * &value;
 
     // Constraint: cpu/update_registers/update_pc/tmp1.
-    value = (column5_row10.clone().clone() - column5_row2.clone() * &column5_row12)
+    value = (column5_row10.clone() - column5_row2.clone() * &column5_row12)
        .clone() * &domain24.field_div(&(domain5));
     total_sum += constraint_coefficients[13].clone() * &value;
 
@@ -535,15 +535,15 @@ pub fn eval_composition_polynomial_inner<F: SimpleField + PoseidonHash>(
        .clone() - &(column5_row0
            .clone() + cpu_decode_opcode_range_check_bit_10.clone() * &column5_row12
            .clone() + &cpu_decode_opcode_range_check_bit_11
-           .clone() + cpu_decode_opcode_range_check_bit_12.clone().clone() * &F::two()))
+           .clone() + cpu_decode_opcode_range_check_bit_12.clone() * &F::two()))
        .clone() * &domain24.field_div(&(domain5));
     total_sum += constraint_coefficients[16].clone() * &value;
 
     // Constraint: cpu/update_registers/update_fp/fp_update.
     value = (column5_row24
        .clone() - &(cpu_decode_fp_update_regular_0.clone() * &column5_row8
-           .clone() + cpu_decode_opcode_range_check_bit_13.clone().clone() * &column1_row9
-           .clone() + cpu_decode_opcode_range_check_bit_12.clone().clone() * (column5_row0.clone() + &F::two())))
+           .clone() + cpu_decode_opcode_range_check_bit_13.clone() * &column1_row9
+           .clone() + cpu_decode_opcode_range_check_bit_12.clone() * (column5_row0.clone() + &F::two())))
        .clone() * &domain24.field_div(&(domain5));
     total_sum += constraint_coefficients[17].clone() * &value;
 
@@ -776,19 +776,19 @@ pub fn eval_composition_polynomial_inner<F: SimpleField + PoseidonHash>(
     // Constraint: pedersen/hash0/ec_subset_sum/bit_unpacking/zeroes_between_ones0.
     value = (column5_row57.clone()
         * (column4_row11
-           .clone().clone() - F::from_stark_felt(Felt::from_hex_unchecked("0x800000000000000000000000000000000000000000000000"))
+           .clone() - F::from_stark_felt(Felt::from_hex_unchecked("0x800000000000000000000000000000000000000000000000"))
                .clone() * &column4_row1539))
         .field_div(&(domain19));
     total_sum += constraint_coefficients[55].clone() * &value;
 
     // Constraint: pedersen/hash0/ec_subset_sum/bit_unpacking/cumulative_bit192.
     value = (column5_row57
-       .clone().clone() - column4_row2047.clone() * (column4_row1539.clone() - &(column4_row1547.clone() + &column4_row1547)))
+       .clone() - column4_row2047.clone() * (column4_row1539.clone() - &(column4_row1547.clone() + &column4_row1547)))
         .field_div(&(domain19));
     total_sum += constraint_coefficients[56].clone() * &value;
 
     // Constraint: pedersen/hash0/ec_subset_sum/bit_unpacking/zeroes_between_ones192.
-    value = (column4_row2047.clone() * (column4_row1547.clone().clone() - F::from_constant(8 as u64) * &column4_row1571))
+    value = (column4_row2047.clone() * (column4_row1547.clone() - F::from_constant(8 as u64) * &column4_row1571))
         .field_div(&(domain19));
     total_sum += constraint_coefficients[57].clone() * &value;
 
@@ -801,7 +801,7 @@ pub fn eval_composition_polynomial_inner<F: SimpleField + PoseidonHash>(
 
     // Constraint: pedersen/hash0/ec_subset_sum/bit_unpacking/zeroes_between_ones196.
     value = ((column4_row2011.clone() - &(column4_row2019.clone() + &column4_row2019))
-        * (column4_row1579.clone().clone() - F::from_stark_felt(Felt::from_hex_unchecked("0x40000000000000")).clone() * &column4_row2011))
+        * (column4_row1579.clone() - F::from_stark_felt(Felt::from_hex_unchecked("0x40000000000000")).clone() * &column4_row2011))
         .field_div(&(domain19));
     total_sum += constraint_coefficients[59].clone() * &value;
 
@@ -820,20 +820,20 @@ pub fn eval_composition_polynomial_inner<F: SimpleField + PoseidonHash>(
 
     // Constraint: pedersen/hash0/ec_subset_sum/add_points/slope.
     value = (pedersen_hash0_ec_subset_sum_bit_0.clone() * (column4_row5.clone() - &global_values.pedersen_points_y)
-       .clone().clone() - column4_row7.clone() * (column4_row1.clone() - &global_values.pedersen_points_x))
+       .clone() - column4_row7.clone() * (column4_row1.clone() - &global_values.pedersen_points_x))
        .clone() * &domain20.field_div(&(domain3));
     total_sum += constraint_coefficients[63].clone() * &value;
 
     // Constraint: pedersen/hash0/ec_subset_sum/add_points/x.
     value = (column4_row7.clone() * &column4_row7
-       .clone().clone() - pedersen_hash0_ec_subset_sum_bit_0.clone()
+       .clone() - pedersen_hash0_ec_subset_sum_bit_0.clone()
             * (column4_row1.clone() + global_values.pedersen_points_x.clone() + &column4_row9))
        .clone() * &domain20.field_div(&(domain3));
     total_sum += constraint_coefficients[64].clone() * &value;
 
     // Constraint: pedersen/hash0/ec_subset_sum/add_points/y.
     value = (pedersen_hash0_ec_subset_sum_bit_0 * (column4_row5.clone() + &column4_row13)
-       .clone().clone() - column4_row7.clone() * (column4_row1.clone() - &column4_row9))
+       .clone() - column4_row7.clone() * (column4_row1.clone() - &column4_row9))
        .clone() * &domain20.field_div(&(domain3));
     total_sum += constraint_coefficients[65].clone() * &value;
 
@@ -1395,771 +1395,771 @@ pub fn eval_oods_polynomial_inner<F: SimpleField + PoseidonHash, Layout: LayoutT
     let mut total_sum = F::zero();
 
     let mut value = (column0.clone() - &oods_values[0])
-        .field_div(&(point.clone().clone() - pow0.clone() * oods_point));
+        .field_div(&(point.clone() - pow0.clone() * oods_point));
     total_sum += constraint_coefficients[0].clone() * &value;
 
     value = (column0.clone() - &oods_values[1])
-        .field_div(&(point.clone().clone() - pow4.clone() * oods_point));
+        .field_div(&(point.clone() - pow4.clone() * oods_point));
     total_sum += constraint_coefficients[1].clone() * &value;
 
     value = (column0.clone() - &oods_values[2])
-        .field_div(&(point.clone().clone() - pow5.clone() * oods_point));
+        .field_div(&(point.clone() - pow5.clone() * oods_point));
     total_sum += constraint_coefficients[2].clone() * &value;
 
     value = (column0.clone() - &oods_values[3])
-        .field_div(&(point.clone().clone() - pow6.clone() * oods_point));
+        .field_div(&(point.clone() - pow6.clone() * oods_point));
     total_sum += constraint_coefficients[3].clone() * &value;
 
     value = (column0.clone() - &oods_values[4])
-        .field_div(&(point.clone().clone() - pow7.clone() * oods_point));
+        .field_div(&(point.clone() - pow7.clone() * oods_point));
     total_sum += constraint_coefficients[4].clone() * &value;
 
     value = (column0.clone() - &oods_values[5])
-        .field_div(&(point.clone().clone() - pow8.clone() * oods_point));
+        .field_div(&(point.clone() - pow8.clone() * oods_point));
     total_sum += constraint_coefficients[5].clone() * &value;
 
     value = (column0.clone() - &oods_values[6])
-        .field_div(&(point.clone().clone() - pow9.clone() * oods_point));
+        .field_div(&(point.clone() - pow9.clone() * oods_point));
     total_sum += constraint_coefficients[6].clone() * &value;
 
     value = (column0.clone() - &oods_values[7])
-        .field_div(&(point.clone().clone() - pow10.clone() * oods_point));
+        .field_div(&(point.clone() - pow10.clone() * oods_point));
     total_sum += constraint_coefficients[7].clone() * &value;
 
     value = (column0.clone() - &oods_values[8])
-        .field_div(&(point.clone().clone() - pow11.clone() * oods_point));
+        .field_div(&(point.clone() - pow11.clone() * oods_point));
     total_sum += constraint_coefficients[8].clone() * &value;
 
     value = (column0.clone() - &oods_values[9])
-        .field_div(&(point.clone().clone() - pow13.clone() * oods_point));
+        .field_div(&(point.clone() - pow13.clone() * oods_point));
     total_sum += constraint_coefficients[9].clone() * &value;
 
     value = (column0.clone() - &oods_values[10])
-        .field_div(&(point.clone().clone() - pow14.clone() * oods_point));
+        .field_div(&(point.clone() - pow14.clone() * oods_point));
     total_sum += constraint_coefficients[10].clone() * &value;
 
     value = (column0.clone() - &oods_values[11])
-        .field_div(&(point.clone().clone() - pow15.clone() * oods_point));
+        .field_div(&(point.clone() - pow15.clone() * oods_point));
     total_sum += constraint_coefficients[11].clone() * &value;
 
     value = (column0.clone() - &oods_values[12])
-        .field_div(&(point.clone().clone() - pow16.clone() * oods_point));
+        .field_div(&(point.clone() - pow16.clone() * oods_point));
     total_sum += constraint_coefficients[12].clone() * &value;
 
     value = (column0.clone() - &oods_values[13])
-        .field_div(&(point.clone().clone() - pow17.clone() * oods_point));
+        .field_div(&(point.clone() - pow17.clone() * oods_point));
     total_sum += constraint_coefficients[13].clone() * &value;
 
     value = (column0.clone() - &oods_values[14])
-        .field_div(&(point.clone().clone() - pow18.clone() * oods_point));
+        .field_div(&(point.clone() - pow18.clone() * oods_point));
     total_sum += constraint_coefficients[14].clone() * &value;
 
     value = (column0.clone() - &oods_values[15])
-        .field_div(&(point.clone().clone() - pow19.clone() * oods_point));
+        .field_div(&(point.clone() - pow19.clone() * oods_point));
     total_sum += constraint_coefficients[15].clone() * &value;
 
     value = (column1.clone() - &oods_values[16])
-        .field_div(&(point.clone().clone() - pow0.clone() * oods_point));
+        .field_div(&(point.clone() - pow0.clone() * oods_point));
     total_sum += constraint_coefficients[16].clone() * &value;
 
     value = (column1.clone() - &oods_values[17])
-        .field_div(&(point.clone().clone() - pow4.clone() * oods_point));
+        .field_div(&(point.clone() - pow4.clone() * oods_point));
     total_sum += constraint_coefficients[17].clone() * &value;
 
     value = (column1.clone() - &oods_values[18])
-        .field_div(&(point.clone().clone() - pow5.clone() * oods_point));
+        .field_div(&(point.clone() - pow5.clone() * oods_point));
     total_sum += constraint_coefficients[18].clone() * &value;
 
     value = (column1.clone() - &oods_values[19])
-        .field_div(&(point.clone().clone() - pow6.clone() * oods_point));
+        .field_div(&(point.clone() - pow6.clone() * oods_point));
     total_sum += constraint_coefficients[19].clone() * &value;
 
     value = (column1.clone() - &oods_values[20])
-        .field_div(&(point.clone().clone() - pow7.clone() * oods_point));
+        .field_div(&(point.clone() - pow7.clone() * oods_point));
     total_sum += constraint_coefficients[20].clone() * &value;
 
     value = (column1.clone() - &oods_values[21])
-        .field_div(&(point.clone().clone() - pow8.clone() * oods_point));
+        .field_div(&(point.clone() - pow8.clone() * oods_point));
     total_sum += constraint_coefficients[21].clone() * &value;
 
     value = (column1.clone() - &oods_values[22])
-        .field_div(&(point.clone().clone() - pow11.clone() * oods_point));
+        .field_div(&(point.clone() - pow11.clone() * oods_point));
     total_sum += constraint_coefficients[22].clone() * &value;
 
     value = (column1.clone() - &oods_values[23])
-        .field_div(&(point.clone().clone() - pow13.clone() * oods_point));
+        .field_div(&(point.clone() - pow13.clone() * oods_point));
     total_sum += constraint_coefficients[23].clone() * &value;
 
     value = (column1.clone() - &oods_values[24])
-        .field_div(&(point.clone().clone() - pow14.clone() * oods_point));
+        .field_div(&(point.clone() - pow14.clone() * oods_point));
     total_sum += constraint_coefficients[24].clone() * &value;
 
     value = (column1.clone() - &oods_values[25])
-        .field_div(&(point.clone().clone() - pow15.clone() * oods_point));
+        .field_div(&(point.clone() - pow15.clone() * oods_point));
     total_sum += constraint_coefficients[25].clone() * &value;
 
     value = (column1.clone() - &oods_values[26])
-        .field_div(&(point.clone().clone() - pow16.clone() * oods_point));
+        .field_div(&(point.clone() - pow16.clone() * oods_point));
     total_sum += constraint_coefficients[26].clone() * &value;
 
     value = (column1.clone() - &oods_values[27])
-        .field_div(&(point.clone().clone() - pow17.clone() * oods_point));
+        .field_div(&(point.clone() - pow17.clone() * oods_point));
     total_sum += constraint_coefficients[27].clone() * &value;
 
     value = (column1.clone() - &oods_values[28])
-        .field_div(&(point.clone().clone() - pow20.clone() * oods_point));
+        .field_div(&(point.clone() - pow20.clone() * oods_point));
     total_sum += constraint_coefficients[28].clone() * &value;
 
     value = (column1.clone() - &oods_values[29])
-        .field_div(&(point.clone().clone() - pow35.clone() * oods_point));
+        .field_div(&(point.clone() - pow35.clone() * oods_point));
     total_sum += constraint_coefficients[29].clone() * &value;
 
     value = (column1.clone() - &oods_values[30])
-        .field_div(&(point.clone().clone() - pow36.clone() * oods_point));
+        .field_div(&(point.clone() - pow36.clone() * oods_point));
     total_sum += constraint_coefficients[30].clone() * &value;
 
     value = (column1.clone() - &oods_values[31])
-        .field_div(&(point.clone().clone() - pow50.clone() * oods_point));
+        .field_div(&(point.clone() - pow50.clone() * oods_point));
     total_sum += constraint_coefficients[31].clone() * &value;
 
     value = (column1.clone() - &oods_values[32])
-        .field_div(&(point.clone().clone() - pow51.clone() * oods_point));
+        .field_div(&(point.clone() - pow51.clone() * oods_point));
     total_sum += constraint_coefficients[32].clone() * &value;
 
     value = (column1.clone() - &oods_values[33])
-        .field_div(&(point.clone().clone() - pow57.clone() * oods_point));
+        .field_div(&(point.clone() - pow57.clone() * oods_point));
     total_sum += constraint_coefficients[33].clone() * &value;
 
     value = (column1.clone() - &oods_values[34])
-        .field_div(&(point.clone().clone() - pow62.clone() * oods_point));
+        .field_div(&(point.clone() - pow62.clone() * oods_point));
     total_sum += constraint_coefficients[34].clone() * &value;
 
     value = (column1.clone() - &oods_values[35])
-        .field_div(&(point.clone().clone() - pow63.clone() * oods_point));
+        .field_div(&(point.clone() - pow63.clone() * oods_point));
     total_sum += constraint_coefficients[35].clone() * &value;
 
     value = (column1.clone() - &oods_values[36])
-        .field_div(&(point.clone().clone() - pow65.clone() * oods_point));
+        .field_div(&(point.clone() - pow65.clone() * oods_point));
     total_sum += constraint_coefficients[36].clone() * &value;
 
     value = (column1.clone() - &oods_values[37])
-        .field_div(&(point.clone().clone() - pow75.clone() * oods_point));
+        .field_div(&(point.clone() - pow75.clone() * oods_point));
     total_sum += constraint_coefficients[37].clone() * &value;
 
     value = (column1.clone() - &oods_values[38])
-        .field_div(&(point.clone().clone() - pow76.clone() * oods_point));
+        .field_div(&(point.clone() - pow76.clone() * oods_point));
     total_sum += constraint_coefficients[38].clone() * &value;
 
     value = (column1.clone() - &oods_values[39])
-        .field_div(&(point.clone().clone() - pow79.clone() * oods_point));
+        .field_div(&(point.clone() - pow79.clone() * oods_point));
     total_sum += constraint_coefficients[39].clone() * &value;
 
     value = (column1.clone() - &oods_values[40])
-        .field_div(&(point.clone().clone() - pow80.clone() * oods_point));
+        .field_div(&(point.clone() - pow80.clone() * oods_point));
     total_sum += constraint_coefficients[40].clone() * &value;
 
     value = (column1.clone() - &oods_values[41])
-        .field_div(&(point.clone().clone() - pow86.clone() * oods_point));
+        .field_div(&(point.clone() - pow86.clone() * oods_point));
     total_sum += constraint_coefficients[41].clone() * &value;
 
     value = (column1.clone() - &oods_values[42])
-        .field_div(&(point.clone().clone() - pow87.clone() * oods_point));
+        .field_div(&(point.clone() - pow87.clone() * oods_point));
     total_sum += constraint_coefficients[42].clone() * &value;
 
     value = (column1.clone() - &oods_values[43])
-        .field_div(&(point.clone().clone() - pow115.clone() * oods_point));
+        .field_div(&(point.clone() - pow115.clone() * oods_point));
     total_sum += constraint_coefficients[43].clone() * &value;
 
     value = (column1.clone() - &oods_values[44])
-        .field_div(&(point.clone().clone() - pow88.clone() * oods_point));
+        .field_div(&(point.clone() - pow88.clone() * oods_point));
     total_sum += constraint_coefficients[44].clone() * &value;
 
     value = (column1.clone() - &oods_values[45])
-        .field_div(&(point.clone().clone() - pow92.clone() * oods_point));
+        .field_div(&(point.clone() - pow92.clone() * oods_point));
     total_sum += constraint_coefficients[45].clone() * &value;
 
     value = (column1.clone() - &oods_values[46])
-        .field_div(&(point.clone().clone() - pow93.clone() * oods_point));
+        .field_div(&(point.clone() - pow93.clone() * oods_point));
     total_sum += constraint_coefficients[46].clone() * &value;
 
     value = (column1.clone() - &oods_values[47])
-        .field_div(&(point.clone().clone() - pow109.clone() * oods_point));
+        .field_div(&(point.clone() - pow109.clone() * oods_point));
     total_sum += constraint_coefficients[47].clone() * &value;
 
     value = (column1.clone() - &oods_values[48])
-        .field_div(&(point.clone().clone() - pow113.clone() * oods_point));
+        .field_div(&(point.clone() - pow113.clone() * oods_point));
     total_sum += constraint_coefficients[48].clone() * &value;
 
     value = (column1.clone() - &oods_values[49])
-        .field_div(&(point.clone().clone() - pow110.clone() * oods_point));
+        .field_div(&(point.clone() - pow110.clone() * oods_point));
     total_sum += constraint_coefficients[49].clone() * &value;
 
     value = (column1.clone() - &oods_values[50])
-        .field_div(&(point.clone().clone() - pow114.clone() * oods_point));
+        .field_div(&(point.clone() - pow114.clone() * oods_point));
     total_sum += constraint_coefficients[50].clone() * &value;
 
     value = (column1.clone() - &oods_values[51])
-        .field_div(&(point.clone().clone() - pow111.clone() * oods_point));
+        .field_div(&(point.clone() - pow111.clone() * oods_point));
     total_sum += constraint_coefficients[51].clone() * &value;
 
     value = (column1.clone() - &oods_values[52])
-        .field_div(&(point.clone().clone() - pow116.clone() * oods_point));
+        .field_div(&(point.clone() - pow116.clone() * oods_point));
     total_sum += constraint_coefficients[52].clone() * &value;
 
     value = (column1.clone() - &oods_values[53])
-        .field_div(&(point.clone().clone() - pow122.clone() * oods_point));
+        .field_div(&(point.clone() - pow122.clone() * oods_point));
     total_sum += constraint_coefficients[53].clone() * &value;
 
     value = (column1.clone() - &oods_values[54])
-        .field_div(&(point.clone().clone() - pow127.clone() * oods_point));
+        .field_div(&(point.clone() - pow127.clone() * oods_point));
     total_sum += constraint_coefficients[54].clone() * &value;
 
     value = (column1.clone() - &oods_values[55])
-        .field_div(&(point.clone().clone() - pow131.clone() * oods_point));
+        .field_div(&(point.clone() - pow131.clone() * oods_point));
     total_sum += constraint_coefficients[55].clone() * &value;
 
     value = (column1.clone() - &oods_values[56])
-        .field_div(&(point.clone().clone() - pow132.clone() * oods_point));
+        .field_div(&(point.clone() - pow132.clone() * oods_point));
     total_sum += constraint_coefficients[56].clone() * &value;
 
     value = (column1.clone() - &oods_values[57])
-        .field_div(&(point.clone().clone() - pow133.clone() * oods_point));
+        .field_div(&(point.clone() - pow133.clone() * oods_point));
     total_sum += constraint_coefficients[57].clone() * &value;
 
     value = (column2.clone() - &oods_values[58])
-        .field_div(&(point.clone().clone() - pow0.clone() * oods_point));
+        .field_div(&(point.clone() - pow0.clone() * oods_point));
     total_sum += constraint_coefficients[58].clone() * &value;
 
     value = (column2.clone() - &oods_values[59])
-        .field_div(&(point.clone().clone() - pow4.clone() * oods_point));
+        .field_div(&(point.clone() - pow4.clone() * oods_point));
     total_sum += constraint_coefficients[59].clone() * &value;
 
     value = (column2.clone() - &oods_values[60])
-        .field_div(&(point.clone().clone() - pow5.clone() * oods_point));
+        .field_div(&(point.clone() - pow5.clone() * oods_point));
     total_sum += constraint_coefficients[60].clone() * &value;
 
     value = (column2.clone() - &oods_values[61])
-        .field_div(&(point.clone().clone() - pow6.clone() * oods_point));
+        .field_div(&(point.clone() - pow6.clone() * oods_point));
     total_sum += constraint_coefficients[61].clone() * &value;
 
     value = (column3.clone() - &oods_values[62])
-        .field_div(&(point.clone().clone() - pow0.clone() * oods_point));
+        .field_div(&(point.clone() - pow0.clone() * oods_point));
     total_sum += constraint_coefficients[62].clone() * &value;
 
     value = (column3.clone() - &oods_values[63])
-        .field_div(&(point.clone().clone() - pow4.clone() * oods_point));
+        .field_div(&(point.clone() - pow4.clone() * oods_point));
     total_sum += constraint_coefficients[63].clone() * &value;
 
     value = (column3.clone() - &oods_values[64])
-        .field_div(&(point.clone().clone() - pow5.clone() * oods_point));
+        .field_div(&(point.clone() - pow5.clone() * oods_point));
     total_sum += constraint_coefficients[64].clone() * &value;
 
     value = (column3.clone() - &oods_values[65])
-        .field_div(&(point.clone().clone() - pow6.clone() * oods_point));
+        .field_div(&(point.clone() - pow6.clone() * oods_point));
     total_sum += constraint_coefficients[65].clone() * &value;
 
     value = (column3.clone() - &oods_values[66])
-        .field_div(&(point.clone().clone() - pow7.clone() * oods_point));
+        .field_div(&(point.clone() - pow7.clone() * oods_point));
     total_sum += constraint_coefficients[66].clone() * &value;
 
     value = (column3.clone() - &oods_values[67])
-        .field_div(&(point.clone().clone() - pow11.clone() * oods_point));
+        .field_div(&(point.clone() - pow11.clone() * oods_point));
     total_sum += constraint_coefficients[67].clone() * &value;
 
     value = (column3.clone() - &oods_values[68])
-        .field_div(&(point.clone().clone() - pow16.clone() * oods_point));
+        .field_div(&(point.clone() - pow16.clone() * oods_point));
     total_sum += constraint_coefficients[68].clone() * &value;
 
     value = (column3.clone() - &oods_values[69])
-        .field_div(&(point.clone().clone() - pow20.clone() * oods_point));
+        .field_div(&(point.clone() - pow20.clone() * oods_point));
     total_sum += constraint_coefficients[69].clone() * &value;
 
     value = (column3.clone() - &oods_values[70])
-        .field_div(&(point.clone().clone() - pow22.clone() * oods_point));
+        .field_div(&(point.clone() - pow22.clone() * oods_point));
     total_sum += constraint_coefficients[70].clone() * &value;
 
     value = (column3.clone() - &oods_values[71])
-        .field_div(&(point.clone().clone() - pow24.clone() * oods_point));
+        .field_div(&(point.clone() - pow24.clone() * oods_point));
     total_sum += constraint_coefficients[71].clone() * &value;
 
     value = (column3.clone() - &oods_values[72])
-        .field_div(&(point.clone().clone() - pow26.clone() * oods_point));
+        .field_div(&(point.clone() - pow26.clone() * oods_point));
     total_sum += constraint_coefficients[72].clone() * &value;
 
     value = (column3.clone() - &oods_values[73])
-        .field_div(&(point.clone().clone() - pow28.clone() * oods_point));
+        .field_div(&(point.clone() - pow28.clone() * oods_point));
     total_sum += constraint_coefficients[73].clone() * &value;
 
     value = (column3.clone() - &oods_values[74])
-        .field_div(&(point.clone().clone() - pow31.clone() * oods_point));
+        .field_div(&(point.clone() - pow31.clone() * oods_point));
     total_sum += constraint_coefficients[74].clone() * &value;
 
     value = (column3.clone() - &oods_values[75])
-        .field_div(&(point.clone().clone() - pow33.clone() * oods_point));
+        .field_div(&(point.clone() - pow33.clone() * oods_point));
     total_sum += constraint_coefficients[75].clone() * &value;
 
     value = (column3.clone() - &oods_values[76])
-        .field_div(&(point.clone().clone() - pow37.clone() * oods_point));
+        .field_div(&(point.clone() - pow37.clone() * oods_point));
     total_sum += constraint_coefficients[76].clone() * &value;
 
     value = (column3.clone() - &oods_values[77])
-        .field_div(&(point.clone().clone() - pow39.clone() * oods_point));
+        .field_div(&(point.clone() - pow39.clone() * oods_point));
     total_sum += constraint_coefficients[77].clone() * &value;
 
     value = (column3.clone() - &oods_values[78])
-        .field_div(&(point.clone().clone() - pow41.clone() * oods_point));
+        .field_div(&(point.clone() - pow41.clone() * oods_point));
     total_sum += constraint_coefficients[78].clone() * &value;
 
     value = (column3.clone() - &oods_values[79])
-        .field_div(&(point.clone().clone() - pow43.clone() * oods_point));
+        .field_div(&(point.clone() - pow43.clone() * oods_point));
     total_sum += constraint_coefficients[79].clone() * &value;
 
     value = (column3.clone() - &oods_values[80])
-        .field_div(&(point.clone().clone() - pow45.clone() * oods_point));
+        .field_div(&(point.clone() - pow45.clone() * oods_point));
     total_sum += constraint_coefficients[80].clone() * &value;
 
     value = (column3.clone() - &oods_values[81])
-        .field_div(&(point.clone().clone() - pow46.clone() * oods_point));
+        .field_div(&(point.clone() - pow46.clone() * oods_point));
     total_sum += constraint_coefficients[81].clone() * &value;
 
     value = (column3.clone() - &oods_values[82])
-        .field_div(&(point.clone().clone() - pow48.clone() * oods_point));
+        .field_div(&(point.clone() - pow48.clone() * oods_point));
     total_sum += constraint_coefficients[82].clone() * &value;
 
     value = (column3.clone() - &oods_values[83])
-        .field_div(&(point.clone().clone() - pow59.clone() * oods_point));
+        .field_div(&(point.clone() - pow59.clone() * oods_point));
     total_sum += constraint_coefficients[83].clone() * &value;
 
     value = (column3.clone() - &oods_values[84])
-        .field_div(&(point.clone().clone() - pow60.clone() * oods_point));
+        .field_div(&(point.clone() - pow60.clone() * oods_point));
     total_sum += constraint_coefficients[84].clone() * &value;
 
     value = (column3.clone() - &oods_values[85])
-        .field_div(&(point.clone().clone() - pow68.clone() * oods_point));
+        .field_div(&(point.clone() - pow68.clone() * oods_point));
     total_sum += constraint_coefficients[85].clone() * &value;
 
     value = (column3.clone() - &oods_values[86])
-        .field_div(&(point.clone().clone() - pow69.clone() * oods_point));
+        .field_div(&(point.clone() - pow69.clone() * oods_point));
     total_sum += constraint_coefficients[86].clone() * &value;
 
     value = (column3.clone() - &oods_values[87])
-        .field_div(&(point.clone().clone() - pow70.clone() * oods_point));
+        .field_div(&(point.clone() - pow70.clone() * oods_point));
     total_sum += constraint_coefficients[87].clone() * &value;
 
     value = (column3.clone() - &oods_values[88])
-        .field_div(&(point.clone().clone() - pow71.clone() * oods_point));
+        .field_div(&(point.clone() - pow71.clone() * oods_point));
     total_sum += constraint_coefficients[88].clone() * &value;
 
     value = (column3.clone() - &oods_values[89])
-        .field_div(&(point.clone().clone() - pow72.clone() * oods_point));
+        .field_div(&(point.clone() - pow72.clone() * oods_point));
     total_sum += constraint_coefficients[89].clone() * &value;
 
     value = (column3.clone() - &oods_values[90])
-        .field_div(&(point.clone().clone() - pow73.clone() * oods_point));
+        .field_div(&(point.clone() - pow73.clone() * oods_point));
     total_sum += constraint_coefficients[90].clone() * &value;
 
     value = (column3.clone() - &oods_values[91])
-        .field_div(&(point.clone().clone() - pow82.clone() * oods_point));
+        .field_div(&(point.clone() - pow82.clone() * oods_point));
     total_sum += constraint_coefficients[91].clone() * &value;
 
     value = (column3.clone() - &oods_values[92])
-        .field_div(&(point.clone().clone() - pow83.clone() * oods_point));
+        .field_div(&(point.clone() - pow83.clone() * oods_point));
     total_sum += constraint_coefficients[92].clone() * &value;
 
     value = (column3.clone() - &oods_values[93])
-        .field_div(&(point.clone().clone() - pow84.clone() * oods_point));
+        .field_div(&(point.clone() - pow84.clone() * oods_point));
     total_sum += constraint_coefficients[93].clone() * &value;
 
     value = (column3.clone() - &oods_values[94])
-        .field_div(&(point.clone().clone() - pow85.clone() * oods_point));
+        .field_div(&(point.clone() - pow85.clone() * oods_point));
     total_sum += constraint_coefficients[94].clone() * &value;
 
     value = (column4.clone() - &oods_values[95])
-        .field_div(&(point.clone().clone() - pow0.clone() * oods_point));
+        .field_div(&(point.clone() - pow0.clone() * oods_point));
     total_sum += constraint_coefficients[95].clone() * &value;
 
     value = (column4.clone() - &oods_values[96])
-        .field_div(&(point.clone().clone() - pow4.clone() * oods_point));
+        .field_div(&(point.clone() - pow4.clone() * oods_point));
     total_sum += constraint_coefficients[96].clone() * &value;
 
     value = (column4.clone() - &oods_values[97])
-        .field_div(&(point.clone().clone() - pow5.clone() * oods_point));
+        .field_div(&(point.clone() - pow5.clone() * oods_point));
     total_sum += constraint_coefficients[97].clone() * &value;
 
     value = (column4.clone() - &oods_values[98])
-        .field_div(&(point.clone().clone() - pow6.clone() * oods_point));
+        .field_div(&(point.clone() - pow6.clone() * oods_point));
     total_sum += constraint_coefficients[98].clone() * &value;
 
     value = (column4.clone() - &oods_values[99])
-        .field_div(&(point.clone().clone() - pow7.clone() * oods_point));
+        .field_div(&(point.clone() - pow7.clone() * oods_point));
     total_sum += constraint_coefficients[99].clone() * &value;
 
     value = (column4.clone() - &oods_values[100])
-        .field_div(&(point.clone().clone() - pow8.clone() * oods_point));
+        .field_div(&(point.clone() - pow8.clone() * oods_point));
     total_sum += constraint_coefficients[100].clone() * &value;
 
     value = (column4.clone() - &oods_values[101])
-        .field_div(&(point.clone().clone() - pow9.clone() * oods_point));
+        .field_div(&(point.clone() - pow9.clone() * oods_point));
     total_sum += constraint_coefficients[101].clone() * &value;
 
     value = (column4.clone() - &oods_values[102])
-        .field_div(&(point.clone().clone() - pow10.clone() * oods_point));
+        .field_div(&(point.clone() - pow10.clone() * oods_point));
     total_sum += constraint_coefficients[102].clone() * &value;
 
     value = (column4.clone() - &oods_values[103])
-        .field_div(&(point.clone().clone() - pow11.clone() * oods_point));
+        .field_div(&(point.clone() - pow11.clone() * oods_point));
     total_sum += constraint_coefficients[103].clone() * &value;
 
     value = (column4.clone() - &oods_values[104])
-        .field_div(&(point.clone().clone() - pow13.clone() * oods_point));
+        .field_div(&(point.clone() - pow13.clone() * oods_point));
     total_sum += constraint_coefficients[104].clone() * &value;
 
     value = (column4.clone() - &oods_values[105])
-        .field_div(&(point.clone().clone() - pow15.clone() * oods_point));
+        .field_div(&(point.clone() - pow15.clone() * oods_point));
     total_sum += constraint_coefficients[105].clone() * &value;
 
     value = (column4.clone() - &oods_values[106])
-        .field_div(&(point.clone().clone() - pow16.clone() * oods_point));
+        .field_div(&(point.clone() - pow16.clone() * oods_point));
     total_sum += constraint_coefficients[106].clone() * &value;
 
     value = (column4.clone() - &oods_values[107])
-        .field_div(&(point.clone().clone() - pow17.clone() * oods_point));
+        .field_div(&(point.clone() - pow17.clone() * oods_point));
     total_sum += constraint_coefficients[107].clone() * &value;
 
     value = (column4.clone() - &oods_values[108])
-        .field_div(&(point.clone().clone() - pow37.clone() * oods_point));
+        .field_div(&(point.clone() - pow37.clone() * oods_point));
     total_sum += constraint_coefficients[108].clone() * &value;
 
     value = (column4.clone() - &oods_values[109])
-        .field_div(&(point.clone().clone() - pow52.clone() * oods_point));
+        .field_div(&(point.clone() - pow52.clone() * oods_point));
     total_sum += constraint_coefficients[109].clone() * &value;
 
     value = (column4.clone() - &oods_values[110])
-        .field_div(&(point.clone().clone() - pow58.clone() * oods_point));
+        .field_div(&(point.clone() - pow58.clone() * oods_point));
     total_sum += constraint_coefficients[110].clone() * &value;
 
     value = (column4.clone() - &oods_values[111])
-        .field_div(&(point.clone().clone() - pow66.clone() * oods_point));
+        .field_div(&(point.clone() - pow66.clone() * oods_point));
     total_sum += constraint_coefficients[111].clone() * &value;
 
     value = (column4.clone() - &oods_values[112])
-        .field_div(&(point.clone().clone() - pow67.clone() * oods_point));
+        .field_div(&(point.clone() - pow67.clone() * oods_point));
     total_sum += constraint_coefficients[112].clone() * &value;
 
     value = (column4.clone() - &oods_values[113])
-        .field_div(&(point.clone().clone() - pow78.clone() * oods_point));
+        .field_div(&(point.clone() - pow78.clone() * oods_point));
     total_sum += constraint_coefficients[113].clone() * &value;
 
     value = (column4.clone() - &oods_values[114])
-        .field_div(&(point.clone().clone() - pow81.clone() * oods_point));
+        .field_div(&(point.clone() - pow81.clone() * oods_point));
     total_sum += constraint_coefficients[114].clone() * &value;
 
     value = (column4.clone() - &oods_values[115])
-        .field_div(&(point.clone().clone() - pow3.clone() * oods_point));
+        .field_div(&(point.clone() - pow3.clone() * oods_point));
     total_sum += constraint_coefficients[115].clone() * &value;
 
     value = (column4.clone() - &oods_values[116])
-        .field_div(&(point.clone().clone() - pow12.clone() * oods_point));
+        .field_div(&(point.clone() - pow12.clone() * oods_point));
     total_sum += constraint_coefficients[116].clone() * &value;
 
     value = (column4.clone() - &oods_values[117])
-        .field_div(&(point.clone().clone() - pow30.clone() * oods_point));
+        .field_div(&(point.clone() - pow30.clone() * oods_point));
     total_sum += constraint_coefficients[117].clone() * &value;
 
     value = (column4.clone() - &oods_values[118])
-        .field_div(&(point.clone().clone() - pow112.clone() * oods_point));
+        .field_div(&(point.clone() - pow112.clone() * oods_point));
     total_sum += constraint_coefficients[118].clone() * &value;
 
     value = (column4.clone() - &oods_values[119])
-        .field_div(&(point.clone().clone() - pow2.clone() * oods_point));
+        .field_div(&(point.clone() - pow2.clone() * oods_point));
     total_sum += constraint_coefficients[119].clone() * &value;
 
     value = (column4.clone() - &oods_values[120])
-        .field_div(&(point.clone().clone() - pow123.clone() * oods_point));
+        .field_div(&(point.clone() - pow123.clone() * oods_point));
     total_sum += constraint_coefficients[120].clone() * &value;
 
     value = (column4.clone() - &oods_values[121])
-        .field_div(&(point.clone().clone() - pow124.clone() * oods_point));
+        .field_div(&(point.clone() - pow124.clone() * oods_point));
     total_sum += constraint_coefficients[121].clone() * &value;
 
     value = (column4.clone() - &oods_values[122])
-        .field_div(&(point.clone().clone() - pow125.clone() * oods_point));
+        .field_div(&(point.clone() - pow125.clone() * oods_point));
     total_sum += constraint_coefficients[122].clone() * &value;
 
     value = (column4.clone() - &oods_values[123])
-        .field_div(&(point.clone().clone() - pow126.clone() * oods_point));
+        .field_div(&(point.clone() - pow126.clone() * oods_point));
     total_sum += constraint_coefficients[123].clone() * &value;
 
     value = (column4.clone() - &oods_values[124])
-        .field_div(&(point.clone().clone() - pow128.clone() * oods_point));
+        .field_div(&(point.clone() - pow128.clone() * oods_point));
     total_sum += constraint_coefficients[124].clone() * &value;
 
     value = (column4.clone() - &oods_values[125])
-        .field_div(&(point.clone().clone() - pow129.clone() * oods_point));
+        .field_div(&(point.clone() - pow129.clone() * oods_point));
     total_sum += constraint_coefficients[125].clone() * &value;
 
     value = (column4.clone() - &oods_values[126])
-        .field_div(&(point.clone().clone() - pow130.clone() * oods_point));
+        .field_div(&(point.clone() - pow130.clone() * oods_point));
     total_sum += constraint_coefficients[126].clone() * &value;
 
     value = (column4.clone() - &oods_values[127])
-        .field_div(&(point.clone().clone() - pow1.clone() * oods_point));
+        .field_div(&(point.clone() - pow1.clone() * oods_point));
     total_sum += constraint_coefficients[127].clone() * &value;
 
     value = (column5.clone() - &oods_values[128])
-        .field_div(&(point.clone().clone() - pow0.clone() * oods_point));
+        .field_div(&(point.clone() - pow0.clone() * oods_point));
     total_sum += constraint_coefficients[128].clone() * &value;
 
     value = (column5.clone() - &oods_values[129])
-        .field_div(&(point.clone().clone() - pow4.clone() * oods_point));
+        .field_div(&(point.clone() - pow4.clone() * oods_point));
     total_sum += constraint_coefficients[129].clone() * &value;
 
     value = (column5.clone() - &oods_values[130])
-        .field_div(&(point.clone().clone() - pow5.clone() * oods_point));
+        .field_div(&(point.clone() - pow5.clone() * oods_point));
     total_sum += constraint_coefficients[130].clone() * &value;
 
     value = (column5.clone() - &oods_values[131])
-        .field_div(&(point.clone().clone() - pow7.clone() * oods_point));
+        .field_div(&(point.clone() - pow7.clone() * oods_point));
     total_sum += constraint_coefficients[131].clone() * &value;
 
     value = (column5.clone() - &oods_values[132])
-        .field_div(&(point.clone().clone() - pow9.clone() * oods_point));
+        .field_div(&(point.clone() - pow9.clone() * oods_point));
     total_sum += constraint_coefficients[132].clone() * &value;
 
     value = (column5.clone() - &oods_values[133])
-        .field_div(&(point.clone().clone() - pow11.clone() * oods_point));
+        .field_div(&(point.clone() - pow11.clone() * oods_point));
     total_sum += constraint_coefficients[133].clone() * &value;
 
     value = (column5.clone() - &oods_values[134])
-        .field_div(&(point.clone().clone() - pow13.clone() * oods_point));
+        .field_div(&(point.clone() - pow13.clone() * oods_point));
     total_sum += constraint_coefficients[134].clone() * &value;
 
     value = (column5.clone() - &oods_values[135])
-        .field_div(&(point.clone().clone() - pow14.clone() * oods_point));
+        .field_div(&(point.clone() - pow14.clone() * oods_point));
     total_sum += constraint_coefficients[135].clone() * &value;
 
     value = (column5.clone() - &oods_values[136])
-        .field_div(&(point.clone().clone() - pow16.clone() * oods_point));
+        .field_div(&(point.clone() - pow16.clone() * oods_point));
     total_sum += constraint_coefficients[136].clone() * &value;
 
     value = (column5.clone() - &oods_values[137])
-        .field_div(&(point.clone().clone() - pow18.clone() * oods_point));
+        .field_div(&(point.clone() - pow18.clone() * oods_point));
     total_sum += constraint_coefficients[137].clone() * &value;
 
     value = (column5.clone() - &oods_values[138])
-        .field_div(&(point.clone().clone() - pow20.clone() * oods_point));
+        .field_div(&(point.clone() - pow20.clone() * oods_point));
     total_sum += constraint_coefficients[138].clone() * &value;
 
     value = (column5.clone() - &oods_values[139])
-        .field_div(&(point.clone().clone() - pow21.clone() * oods_point));
+        .field_div(&(point.clone() - pow21.clone() * oods_point));
     total_sum += constraint_coefficients[139].clone() * &value;
 
     value = (column5.clone() - &oods_values[140])
-        .field_div(&(point.clone().clone() - pow23.clone() * oods_point));
+        .field_div(&(point.clone() - pow23.clone() * oods_point));
     total_sum += constraint_coefficients[140].clone() * &value;
 
     value = (column5.clone() - &oods_values[141])
-        .field_div(&(point.clone().clone() - pow24.clone() * oods_point));
+        .field_div(&(point.clone() - pow24.clone() * oods_point));
     total_sum += constraint_coefficients[141].clone() * &value;
 
     value = (column5.clone() - &oods_values[142])
-        .field_div(&(point.clone().clone() - pow25.clone() * oods_point));
+        .field_div(&(point.clone() - pow25.clone() * oods_point));
     total_sum += constraint_coefficients[142].clone() * &value;
 
     value = (column5.clone() - &oods_values[143])
-        .field_div(&(point.clone().clone() - pow27.clone() * oods_point));
+        .field_div(&(point.clone() - pow27.clone() * oods_point));
     total_sum += constraint_coefficients[143].clone() * &value;
 
     value = (column5.clone() - &oods_values[144])
-        .field_div(&(point.clone().clone() - pow29.clone() * oods_point));
+        .field_div(&(point.clone() - pow29.clone() * oods_point));
     total_sum += constraint_coefficients[144].clone() * &value;
 
     value = (column5.clone() - &oods_values[145])
-        .field_div(&(point.clone().clone() - pow32.clone() * oods_point));
+        .field_div(&(point.clone() - pow32.clone() * oods_point));
     total_sum += constraint_coefficients[145].clone() * &value;
 
     value = (column5.clone() - &oods_values[146])
-        .field_div(&(point.clone().clone() - pow34.clone() * oods_point));
+        .field_div(&(point.clone() - pow34.clone() * oods_point));
     total_sum += constraint_coefficients[146].clone() * &value;
 
     value = (column5.clone() - &oods_values[147])
-        .field_div(&(point.clone().clone() - pow38.clone() * oods_point));
+        .field_div(&(point.clone() - pow38.clone() * oods_point));
     total_sum += constraint_coefficients[147].clone() * &value;
 
     value = (column5.clone() - &oods_values[148])
-        .field_div(&(point.clone().clone() - pow40.clone() * oods_point));
+        .field_div(&(point.clone() - pow40.clone() * oods_point));
     total_sum += constraint_coefficients[148].clone() * &value;
 
     value = (column5.clone() - &oods_values[149])
-        .field_div(&(point.clone().clone() - pow42.clone() * oods_point));
+        .field_div(&(point.clone() - pow42.clone() * oods_point));
     total_sum += constraint_coefficients[149].clone() * &value;
 
     value = (column5.clone() - &oods_values[150])
-        .field_div(&(point.clone().clone() - pow44.clone() * oods_point));
+        .field_div(&(point.clone() - pow44.clone() * oods_point));
     total_sum += constraint_coefficients[150].clone() * &value;
 
     value = (column5.clone() - &oods_values[151])
-        .field_div(&(point.clone().clone() - pow47.clone() * oods_point));
+        .field_div(&(point.clone() - pow47.clone() * oods_point));
     total_sum += constraint_coefficients[151].clone() * &value;
 
     value = (column5.clone() - &oods_values[152])
-        .field_div(&(point.clone().clone() - pow49.clone() * oods_point));
+        .field_div(&(point.clone() - pow49.clone() * oods_point));
     total_sum += constraint_coefficients[152].clone() * &value;
 
     value = (column5.clone() - &oods_values[153])
-        .field_div(&(point.clone().clone() - pow53.clone() * oods_point));
+        .field_div(&(point.clone() - pow53.clone() * oods_point));
     total_sum += constraint_coefficients[153].clone() * &value;
 
     value = (column5.clone() - &oods_values[154])
-        .field_div(&(point.clone().clone() - pow54.clone() * oods_point));
+        .field_div(&(point.clone() - pow54.clone() * oods_point));
     total_sum += constraint_coefficients[154].clone() * &value;
 
     value = (column5.clone() - &oods_values[155])
-        .field_div(&(point.clone().clone() - pow55.clone() * oods_point));
+        .field_div(&(point.clone() - pow55.clone() * oods_point));
     total_sum += constraint_coefficients[155].clone() * &value;
 
     value = (column5.clone() - &oods_values[156])
-        .field_div(&(point.clone().clone() - pow56.clone() * oods_point));
+        .field_div(&(point.clone() - pow56.clone() * oods_point));
     total_sum += constraint_coefficients[156].clone() * &value;
 
     value = (column5.clone() - &oods_values[157])
-        .field_div(&(point.clone().clone() - pow61.clone() * oods_point));
+        .field_div(&(point.clone() - pow61.clone() * oods_point));
     total_sum += constraint_coefficients[157].clone() * &value;
 
     value = (column5.clone() - &oods_values[158])
-        .field_div(&(point.clone().clone() - pow64.clone() * oods_point));
+        .field_div(&(point.clone() - pow64.clone() * oods_point));
     total_sum += constraint_coefficients[158].clone() * &value;
 
     value = (column5.clone() - &oods_values[159])
-        .field_div(&(point.clone().clone() - pow74.clone() * oods_point));
+        .field_div(&(point.clone() - pow74.clone() * oods_point));
     total_sum += constraint_coefficients[159].clone() * &value;
 
     value = (column5.clone() - &oods_values[160])
-        .field_div(&(point.clone().clone() - pow77.clone() * oods_point));
+        .field_div(&(point.clone() - pow77.clone() * oods_point));
     total_sum += constraint_coefficients[160].clone() * &value;
 
     value = (column5.clone() - &oods_values[161])
-        .field_div(&(point.clone().clone() - pow89.clone() * oods_point));
+        .field_div(&(point.clone() - pow89.clone() * oods_point));
     total_sum += constraint_coefficients[161].clone() * &value;
 
     value = (column5.clone() - &oods_values[162])
-        .field_div(&(point.clone().clone() - pow90.clone() * oods_point));
+        .field_div(&(point.clone() - pow90.clone() * oods_point));
     total_sum += constraint_coefficients[162].clone() * &value;
 
     value = (column5.clone() - &oods_values[163])
-        .field_div(&(point.clone().clone() - pow91.clone() * oods_point));
+        .field_div(&(point.clone() - pow91.clone() * oods_point));
     total_sum += constraint_coefficients[163].clone() * &value;
 
     value = (column5.clone() - &oods_values[164])
-        .field_div(&(point.clone().clone() - pow94.clone() * oods_point));
+        .field_div(&(point.clone() - pow94.clone() * oods_point));
     total_sum += constraint_coefficients[164].clone() * &value;
 
     value = (column5.clone() - &oods_values[165])
-        .field_div(&(point.clone().clone() - pow95.clone() * oods_point));
+        .field_div(&(point.clone() - pow95.clone() * oods_point));
     total_sum += constraint_coefficients[165].clone() * &value;
 
     value = (column5.clone() - &oods_values[166])
-        .field_div(&(point.clone().clone() - pow96.clone() * oods_point));
+        .field_div(&(point.clone() - pow96.clone() * oods_point));
     total_sum += constraint_coefficients[166].clone() * &value;
 
     value = (column5.clone() - &oods_values[167])
-        .field_div(&(point.clone().clone() - pow97.clone() * oods_point));
+        .field_div(&(point.clone() - pow97.clone() * oods_point));
     total_sum += constraint_coefficients[167].clone() * &value;
 
     value = (column5.clone() - &oods_values[168])
-        .field_div(&(point.clone().clone() - pow98.clone() * oods_point));
+        .field_div(&(point.clone() - pow98.clone() * oods_point));
     total_sum += constraint_coefficients[168].clone() * &value;
 
     value = (column5.clone() - &oods_values[169])
-        .field_div(&(point.clone().clone() - pow99.clone() * oods_point));
+        .field_div(&(point.clone() - pow99.clone() * oods_point));
     total_sum += constraint_coefficients[169].clone() * &value;
 
     value = (column5.clone() - &oods_values[170])
-        .field_div(&(point.clone().clone() - pow100.clone() * oods_point));
+        .field_div(&(point.clone() - pow100.clone() * oods_point));
     total_sum += constraint_coefficients[170].clone() * &value;
 
     value = (column5.clone() - &oods_values[171])
-        .field_div(&(point.clone().clone() - pow101.clone() * oods_point));
+        .field_div(&(point.clone() - pow101.clone() * oods_point));
     total_sum += constraint_coefficients[171].clone() * &value;
 
     value = (column5.clone() - &oods_values[172])
-        .field_div(&(point.clone().clone() - pow102.clone() * oods_point));
+        .field_div(&(point.clone() - pow102.clone() * oods_point));
     total_sum += constraint_coefficients[172].clone() * &value;
 
     value = (column5.clone() - &oods_values[173])
-        .field_div(&(point.clone().clone() - pow104.clone() * oods_point));
+        .field_div(&(point.clone() - pow104.clone() * oods_point));
     total_sum += constraint_coefficients[173].clone() * &value;
 
     value = (column5.clone() - &oods_values[174])
-        .field_div(&(point.clone().clone() - pow106.clone() * oods_point));
+        .field_div(&(point.clone() - pow106.clone() * oods_point));
     total_sum += constraint_coefficients[174].clone() * &value;
 
     value = (column5.clone() - &oods_values[175])
-        .field_div(&(point.clone().clone() - pow103.clone() * oods_point));
+        .field_div(&(point.clone() - pow103.clone() * oods_point));
     total_sum += constraint_coefficients[175].clone() * &value;
 
     value = (column5.clone() - &oods_values[176])
-        .field_div(&(point.clone().clone() - pow105.clone() * oods_point));
+        .field_div(&(point.clone() - pow105.clone() * oods_point));
     total_sum += constraint_coefficients[176].clone() * &value;
 
     value = (column5.clone() - &oods_values[177])
-        .field_div(&(point.clone().clone() - pow107.clone() * oods_point));
+        .field_div(&(point.clone() - pow107.clone() * oods_point));
     total_sum += constraint_coefficients[177].clone() * &value;
 
     value = (column5.clone() - &oods_values[178])
-        .field_div(&(point.clone().clone() - pow108.clone() * oods_point));
+        .field_div(&(point.clone() - pow108.clone() * oods_point));
     total_sum += constraint_coefficients[178].clone() * &value;
 
     value = (column5.clone() - &oods_values[179])
-        .field_div(&(point.clone().clone() - pow117.clone() * oods_point));
+        .field_div(&(point.clone() - pow117.clone() * oods_point));
     total_sum += constraint_coefficients[179].clone() * &value;
 
     value = (column5.clone() - &oods_values[180])
-        .field_div(&(point.clone().clone() - pow118.clone() * oods_point));
+        .field_div(&(point.clone() - pow118.clone() * oods_point));
     total_sum += constraint_coefficients[180].clone() * &value;
 
     value = (column5.clone() - &oods_values[181])
-        .field_div(&(point.clone().clone() - pow119.clone() * oods_point));
+        .field_div(&(point.clone() - pow119.clone() * oods_point));
     total_sum += constraint_coefficients[181].clone() * &value;
 
     value = (column5.clone() - &oods_values[182])
-        .field_div(&(point.clone().clone() - pow120.clone() * oods_point));
+        .field_div(&(point.clone() - pow120.clone() * oods_point));
     total_sum += constraint_coefficients[182].clone() * &value;
 
     value = (column5.clone() - &oods_values[183])
-        .field_div(&(point.clone().clone() - pow121.clone() * oods_point));
+        .field_div(&(point.clone() - pow121.clone() * oods_point));
     total_sum += constraint_coefficients[183].clone() * &value;
 
     value = (column6.clone() - &oods_values[184])
-        .field_div(&(point.clone().clone() - pow0.clone() * oods_point));
+        .field_div(&(point.clone() - pow0.clone() * oods_point));
     total_sum += constraint_coefficients[184].clone() * &value;
 
     value = (column6.clone() - &oods_values[185])
-        .field_div(&(point.clone().clone() - pow4.clone() * oods_point));
+        .field_div(&(point.clone() - pow4.clone() * oods_point));
     total_sum += constraint_coefficients[185].clone() * &value;
 
     value = (column6.clone() - &oods_values[186])
-        .field_div(&(point.clone().clone() - pow5.clone() * oods_point));
+        .field_div(&(point.clone() - pow5.clone() * oods_point));
     total_sum += constraint_coefficients[186].clone() * &value;
 
     value = (column6.clone() - &oods_values[187])
-        .field_div(&(point.clone().clone() - pow6.clone() * oods_point));
+        .field_div(&(point.clone() - pow6.clone() * oods_point));
     total_sum += constraint_coefficients[187].clone() * &value;
 
     value = (column7.clone() - &oods_values[188])
-        .field_div(&(point.clone().clone() - pow0.clone() * oods_point));
+        .field_div(&(point.clone() - pow0.clone() * oods_point));
     total_sum += constraint_coefficients[188].clone() * &value;
 
     value = (column7.clone() - &oods_values[189])
-        .field_div(&(point.clone().clone() - pow4.clone() * oods_point));
+        .field_div(&(point.clone() - pow4.clone() * oods_point));
     total_sum += constraint_coefficients[189].clone() * &value;
 
     value = (column7.clone() - &oods_values[190])
-        .field_div(&(point.clone().clone() - pow5.clone() * oods_point));
+        .field_div(&(point.clone() - pow5.clone() * oods_point));
     total_sum += constraint_coefficients[190].clone() * &value;
 
     value = (column7.clone() - &oods_values[191])
-        .field_div(&(point.clone().clone() - pow8.clone() * oods_point));
+        .field_div(&(point.clone() - pow8.clone() * oods_point));
     total_sum += constraint_coefficients[191].clone() * &value;
 
     // Sum the OODS boundary constraints on the composition polynomials.
@@ -2167,12 +2167,12 @@ pub fn eval_oods_polynomial_inner<F: SimpleField + PoseidonHash, Layout: LayoutT
 
     value = (column_values[Layout::NUM_COLUMNS_FIRST.clone() + &Layout::NUM_COLUMNS_SECOND]
        .clone() - &oods_values[192])
-        .field_div(&(point.clone().clone() - &oods_point_to_deg));
+        .field_div(&(point.clone() - &oods_point_to_deg));
     total_sum += constraint_coefficients[192].clone() * &value;
 
     value = (column_values[Layout::NUM_COLUMNS_FIRST.clone() + &Layout::NUM_COLUMNS_SECOND.clone() + &1]
        .clone() - &oods_values[193])
-        .field_div(&(point.clone().clone() - &oods_point_to_deg));
+        .field_div(&(point.clone() - &oods_point_to_deg));
     total_sum += constraint_coefficients[193].clone() * &value;
 
     total_sum

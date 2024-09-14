@@ -7,6 +7,10 @@ use swiftness_hash::{blake2s::Blake2sHash, keccak::KeccakHash, poseidon::Poseido
 
 use super::types::{Commitment, Decommitment, Witness};
 
+const MONTGOMERY_R: Felt =
+    Felt::from_hex_unchecked("0x7FFFFFFFFFFFDF0FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFE1");
+
+
 pub fn table_decommit<F: SimpleField + PoseidonHash + KeccakHash + Blake2sHash>(
     commitment: Commitment<F>,
     queries: &[F],
@@ -31,9 +35,7 @@ pub fn table_decommit<F: SimpleField + PoseidonHash + KeccakHash + Blake2sHash>(
         .values
         .into_iter()
         .map(|v| {
-            v * F::from_stark_felt(Felt::from_hex_unchecked(
-                "0x7FFFFFFFFFFFDF0FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFE1",
-            ))
+            v * F::from_stark_felt(MONTGOMERY_R)
         })
         .collect();
 

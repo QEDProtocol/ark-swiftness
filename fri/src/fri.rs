@@ -176,8 +176,7 @@ pub fn fri_verify<F: SimpleField + PoseidonHash + KeccakHash + Blake2sHash>(
     );
 
     F::from_constant(commitment.last_layer_coefficients.len() as u64)
-        .assert_not_equal(&F::two().powers_felt(&commitment.config.log_last_layer_degree_bound));
-
+        .assert_equal(&F::two().powers_felt(&commitment.config.log_last_layer_degree_bound));
     // if F::from_constant(commitment.last_layer_coefficients.len() as u64)
     //     != F::two().powers_felt(&commitment.config.log_last_layer_degree_bound)
     // {

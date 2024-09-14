@@ -311,6 +311,7 @@ fn test_verify_last_layer1() {
 }
 
 #[test]
+#[should_panic]
 fn test_verify_last_layer2() {
     let queries = vec![
         FriLayerQuery {

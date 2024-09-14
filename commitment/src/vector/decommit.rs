@@ -77,23 +77,24 @@ pub fn compute_root_from_queries<F: SimpleField + PoseidonHash + KeccakHash + Bl
                 .cloned()
                 .unwrap_or(current.value.clone()),
         );
+        let non_root_value = SimpleField::select(
+            &current_is_left_child,
+            hash_friendly_unfriendly(
+                current.value.clone(),
+                sibling_value.clone(),
+                is_verifier_friendly.clone(),
+            ),
+            hash_friendly_unfriendly(
+                sibling_value,
+                current.value.clone(),
+                is_verifier_friendly,
+            ),
+        );
 
         let hash = SimpleField::select(
             &is_root,
             root_value,
-            SimpleField::select(
-                &current_is_left_child,
-                hash_friendly_unfriendly(
-                    current.value.clone(),
-                    sibling_value.clone(),
-                    is_verifier_friendly.clone(),
-                ),
-                hash_friendly_unfriendly(
-                    sibling_value,
-                    current.value.clone(),
-                    is_verifier_friendly,
-                ),
-            ),
+            non_root_value
         );
 
         let next_query = QueryWithDepth {

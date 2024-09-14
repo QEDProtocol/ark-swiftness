@@ -73,9 +73,9 @@ pub trait SimpleField:
     + for<'a> SubAssign<&'a Self>
     + for<'a> MulAssign<&'a Self>
 {
-    type Value: Debug + PartialEq;
-    type BooleanType: Clone;
-    type ByteType: Clone;
+    type Value: PrimeField + SimpleField;
+    type BooleanType: Clone + Debug;
+    type ByteType: Clone + Debug;
 
     fn zero() -> Self;
     fn one() -> Self;
@@ -727,13 +727,11 @@ macro_rules! impl_simple_field_for {
                 return (
                     Self::new(BigInt({
                         let mut limbs = quotient.to_u64_digits();
-                        limbs.reverse();
                         limbs.resize(4, 0);
                         limbs.try_into().unwrap()
                     })),
                     Self::new(BigInt({
                         let mut limbs = remainder.to_u64_digits();
-                        limbs.reverse();
                         limbs.resize(4, 0);
                         limbs.try_into().unwrap()
                     })),
@@ -976,6 +974,7 @@ mod tests {
     use ark_snark::{CircuitSpecificSetupSNARK, SNARK};
     use ark_std::rand::SeedableRng;
     use ark_std::UniformRand;
+    use starknet_crypto::Felt;
 
     #[test]
     fn test_field_operations() {
@@ -1047,6 +1046,12 @@ mod tests {
         let (quotient, remainder) = dividend.div_rem(&divisor);
         assert_eq!(quotient, Fr::from(2));
         assert_eq!(remainder, Fr::from(1));
+
+        let divisor = <Fp as SimpleField>::from_stark_felt(Felt::from_dec_str("340282366920938463463374607431768211456").unwrap());
+        let dividend = <Fp as SimpleField>::from_stark_felt(Felt::from_dec_str("3385124832881611382833133824023403256452994652181471147230480383584863118128").unwrap());
+
+        let (_, remainder) = dividend.div_rem(&divisor);
+        assert_eq!(remainder, <Fp as SimpleField>::from_stark_felt(Felt::from_dec_str("217609915070804396630239679827883451184").unwrap()));
     }
 
     #[test]
