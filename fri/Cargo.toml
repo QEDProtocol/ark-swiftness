@@ -32,6 +32,10 @@ starknet-crypto.workspace = true
 thiserror = { optional = true, workspace = true }
 thiserror-no-std.workspace = true
 num-traits = { workspace = true }
+ark-r1cs-std = { workspace = true }
+ark-ff = { workspace = true }
+ark-relations = { workspace = true }
+ark-snark = { workspace = true }
 
 swiftness_commitment.workspace = true
 swiftness_transcript.workspace = true

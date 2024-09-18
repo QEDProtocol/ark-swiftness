@@ -312,6 +312,11 @@ dependencies = [
 name = "ark_swiftness_cli"
 version = "0.0.8"
 dependencies = [
+ "ark-bls12-381",
+ "ark-groth16",
+ "ark-r1cs-std",
+ "ark-relations",
+ "ark-snark",
  "ark_swiftness_air",
  "ark_swiftness_field",
  "ark_swiftness_hash",
@@ -319,13 +324,16 @@ dependencies = [
  "ark_swiftness_stark",
  "ark_swiftness_utils",
  "clap",
+ "serde_json",
 ]
 
 [[package]]
 name = "ark_swiftness_commitment"
 version = "0.0.1"
 dependencies = [
+ "ark-ff",
  "ark-r1cs-std",
+ "ark-relations",
  "ark_swiftness_field",
  "ark_swiftness_hash",
  "ark_swiftness_transcript",
@@ -364,6 +372,10 @@ dependencies = [
 name = "ark_swiftness_fri"
 version = "0.0.1"
 dependencies = [
+ "ark-ff",
+ "ark-r1cs-std",
+ "ark-relations",
+ "ark-snark",
  "ark_swiftness_commitment",
  "ark_swiftness_field",
  "ark_swiftness_hash",
@@ -428,6 +440,10 @@ name = "ark_swiftness_proof_parser"
 version = "0.0.8"
 dependencies = [
  "anyhow",
+ "ark-ff",
+ "ark-r1cs-std",
+ "ark-relations",
+ "ark-snark",
  "ark_swiftness_air",
  "ark_swiftness_commitment",
  "ark_swiftness_field",

@@ -36,6 +36,10 @@ anyhow = { workspace = true }
 clap = { workspace = true }
 regex = { workspace = true }
 serde_json = { workspace = true }
+ark-r1cs-std = { workspace = true}
+ark-snark = { workspace = true }
+ark-relations = { workspace = true }
+ark-ff = { workspace = true }
 
 swiftness_air = { workspace = true }
 swiftness_commitment = { workspace = true }

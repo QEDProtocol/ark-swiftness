@@ -29,6 +29,8 @@ thiserror-no-std.workspace = true
 blake2.workspace = true
 ark-r1cs-std = { workspace = true }
 cfg-if = { workspace = true }
+ark-ff = { workspace = true }
+ark-relations = { workspace = true }
 
 swiftness_transcript.workspace = true
 swiftness_field = { workspace = true }

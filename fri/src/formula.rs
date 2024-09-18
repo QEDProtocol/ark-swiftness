@@ -14,22 +14,16 @@ fn fri_formula4<F: SimpleField + PoseidonHash>(
     eval_point: F,
     x_inv: F,
 ) -> Result<F, Error> {
-    if values.len() != 4 {
-        return Err(Error::InvalidValuesLength {
-            expected: 4,
-            got: values.len(),
-        });
-    }
     // Applying the first layer of folding.
     let g0 = fri_formula2(
-        values[0].clone(),
-        values[1].clone(),
+        values.get(0).cloned().unwrap_or(F::zero()),
+        values.get(1).cloned().unwrap_or(F::zero()),
         eval_point.clone(),
         x_inv.clone(),
     );
     let g1 = fri_formula2(
-        values[2].clone(),
-        values[3].clone(),
+        values.get(2).cloned().unwrap_or(F::zero()),
+        values.get(3).cloned().unwrap_or(F::zero()),
         eval_point.clone(),
         x_inv.clone()
             * F::from_stark_felt(Felt::from_hex_unchecked(
@@ -52,16 +46,20 @@ fn fri_formula8<F: SimpleField + PoseidonHash>(
     eval_point: F,
     x_inv: F,
 ) -> Result<F, Error> {
-    if values.len() != 8 {
-        return Err(Error::InvalidValuesLength {
-            expected: 8,
-            got: values.len(),
-        });
-    }
     // Applying the first layer of folding.
-    let g0 = fri_formula4(values[0..4].to_vec(), eval_point.clone(), x_inv.clone())?;
+    let g0 = fri_formula4(
+        values
+            .get(0..4)
+            .map(|x| x.into_iter().cloned().collect::<Vec<_>>())
+            .unwrap_or(core::iter::repeat_n(F::zero(), 4).collect::<Vec<_>>()),
+        eval_point.clone(),
+        x_inv.clone(),
+    )?;
     let g1 = fri_formula4(
-        values[4..8].to_vec(),
+        values
+            .get(4..8)
+            .map(|x| x.into_iter().cloned().collect::<Vec<_>>())
+            .unwrap_or(core::iter::repeat_n(F::zero(), 4).collect::<Vec<_>>()),
         eval_point.clone(),
         x_inv.clone()
             * F::from_stark_felt(Felt::from_hex_unchecked(
@@ -85,16 +83,20 @@ fn fri_formula16<F: SimpleField + PoseidonHash>(
     eval_point: F,
     x_inv: F,
 ) -> Result<F, Error> {
-    if values.len() != 16 {
-        return Err(Error::InvalidValuesLength {
-            expected: 16,
-            got: values.len(),
-        });
-    }
     // Applying the first layer of folding.
-    let g0 = fri_formula8(values[0..8].to_vec(), eval_point.clone(), x_inv.clone())?;
+    let g0 = fri_formula8(
+        values
+            .get(0..8)
+            .map(|x| x.into_iter().cloned().collect::<Vec<_>>())
+            .unwrap_or(core::iter::repeat_n(F::zero(), 4).collect::<Vec<_>>()),
+        eval_point.clone(),
+        x_inv.clone(),
+    )?;
     let g1 = fri_formula8(
-        values[8..16].to_vec(),
+        values
+            .get(8..16)
+            .map(|x| x.into_iter().cloned().collect::<Vec<_>>())
+            .unwrap_or(core::iter::repeat_n(F::zero(), 4).collect::<Vec<_>>()),
         eval_point.clone(),
         x_inv.clone()
             * F::from_stark_felt(Felt::from_hex_unchecked(
@@ -122,28 +124,35 @@ pub fn fri_formula<F: SimpleField + PoseidonHash>(
     x_inv: F,
     coset_size: F,
 ) -> Result<F, Error> {
-    let coset_size: u64 = coset_size.into_biguint().try_into().unwrap();
-    // Sort by usage frequency.
-    match coset_size {
-        2 => {
-            if values.len() != 2 {
-                return Err(Error::InvalidValuesLength {
-                    expected: 2,
-                    got: values.len(),
-                });
-            }
-            Ok(fri_formula2(
-                values[0].clone(),
-                values[1].clone(),
-                eval_point,
-                x_inv,
-            ))
-        }
-        4 => fri_formula4(values, eval_point, x_inv),
-        8 => fri_formula8(values, eval_point, x_inv),
-        16 => fri_formula16(values, eval_point, x_inv),
-        _ => panic!("Invalid coset size: {}", coset_size),
-    }
+    let is_coset_2 = coset_size.is_equal(&F::from_constant(2u64));
+    let is_coset_4 = coset_size.is_equal(&F::from_constant(4u64));
+    let is_coset_8 = coset_size.is_equal(&F::from_constant(8u64));
+    let is_coset_16 = coset_size.is_equal(&F::from_constant(16u64));
+    F::assert_true(F::or(
+        &F::or(&F::or(&is_coset_2, &is_coset_4), &is_coset_8),
+        &is_coset_16,
+    ));
+
+    let result_2 = fri_formula2(
+        values[0].clone(),
+        values[1].clone(),
+        eval_point.clone(),
+        x_inv.clone(),
+    );
+
+    let result_4 = fri_formula4(values.clone(), eval_point.clone(), x_inv.clone())?;
+    let result_8 = fri_formula8(values.clone(), eval_point.clone(), x_inv.clone())?;
+    let result_16 = fri_formula16(values, eval_point, x_inv)?;
+
+    Ok(F::select(
+        &is_coset_2,
+        result_2,
+        F::select(
+            &is_coset_4,
+            result_4,
+            F::select(&is_coset_8, result_8, result_16),
+        ),
+    ))
 }
 
 use starknet_crypto::Felt;

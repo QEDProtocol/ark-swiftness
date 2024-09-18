@@ -144,8 +144,8 @@ impl<F: SimpleField + PoseidonHash> LayoutTrait<F> for Layout {
         let diluted_z = interaction_elements.diluted_check_interaction_z.clone();
         let diluted_alpha = interaction_elements.diluted_check_interaction_alpha.clone();
         let diluted_prod = get_diluted_product(
-            F::from_constant(DILUTED_N_BITS  as u128),
-            F::from_constant(DILUTED_SPACING as u128),
+            DILUTED_N_BITS,
+            DILUTED_SPACING,
             diluted_z.clone(),
             diluted_alpha.clone(),
         );

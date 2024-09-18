@@ -10,6 +10,13 @@ version = "0.0.8"
 [dependencies]
 clap = { workspace = true }
 
+ark-r1cs-std = { workspace = true }
+ark-relations = { workspace = true }
+ark-groth16 = { workspace = true }
+ark-bls12-381 = { workspace = true }
+ark-snark = { workspace = true }
+serde_json = { workspace = true }
+
 swiftness_air = { workspace = true }
 swiftness_field = { workspace = true }
 swiftness_hash = { workspace = true }

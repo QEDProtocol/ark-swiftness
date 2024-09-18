@@ -1,5 +1,6 @@
 use std::path::PathBuf;
-use swiftness_field::Fp;
+use ark_r1cs_std::fields::fp::FpVar;
+use swiftness_field::{Fp, SimpleField};
 pub use swiftness_proof_parser::*;
 pub use swiftness_stark::*;
 
@@ -30,8 +31,8 @@ struct CairoVMVerifier {
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cli = CairoVMVerifier::parse();
     let stark_proof = parse(std::fs::read_to_string(cli.proof)?)?;
-    let security_bits: Fp = stark_proof.config.security_bits();
-    let result = stark_proof.verify::<StarkwareCurve, Layout>(security_bits)?;
-    println!("{:?}", result);
+    let security_bits: FpVar<Fp> = stark_proof.config.security_bits();
+    let (program_hash, output_hash) = stark_proof.verify::<StarkwareCurve, Layout>(security_bits).unwrap();
+    println!("program_hash: {}, output_hash: {}", program_hash.get_value(), output_hash.get_value());
     Ok(())
 }

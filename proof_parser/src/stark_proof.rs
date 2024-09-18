@@ -24,12 +24,12 @@ pub struct TracesConfig {
     pub original: TableCommitmentConfig,
     pub interaction: TableCommitmentConfig,
 }
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TableCommitmentConfig {
     pub n_columns: u32,
     pub vector: VectorCommitmentConfig,
 }
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct VectorCommitmentConfig {
     pub height: u32,
     pub n_verifier_friendly_commitment_layers: u32,

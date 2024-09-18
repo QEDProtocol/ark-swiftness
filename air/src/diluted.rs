@@ -24,17 +24,16 @@ use swiftness_hash::poseidon::PoseidonHash;
 //   q_i = q_{i-1} * (1 + z * x_{i-1}) * p_{i-1} + x_{i-1}^2 * p_{i-1} + q_{i-1}
 //
 // Now we can compute p_{n_bits} and q_{n_bits} in just n_bits recursive steps and we are done.
-pub fn get_diluted_product<F: SimpleField + PoseidonHash>(n_bits: F, spacing: F, z: F, alpha: F) -> F {
-    let diff_multiplier = F::two().powers_felt(&spacing);
+pub fn get_diluted_product<F: SimpleField + PoseidonHash>(n_bits: usize, spacing: usize, z: F, alpha: F) -> F {
+    let diff_multiplier = F::two().powers([spacing as u64]);
     let mut diff_x: F = diff_multiplier.clone() - F::two();
     let mut x: F = F::one();
     let mut p: F = z.clone() + F::one();
     let mut q: F = F::one();
 
-    let mut i = F::zero();
+    let mut i = 0;
     loop {
-        // TODO: remove get_value()
-        if (i).get_value() == (n_bits.clone() - F::one()).get_value() {
+        if i == n_bits - 1 {
             break p + q * alpha;
         }
 
@@ -45,6 +44,6 @@ pub fn get_diluted_product<F: SimpleField + PoseidonHash>(n_bits: F, spacing: F,
         q = q.clone() * &y + x.clone() * &x_p + &q;
         p *= &y;
 
-        i = i + F::one();
+        i = i + 1;
     }
 }

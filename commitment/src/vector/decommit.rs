@@ -115,9 +115,9 @@ pub fn compute_root_from_queries<F: SimpleField + PoseidonHash + KeccakHash + Bl
             F::from_constant((auth_start + 1) as u64),
         );
 
-        // into_biguint is safe here because we know it's constant
-        start = next_start.into_biguint().try_into().unwrap();
-        auth_start = next_auth_start.into_biguint().try_into().unwrap();
+        // into_constant is safe here because we know it's constant
+        start = next_start.into_constant();
+        auth_start = next_auth_start.into_constant();
         queue.push(next_query);
     }
 
