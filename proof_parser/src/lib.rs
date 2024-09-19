@@ -13,31 +13,25 @@ extern crate num_bigint;
 extern crate regex;
 extern crate serde;
 use ark_ff::PrimeField;
-use ark_r1cs_std::{alloc::AllocVar, fields::fp::FpVar};
-use ark_relations::r1cs::ConstraintSystem;
+use ark_r1cs_std::fields::fp::FpVar;
 use swiftness_field::SimpleField;
 use swiftness_hash::poseidon::PoseidonHash;
-use swiftness_stark::types::StarkProof as StarkProofVerifier;
 
 pub fn parse<F: PrimeField + SimpleField + PoseidonHash>(
     input: String,
-) -> anyhow::Result<StarkProofVerifier<FpVar<F>>>
+) -> anyhow::Result<StarkProof>
 where
     FpVar<F>: PoseidonHash,
 {
     let proof_json = serde_json::from_str::<ProofJSON>(&input)?;
     let stark_proof = StarkProof::try_from(proof_json)?;
-    let cs = ConstraintSystem::<F>::new_ref();
-    let stark_proof_verifier: StarkProofVerifier<FpVar<F>> =
-        StarkProofVerifier::<FpVar<F>>::new_witness(cs.clone(), || Ok(stark_proof)).unwrap();
-    println!("num_constraints={}", cs.num_constraints());
-    assert!(cs.is_satisfied().unwrap());
-    Ok(stark_proof_verifier)
+    Ok(stark_proof)
 }
 
 #[cfg(test)]
 mod tests {
     use swiftness_field::Fp;
+    use swiftness_stark::types::StarkProof as StarkProofVerifier;
 
     use super::*;
 

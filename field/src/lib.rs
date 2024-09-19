@@ -103,7 +103,7 @@ pub trait SimpleField:
     fn div_rem(&self, other: &Self) -> (Self, Self);
     fn div2_rem(&self) -> (Self, Self);
     fn rsh(&self, n: usize) -> Self;
-    fn rshm(&self, n: usize) -> (Self, Self);
+    fn rsh_rem(&self, n: usize) -> (Self, Self);
     fn lsh(&self, n: usize) -> Self;
     fn field_div(&self, other: &Self) -> Self;
     fn select(cond: &Self::BooleanType, true_value: Self, false_value: Self) -> Self;
@@ -274,16 +274,17 @@ impl<F: PrimeField + SimpleField> SimpleField for FpVar<F> {
     }
 
     fn div2_rem(&self) -> (Self, Self) {
-        let bits = self.to_bits_le().unwrap();
-        if bits.is_empty() {
-            return (SimpleField::zero(), SimpleField::zero());
-        }
-
-        let (left, right) = bits.split_at(1);
-        (
-            Boolean::le_bits_to_fp_var(right).unwrap(),
-            Boolean::le_bits_to_fp_var(left).unwrap(),
-        )
+        self.div_rem(&Self::two())
+        // let bits = self.to_bits_le().unwrap();
+        // if bits.is_empty() {
+        //     return (SimpleField::zero(), SimpleField::zero());
+        // }
+        //
+        // let (left, right) = bits.split_at(1);
+        // (
+        //     Boolean::le_bits_to_fp_var(right).unwrap(),
+        //     Boolean::le_bits_to_fp_var(left).unwrap(),
+        // )
     }
 
     fn select(cond: &Self::BooleanType, a: Self, b: Self) -> Self {
@@ -331,24 +332,26 @@ impl<F: PrimeField + SimpleField> SimpleField for FpVar<F> {
     }
 
     fn rsh(&self, n: usize) -> Self {
-        let bits = self.to_bits_le().unwrap();
-        if bits.is_empty() || n >= bits.len() {
-            return SimpleField::zero();
-        }
-
-        Boolean::le_bits_to_fp_var(&bits[n..]).unwrap()
+        // let bits = self.to_bits_le().unwrap();
+        // if bits.is_empty() || n >= bits.len() {
+        //     return SimpleField::zero();
+        // }
+        //
+        // Boolean::le_bits_to_fp_var(&bits[n..]).unwrap()
+        self.div_rem(&Self::from_biguint(num_bigint::BigUint::from(1u64) << n)).0
     }
 
-    fn rshm(&self, n: usize) -> (Self, Self) {
-        let bits = self.to_bits_le().unwrap();
-        if bits.is_empty() || n >= bits.len() {
-            return (SimpleField::zero(), self.clone());
-        }
-
-        (
-            Boolean::le_bits_to_fp_var(&bits[n..]).unwrap(),
-            Boolean::le_bits_to_fp_var(&bits[..n]).unwrap(),
-        )
+    fn rsh_rem(&self, n: usize) -> (Self, Self) {
+        self.div_rem(&Self::from_biguint(num_bigint::BigUint::from(1u64) << n))
+        // let bits = self.to_bits_le().unwrap();
+        // if bits.is_empty() || n >= bits.len() {
+        //     return (SimpleField::zero(), self.clone());
+        // }
+        //
+        // (
+        //     Boolean::le_bits_to_fp_var(&bits[n..]).unwrap(),
+        //     Boolean::le_bits_to_fp_var(&bits[..n]).unwrap(),
+        // )
     }
 
     fn greater_than(&self, other: &Self) -> Self::BooleanType {
@@ -388,18 +391,19 @@ impl<F: PrimeField + SimpleField> SimpleField for FpVar<F> {
     }
 
     fn lsh(&self, n: usize) -> Self {
-        let bits = self.to_bits_le().unwrap();
-        if bits.is_empty() || n >= bits.len() {
-            return SimpleField::zero();
-        }
-
-        return Boolean::le_bits_to_fp_var(
-            &core::iter::repeat(Boolean::<F>::FALSE)
-                .take(n)
-                .chain(bits.iter().cloned())
-                .collect::<Vec<_>>(),
-        )
-        .unwrap();
+        self * &Self::from_biguint(num_bigint::BigUint::from(1u64) << n)
+        // let bits = self.to_bits_le().unwrap();
+        // if bits.is_empty() || n >= bits.len() {
+        //     return SimpleField::zero();
+        // }
+        //
+        // return Boolean::le_bits_to_fp_var(
+        //     &core::iter::repeat(Boolean::<F>::FALSE)
+        //         .take(n)
+        //         .chain(bits.iter().cloned())
+        //         .collect::<Vec<_>>(),
+        // )
+        // .unwrap();
     }
 
     fn to_le_bytes(&self) -> Vec<Self::ByteType> {
@@ -801,7 +805,7 @@ macro_rules! impl_simple_field_for {
                 }));
             }
 
-            fn rshm(&self, n: usize) -> (Self, Self) {
+            fn rsh_rem(&self, n: usize) -> (Self, Self) {
                 let (quotient, remainder) = num_bigint::BigUint::from(self.clone())
                     .div_rem(&num_bigint::BigUint::from(2u32).pow(n as u32));
                 return (
@@ -1169,7 +1173,7 @@ mod tests {
 
         assert_eq!(a.rsh(2), Fp::from(2));
         assert_eq!(a.lsh(2), Fp::from(44));
-        assert_eq!(a.rshm(2), (Fp::from(2), Fp::from(3)));
+        assert_eq!(a.rsh_rem(2), (Fp::from(2), Fp::from(3)));
 
         assert_eq!(
             large_a.rsh(50),
@@ -1180,7 +1184,7 @@ mod tests {
             Fp::from_biguint(num_bigint::BigUint::from(1u64) << 179)
         );
         assert_eq!(
-            large_a.rshm(75),
+            large_a.rsh_rem(75),
             (
                 Fp::from_biguint(num_bigint::BigUint::from(1u64) << 54),
                 Fp::zero()
@@ -1199,8 +1203,8 @@ mod tests {
 
         FpVar::assert_equal(&a.rsh(2), &FpVar::constant(Fp::from(2)));
         FpVar::assert_equal(&a.lsh(2), &FpVar::constant(Fp::from(44)));
-        FpVar::assert_equal(&a.rshm(2).0, &FpVar::constant(Fp::from(2)));
-        FpVar::assert_equal(&a.rshm(2).1, &FpVar::constant(Fp::from(3)));
+        FpVar::assert_equal(&a.rsh_rem(2).0, &FpVar::constant(Fp::from(2)));
+        FpVar::assert_equal(&a.rsh_rem(2).1, &FpVar::constant(Fp::from(3)));
 
         FpVar::assert_equal(
             &large_a.rsh(50),
@@ -1211,10 +1215,10 @@ mod tests {
             &FpVar::constant(Fp::from_biguint(num_bigint::BigUint::from(1u64) << 179)),
         );
         FpVar::assert_equal(
-            &large_a.rshm(75).0,
+            &large_a.rsh_rem(75).0,
             &FpVar::constant(Fp::from_biguint(num_bigint::BigUint::from(1u64) << 54)),
         );
-        FpVar::assert_equal(&large_a.rshm(75).1, &FpVar::constant(Fp::zero()));
+        FpVar::assert_equal(&large_a.rsh_rem(75).1, &FpVar::constant(Fp::zero()));
 
         assert!(cs.is_satisfied().unwrap());
     }
