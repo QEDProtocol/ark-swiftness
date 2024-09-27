@@ -343,7 +343,7 @@ where
     {
         trace!("pedersen_hash for FpVar");
         let mut current = std::time::Instant::now();
-        let timing = |title| {
+        let mut timing = |title| {
             trace!("{}: {}", title, current.elapsed().as_secs_f32());
             current = std::time::Instant::now();
         };
@@ -409,7 +409,7 @@ where
         // assert_eq!(a_steps.last().unwrap().point, b_p0);
         let b_steps = gen_element_steps_var::<P, FpVar<P::BaseField>>(b.clone(), b_p0, b_p1, b_p2);
         timing("b_steps");
-        
+
         b_steps.last().unwrap().point.x.clone()
     }
 }
