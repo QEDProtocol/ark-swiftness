@@ -70,7 +70,7 @@ impl<F: SimpleField + PoseidonHash + Blake2sHash + KeccakHash> StarkProof<F> {
         )?;
         info!("Proof verified in {} seconds", current.elapsed().as_secs_f32());
 
-        info!("verifying public input ");
+        info!("Verifying public input ");
         Ok(Layout::verify_public_input(&self.public_input)?)
     }
 }

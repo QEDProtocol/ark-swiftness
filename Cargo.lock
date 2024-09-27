@@ -427,6 +427,7 @@ dependencies = [
  "ark_swiftness_field",
  "ark_swiftness_utils",
  "blake2",
+ "log",
  "num-bigint",
  "num-traits",
  "once_cell",

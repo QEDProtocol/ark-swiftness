@@ -22,6 +22,7 @@ use constants::P4;
 use num_bigint::BigUint;
 use ruint::aliases::U256;
 use ruint::uint;
+use log::trace;
 use swiftness_field::Fp;
 use swiftness_field::Fr;
 use swiftness_field::SimpleField;
@@ -340,30 +341,51 @@ where
         <FpVar<P::BaseField> as SimpleField>::BooleanType:
             From<Boolean<<P::BaseField as Field>::BasePrimeField>>,
     {
+        trace!("pedersen_hash for FpVar");
+        let mut current = std::time::Instant::now();
+        let timing = |title| {
+            trace!("{}: {}", title, current.elapsed().as_secs_f32());
+            current = std::time::Instant::now();
+        };
+
         let a_p0_proj = ProjectiveVar::<P, FpVar<P::BaseField>>::new(
             SimpleField::from_felt(P0.x),
             SimpleField::from_felt(P0.y),
             SimpleField::one(),
         );
+        timing("a_p0_proj");
+
         let a_p0 = a_p0_proj.to_affine().unwrap();
+        timing("a_p0");
+
         let a_p1_proj = ProjectiveVar::<P, FpVar<P::BaseField>>::new(
             SimpleField::from_felt(P1.x),
             SimpleField::from_felt(P1.y),
             SimpleField::one(),
         );
+        timing("a_p1_proj");
+
         let a_p1 = a_p1_proj.to_affine().unwrap();
+        timing("a_p1");
+
         let a_p2_proj = ProjectiveVar::<P, FpVar<P::BaseField>>::new(
             SimpleField::from_felt(P2.x),
             SimpleField::from_felt(P2.y),
             SimpleField::one(),
         );
+        timing("a_p2_proj");
+
         let a_p2 = a_p2_proj.to_affine().unwrap();
+        timing("a_p2");
+
         let a_steps = gen_element_steps_var::<P, FpVar<P::BaseField>>(a.clone(), a_p0, a_p1, a_p2);
+        timing("a_steps");
 
         let b_p0 = (a_p0_proj
             + process_element_var::<P, FpVar<P::BaseField>>(a.clone(), a_p1_proj, a_p2_proj))
         .to_affine()
         .unwrap();
+        timing("b_p0");
 
         let b_p1 = ProjectiveVar::<P, FpVar<P::BaseField>>::new(
             SimpleField::from_felt(P3.x),
@@ -372,6 +394,8 @@ where
         )
         .to_affine()
         .unwrap();
+        timing("b_p1");
+
         let b_p2 = ProjectiveVar::<P, FpVar<P::BaseField>>::new(
             SimpleField::from_felt(P4.x),
             SimpleField::from_felt(P4.y),
@@ -379,11 +403,13 @@ where
         )
         .to_affine()
         .unwrap();
+        timing("b_p2");
         // check out initial value for the second input is correct
         // TODO: enable check
         // assert_eq!(a_steps.last().unwrap().point, b_p0);
         let b_steps = gen_element_steps_var::<P, FpVar<P::BaseField>>(b.clone(), b_p0, b_p1, b_p2);
-
+        timing("b_steps");
+        
         b_steps.last().unwrap().point.x.clone()
     }
 }
