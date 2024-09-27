@@ -33,7 +33,7 @@ impl<F: SimpleField + PoseidonHash + Blake2sHash + KeccakHash> StarkProof<F> {
         let current = std::time::Instant::now();
         // Compute the initial hash seed for the Fiat-Shamir transcript.
         let digest = self.public_input.get_hash();
-        info!("Initial hash seed computed in {}", current.elapsed().as_secs_f32());
+        debug!("Initial hash seed computed in {} seconds", current.elapsed().as_secs_f32());
         debug!("public_input_hash={}", hex::encode(digest.get_value().into_bigint().to_bytes_le()));
         // Construct the transcript.
         // TODO: is this correct?
@@ -58,6 +58,7 @@ impl<F: SimpleField + PoseidonHash + Blake2sHash + KeccakHash> StarkProof<F> {
         );
 
         info!("Verifying proof");
+        let current = std::time::Instant::now();
         // STARK verify phase.
         stark_verify::<F, Layout>(
             Layout::NUM_COLUMNS_FIRST,
@@ -67,6 +68,7 @@ impl<F: SimpleField + PoseidonHash + Blake2sHash + KeccakHash> StarkProof<F> {
             &self.witness,
             &stark_domains,
         )?;
+        info!("Proof verified in {} seconds", current.elapsed().as_secs_f32());
 
         info!("verifying public input ");
         Ok(Layout::verify_public_input(&self.public_input)?)

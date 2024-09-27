@@ -1982,7 +1982,7 @@ pub fn eval_composition_polynomial_inner<F: SimpleField + PoseidonHash>(
     let poseidon_poseidon_partial_rounds_state1_cubed_21 =
         column11_row342.clone() * &column11_row350;
 
-    trace!("file{}, line{}", file!(), line!());
+    // trace!("file{}, line{}", file!(), line!());
 
     // Sum constraints.
     let mut total_sum = F::zero();
@@ -2034,7 +2034,7 @@ pub fn eval_composition_polynomial_inner<F: SimpleField + PoseidonHash>(
         - &cpu_decode_fp_update_regular_0)
         .field_div(&(domain5));
     total_sum += constraint_coefficients[6].clone() * &value;
-    trace!("file{}, line{}", file!(), line!());
+    // trace!("file{}, line{}", file!(), line!());
 
     // Constraint: cpu/operands/mem_dst_addr.
     value = (column8_row8.clone() + &global_values.half_offset_size.clone()
@@ -2161,7 +2161,7 @@ pub fn eval_composition_polynomial_inner<F: SimpleField + PoseidonHash>(
                 + &F::two())))
         .field_div(&(domain5));
     total_sum += constraint_coefficients[22].clone() * &value;
-    trace!("file{}, line{}", file!(), line!());
+    // trace!("file{}, line{}", file!(), line!());
 
     // Constraint: cpu/opcodes/ret/off0.
     value = (cpu_decode_opcode_range_check_bit_13.clone()
@@ -2292,7 +2292,7 @@ pub fn eval_composition_polynomial_inner<F: SimpleField + PoseidonHash>(
     // Constraint: public_memory_value_zero.
     value = (column8_row3).field_div(&(domain3));
     total_sum += constraint_coefficients[40].clone() * &value;
-    trace!("file{}, line{}", file!(), line!());
+    // trace!("file{}, line{}", file!(), line!());
 
     // Constraint: range_check16/perm/init0.
     value = ((global_values.range_check16_perm_interaction_elm.clone() - &column10_row2).clone()
@@ -2441,7 +2441,7 @@ pub fn eval_composition_polynomial_inner<F: SimpleField + PoseidonHash>(
         .clone()
         * &domain9.field_div(&(domain0));
     total_sum += constraint_coefficients[60].clone() * &value;
-    trace!("file{}, line{}", file!(), line!());
+    // trace!("file{}, line{}", file!(), line!());
 
     // Constraint: pedersen/hash0/ec_subset_sum/bit_extraction_end.
     value = (column5_row0).field_div(&(domain10));
@@ -2529,7 +2529,7 @@ pub fn eval_composition_polynomial_inner<F: SimpleField + PoseidonHash>(
     // Constraint: pedersen/output_value0.
     value = (column8_row135.clone() - &column3_row511).field_div(&(domain14));
     total_sum += constraint_coefficients[77].clone() * &value;
-    trace!("file{}, line{}", file!(), line!());
+    // trace!("file{}, line{}", file!(), line!());
 
     // Constraint: pedersen/output_addr.
     value = (column8_row134.clone() - &(column8_row262.clone() + &F::one())).field_div(&(domain14));
@@ -2643,7 +2643,7 @@ pub fn eval_composition_polynomial_inner<F: SimpleField + PoseidonHash>(
         .clone()
         * &domain27.field_div(&(domain6));
     total_sum += constraint_coefficients[94].clone() * &value;
-    trace!("file{}, line{}", file!(), line!());
+    // trace!("file{}, line{}", file!(), line!());
 
     // Constraint: ecdsa/signature0/exponentiate_key/bit_extraction_end.
     value = (column11_row9).field_div(&(domain28));
@@ -2853,7 +2853,7 @@ pub fn eval_composition_polynomial_inner<F: SimpleField + PoseidonHash>(
         - &column1_row520)
         .field_div(&(domain20));
     total_sum += constraint_coefficients[131].clone() * &value;
-    trace!("file{}, line{}", file!(), line!());
+    // trace!("file{}, line{}", file!(), line!());
 
     // Constraint: bitwise/unique_unpacking194.
     value = ((column1_row736.clone() + &column1_row992).clone() * F::from_constant(16 as u64)
@@ -3020,7 +3020,7 @@ pub fn eval_composition_polynomial_inner<F: SimpleField + PoseidonHash>(
         .clone()
         * &domain27.field_div(&(domain6));
     total_sum += constraint_coefficients[158].clone() * &value;
-    trace!("file{}, line{}", file!(), line!());
+    // trace!("file{}, line{}", file!(), line!());
 
     // Constraint: ec_op/ec_subset_sum/add_points/x_diff_inv.
     value = (column11_row43.clone() * &(column11_row5.clone() - &column11_row41).clone()
@@ -3415,7 +3415,7 @@ pub fn eval_composition_polynomial_inner<F: SimpleField + PoseidonHash>(
             + column1_row7170.clone() * &F::from_constant(4 as u64)))
         .field_div(&(domain24));
     total_sum += constraint_coefficients[229].clone() * &value;
-    trace!("file{}, line{}", file!(), line!());
+    // trace!("file{}, line{}", file!(), line!());
 
     // Constraint: keccak/keccak/parity4.
     value = (column1_row1028.clone()
@@ -4107,7 +4107,7 @@ pub fn eval_composition_polynomial_inner<F: SimpleField + PoseidonHash>(
         - &column11_row45)
         .field_div(&(domain14));
     total_sum += constraint_coefficients[329].clone() * &value;
-    trace!("file{}, line{}", file!(), line!());
+    // trace!("file{}, line{}", file!(), line!());
 
     // Constraint: poseidon/poseidon/full_round0.
     value = (column11_row117.clone()
@@ -4316,7 +4316,7 @@ pub fn eval_composition_polynomial_inner<F: SimpleField + PoseidonHash>(
             ))))
         .field_div(&(domain14));
     total_sum += constraint_coefficients[346].clone() * &value;
-    trace!("file{}, line{}", file!(), line!());
+    // trace!("file{}, line{}", file!(), line!());
     debug!("eval_composition_polynomial_inner, used time: {:?}", current.elapsed());
     total_sum
 }
@@ -4494,7 +4494,7 @@ pub fn eval_oods_polynomial_inner<F: SimpleField + PoseidonHash, Layout: LayoutT
         value = (column0.clone() - &oods_values[o]).field_div(&(point.clone() - pow * oods_point));
         total_sum += constraint_coefficients[o].clone() * &value;
     }
-    trace!("file{}, line{}", file!(), line!());
+    // trace!("file{}, line{}", file!(), line!());
 
     //column1
     value = (column1.clone() - &oods_values[16])
@@ -4515,7 +4515,7 @@ pub fn eval_oods_polynomial_inner<F: SimpleField + PoseidonHash, Layout: LayoutT
         value = (column1.clone() - &oods_values[o]).field_div(&(point.clone() - pow * oods_point));
         total_sum += constraint_coefficients[o].clone() * &value;
     }
-    trace!("file{}, line{}", file!(), line!());
+    // trace!("file{}, line{}", file!(), line!());
 
     // column2
     value = (column2.clone() - &oods_values[349])
@@ -4579,7 +4579,7 @@ pub fn eval_oods_polynomial_inner<F: SimpleField + PoseidonHash, Layout: LayoutT
             .field_div(&(point.clone() - get_pow(p).clone() * oods_point));
         total_sum += constraint_coefficients[o].clone() * &value;
     }
-    trace!("file{}, line{}", file!(), line!());
+    // trace!("file{}, line{}", file!(), line!());
 
     //column6
     value = (column6.clone() - &oods_values[369])
@@ -4630,7 +4630,7 @@ pub fn eval_oods_polynomial_inner<F: SimpleField + PoseidonHash, Layout: LayoutT
             .field_div(&(point.clone() - get_pow(p).clone() * oods_point));
         total_sum += constraint_coefficients[o].clone() * &value;
     }
-    trace!("file{}, line{}", file!(), line!());
+    // trace!("file{}, line{}", file!(), line!());
 
     //column9
     value = (column9.clone() - &oods_values[512])
@@ -4689,7 +4689,7 @@ pub fn eval_oods_polynomial_inner<F: SimpleField + PoseidonHash, Layout: LayoutT
             .field_div(&(point.clone() - get_pow(p).clone() * oods_point));
         total_sum += constraint_coefficients[o].clone() * &value;
     }
-    trace!("file{}, line{}", file!(), line!());
+    // trace!("file{}, line{}", file!(), line!());
 
     //column12
     value = (column12.clone() - &oods_values[726])

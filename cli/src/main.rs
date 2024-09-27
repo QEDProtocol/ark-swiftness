@@ -1,9 +1,9 @@
 use ark_r1cs_std::fields::fp::FpVar;
-use chrono::Local;
-use env_logger::Builder;
+// use chrono::Local;
+// use env_logger::Builder;
 use log::{debug, error, info, trace, warn};
-use std::env;
-use std::io::Write;
+// use std::env;
+// use std::io::Write;
 use std::path::PathBuf;
 #[cfg(feature = "dex")]
 use swiftness_air::layout::dex::Layout;
@@ -74,10 +74,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 panic!("Error: {:?}", e);
             }
         };
-    println!(
+    debug!(
         "program_hash: {}, output_hash: {}",
         program_hash.get_value(),
         output_hash.get_value()
     );
+    info!("Proof verified successfully");
     Ok(())
 }
