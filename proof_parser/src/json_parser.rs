@@ -110,7 +110,9 @@ impl ProofJSON {
 
         let fri = self.proof_parameters.stark.fri.clone();
 
-        let proof_of_work = ProofOfWorkConfig { n_bits: fri.proof_of_work_bits };
+        let proof_of_work = ProofOfWorkConfig {
+            n_bits: fri.proof_of_work_bits,
+        };
         let n_queries = fri.n_queries;
 
         let layer_log_sizes = self.layer_log_sizes()?;
@@ -174,7 +176,10 @@ impl ProofJSON {
         let dynamic_params = public_input.dynamic_params.unwrap_or_default();
         let memory_segments = Builtin::sort_segments(public_input.memory_segments)
             .into_iter()
-            .map(|s| SegmentInfo { begin_addr: s.begin_addr, stop_ptr: s.stop_ptr })
+            .map(|s| SegmentInfo {
+                begin_addr: s.begin_addr,
+                stop_ptr: s.stop_ptr,
+            })
             .collect::<Vec<_>>();
         let layout = BigUint::from_bytes_be(&public_input.layout.bytes_encode());
         let (padding_addr, padding_value) = match public_input.public_memory.first() {
@@ -301,7 +306,11 @@ impl TryFrom<ProofJSON> for StarkProof {
         let config = value.stark_config()?;
 
         let annotations = Annotations::new(
-            &value.annotations.iter().map(String::as_str).collect::<Vec<_>>(),
+            &value
+                .annotations
+                .iter()
+                .map(String::as_str)
+                .collect::<Vec<_>>(),
             value.proof_parameters.stark.fri.fri_step_list.len(),
         )?;
         let public_input = ProofJSON::public_input(
@@ -312,6 +321,11 @@ impl TryFrom<ProofJSON> for StarkProof {
         let unsent_commitment = value.stark_unsent_commitment(&annotations);
         let witness = value.stark_witness(&annotations);
 
-        Ok(StarkProof { config, public_input, unsent_commitment, witness })
+        Ok(StarkProof {
+            config,
+            public_input,
+            unsent_commitment,
+            witness,
+        })
     }
 }

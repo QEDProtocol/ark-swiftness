@@ -37,7 +37,8 @@ pub struct StarkConfig<F: SimpleField + PoseidonHash> {
 
 impl<F: SimpleField + PoseidonHash> StarkConfig<F> {
     pub fn security_bits(&self) -> F {
-        self.n_queries.clone() * &self.log_n_cosets + F::from_constant(self.proof_of_work.n_bits as u128)
+        self.n_queries.clone() * &self.log_n_cosets
+            + F::from_constant(self.proof_of_work.n_bits as u128)
     }
 
     pub fn validate<Layout: LayoutTrait<F>>(&self, security_bits: F) -> Result<(), Error<F>> {
@@ -48,16 +49,22 @@ impl<F: SimpleField + PoseidonHash> StarkConfig<F> {
 
         // Validate traces config.
         let log_eval_domain_size = self.log_trace_domain_size.clone() + &self.log_n_cosets;
-        self.traces
-            .validate::<Layout>(log_eval_domain_size.clone(), self.n_verifier_friendly_commitment_layers.clone())?;
+        self.traces.validate::<Layout>(
+            log_eval_domain_size.clone(),
+            self.n_verifier_friendly_commitment_layers.clone(),
+        )?;
 
         // Validate composition config.
-        self.composition
-            .vector
-            .validate(log_eval_domain_size, self.n_verifier_friendly_commitment_layers.clone())?;
+        self.composition.vector.validate(
+            log_eval_domain_size,
+            self.n_verifier_friendly_commitment_layers.clone(),
+        )?;
 
         // Validate Fri config.
-        self.fri.validate(self.log_n_cosets.clone(), self.n_verifier_friendly_commitment_layers.clone())?;
+        self.fri.validate(
+            self.log_n_cosets.clone(),
+            self.n_verifier_friendly_commitment_layers.clone(),
+        )?;
         Ok(())
     }
 }
@@ -88,7 +95,7 @@ use thiserror_no_std::Error;
 
 #[cfg(not(feature = "std"))]
 #[derive(Error, Debug)]
-pub enum Error<F: SimpleField  + PoseidonHash> {
+pub enum Error<F: SimpleField + PoseidonHash> {
     #[error("Vector Error")]
     Vector(#[from] vector::config::Error<F>),
     #[error("Fri Error")]

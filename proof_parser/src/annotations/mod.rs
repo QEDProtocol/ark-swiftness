@@ -38,12 +38,16 @@ impl Annotations {
             interaction_commitment_hash: Annotation::InteractionCommitmentHash
                 .extract(annotations)?
                 .first()
-                .ok_or(anyhow::anyhow!("No InteractionCommitmentHash in annotations!"))?
+                .ok_or(anyhow::anyhow!(
+                    "No InteractionCommitmentHash in annotations!"
+                ))?
                 .clone(),
             composition_commitment_hash: Annotation::CompositionCommitmentHash
                 .extract(annotations)?
                 .first()
-                .ok_or(anyhow::anyhow!("No CompositionCommitmentHash in annotations!"))?
+                .ok_or(anyhow::anyhow!(
+                    "No CompositionCommitmentHash in annotations!"
+                ))?
                 .clone(),
             oods_values: Annotation::OodsValues.extract(annotations)?,
             fri_layers_commitments: Annotation::FriLayersCommitments.extract(annotations)?,

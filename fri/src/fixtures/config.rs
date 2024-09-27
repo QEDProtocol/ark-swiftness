@@ -14,28 +14,36 @@ pub fn get<F: SimpleField + PoseidonHash>() -> Config<F> {
                 n_columns: F::from_stark_felt(Felt::from_hex_unchecked("0x10")),
                 vector: vector::config::Config {
                     height: F::from_stark_felt(Felt::from_hex_unchecked("0x10")),
-                    n_verifier_friendly_commitment_layers: F::from_stark_felt(Felt::from_hex_unchecked("0x64")),
+                    n_verifier_friendly_commitment_layers: F::from_stark_felt(
+                        Felt::from_hex_unchecked("0x64"),
+                    ),
                 },
             },
             table::config::Config {
                 n_columns: F::from_stark_felt(Felt::from_hex_unchecked("0x8")),
                 vector: vector::config::Config {
                     height: F::from_stark_felt(Felt::from_hex_unchecked("0xd")),
-                    n_verifier_friendly_commitment_layers: F::from_stark_felt(Felt::from_hex_unchecked("0x64")),
+                    n_verifier_friendly_commitment_layers: F::from_stark_felt(
+                        Felt::from_hex_unchecked("0x64"),
+                    ),
                 },
             },
             table::config::Config {
                 n_columns: F::from_stark_felt(Felt::from_hex_unchecked("0x4")),
                 vector: vector::config::Config {
                     height: F::from_stark_felt(Felt::from_hex_unchecked("0xb")),
-                    n_verifier_friendly_commitment_layers: F::from_stark_felt(Felt::from_hex_unchecked("0x64")),
+                    n_verifier_friendly_commitment_layers: F::from_stark_felt(
+                        Felt::from_hex_unchecked("0x64"),
+                    ),
                 },
             },
             table::config::Config {
                 n_columns: F::from_stark_felt(Felt::from_hex_unchecked("0x4")),
                 vector: vector::config::Config {
                     height: F::from_stark_felt(Felt::from_hex_unchecked("0x9")),
-                    n_verifier_friendly_commitment_layers: F::from_stark_felt(Felt::from_hex_unchecked("0x64")),
+                    n_verifier_friendly_commitment_layers: F::from_stark_felt(
+                        Felt::from_hex_unchecked("0x64"),
+                    ),
                 },
             },
         ],

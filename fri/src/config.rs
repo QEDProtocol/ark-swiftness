@@ -81,9 +81,10 @@ impl<F: SimpleField + PoseidonHash> Config<F> {
             //     });
             // }
             table_commitment.n_columns.assert_equal(&expected_n_columns);
-            table_commitment
-                .vector
-                .validate(log_input_size.clone(), n_verifier_friendly_commitment_layers.clone())?;
+            table_commitment.vector.validate(
+                log_input_size.clone(),
+                n_verifier_friendly_commitment_layers.clone(),
+            )?;
         }
 
         let log_expected_input_degree = sum_of_step_sizes + &self.log_last_layer_degree_bound;

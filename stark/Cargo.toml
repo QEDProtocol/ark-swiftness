@@ -58,3 +58,5 @@ swiftness_transcript.workspace = true
 swiftness_field = { workspace = true }
 swiftness_hash = { workspace = true }
 swiftness_utils = { workspace = true }
+log = { workspace = true }
+hex = { workspace = true }

@@ -15,7 +15,9 @@ pub fn get<F: SimpleField + PoseidonHash>() -> Commitment<InteractionElements<F>
             vector_commitment: vector::types::Commitment {
                 config: vector::config::Config {
                     height: F::from_stark_felt(Felt::from_hex_unchecked("0x14")),
-                    n_verifier_friendly_commitment_layers: F::from_stark_felt(Felt::from_hex_unchecked("0x64")),
+                    n_verifier_friendly_commitment_layers: F::from_stark_felt(
+                        Felt::from_hex_unchecked("0x64"),
+                    ),
                 },
                 commitment_hash: unsent_commitment.original,
             },
@@ -26,7 +28,9 @@ pub fn get<F: SimpleField + PoseidonHash>() -> Commitment<InteractionElements<F>
             vector_commitment: vector::types::Commitment {
                 config: vector::config::Config {
                     height: F::from_stark_felt(Felt::from_hex_unchecked("0x14")),
-                    n_verifier_friendly_commitment_layers: F::from_stark_felt(Felt::from_hex_unchecked("0x64")),
+                    n_verifier_friendly_commitment_layers: F::from_stark_felt(
+                        Felt::from_hex_unchecked("0x64"),
+                    ),
                 },
                 commitment_hash: unsent_commitment.interaction,
             },

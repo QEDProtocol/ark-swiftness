@@ -1,9 +1,9 @@
 use alloc::vec::Vec;
-use swiftness_field::SimpleField;
-use swiftness_hash::poseidon::PoseidonHash;
 use core::ops::Deref;
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
+use swiftness_field::SimpleField;
+use swiftness_hash::poseidon::PoseidonHash;
 
 #[serde_as]
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
@@ -19,7 +19,7 @@ pub struct SegmentInfo<F: SimpleField + PoseidonHash> {
         feature = "std",
         serde_as(as = "starknet_core::serde::unsigned_field_element::UfeHex")
     )]
-    pub stop_ptr: F
+    pub stop_ptr: F,
 }
 
 #[serde_as]

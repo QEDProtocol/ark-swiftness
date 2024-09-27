@@ -3,10 +3,14 @@ use alloc::vec;
 use alloc::vec::Vec;
 use ark_ec::short_weierstrass::SWCurveConfig;
 use ark_ff::{Field, PrimeField};
-use ark_r1cs_std::{fields::{fp::FpVar, FieldOpsBounds, FieldVar}, prelude::Boolean};
+use ark_r1cs_std::{
+    fields::{fp::FpVar, FieldOpsBounds, FieldVar},
+    prelude::Boolean,
+};
+use log::debug;
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
-use starknet_crypto::{Felt};
+use starknet_crypto::Felt;
 use swiftness_field::SimpleField;
 use swiftness_hash::{pedersen::PedersenHash, poseidon::PoseidonHash};
 
@@ -68,7 +72,8 @@ impl<F: SimpleField + PoseidonHash> PublicInput<F> {
         alpha: F,
         public_memory_column_size: F,
     ) -> F {
-        let (pages_product, total_length) = self.get_public_memory_product(z.clone(), alpha.clone());
+        let (pages_product, total_length) =
+            self.get_public_memory_product(z.clone(), alpha.clone());
 
         // Pad and divide
         let numerator = z.powers_felt(&public_memory_column_size);
@@ -90,7 +95,8 @@ impl<F: SimpleField + PoseidonHash> PublicInput<F> {
             get_continuous_pages_product(&self.continuous_page_headers);
 
         let prod = main_page_prod * continuous_pages_prod;
-        let total_length = F::from_constant(self.main_page.len() as u64) + &continuous_pages_total_length;
+        let total_length =
+            F::from_constant(self.main_page.len() as u64) + &continuous_pages_total_length;
 
         (prod, total_length)
     }
@@ -104,25 +110,41 @@ impl<F: SimpleField + PoseidonHash> PublicInput<F> {
             FieldVar<P::BaseField, <P::BaseField as Field>::BasePrimeField> + SimpleField,
         for<'a> &'a FpVar<P::BaseField>: FieldOpsBounds<'a, P::BaseField, FpVar<P::BaseField>>,
         <FpVar<P::BaseField> as SimpleField>::BooleanType:
-            From<Boolean<<P::BaseField as Field>::BasePrimeField>> {
+            From<Boolean<<P::BaseField as Field>::BasePrimeField>>,
+    {
         let mut main_page_hash = F::zero();
+        debug!("self.main_page.len() = {}", self.main_page.len());
+        let current = std::time::Instant::now();
         for memory in self.main_page.iter() {
             main_page_hash = PedersenHash::hash(main_page_hash.clone(), memory.address.clone());
             main_page_hash = PedersenHash::hash(main_page_hash.clone(), memory.value.clone());
         }
-        main_page_hash =
-            PedersenHash::hash(main_page_hash, F::two() * F::from_constant(self.main_page.len() as u128));
+        debug!("Main page hash computed in {} seconds", current.elapsed().as_secs_f32());
+        main_page_hash = PedersenHash::hash(
+            main_page_hash,
+            F::two() * F::from_constant(self.main_page.len() as u128),
+        );
 
-        let mut hash_data =
-            vec![self.log_n_steps.clone(), self.range_check_min.clone(), self.range_check_max.clone(), self.layout.clone()];
+        let mut hash_data = vec![
+            self.log_n_steps.clone(),
+            self.range_check_min.clone(),
+            self.range_check_max.clone(),
+            self.layout.clone(),
+        ];
         hash_data.extend(self.dynamic_params.iter().cloned());
 
         // Segments.
-        hash_data.extend(self.segments.iter().flat_map(|s| vec![s.begin_addr.clone(), s.stop_ptr.clone()]));
+        hash_data.extend(
+            self.segments
+                .iter()
+                .flat_map(|s| vec![s.begin_addr.clone(), s.stop_ptr.clone()]),
+        );
 
         hash_data.push(self.padding_addr.clone());
         hash_data.push(self.padding_value.clone());
-        hash_data.push(F::from_constant((self.continuous_page_headers.len() + 1) as u64));
+        hash_data.push(F::from_constant(
+            (self.continuous_page_headers.len() + 1) as u64,
+        ));
 
         // Main page.
         hash_data.push(F::from_constant(self.main_page.len() as u64));
@@ -130,14 +152,18 @@ impl<F: SimpleField + PoseidonHash> PublicInput<F> {
 
         // Add the rest of the pages.
         hash_data.extend(
-            self.continuous_page_headers.iter().flat_map(|h| vec![h.start_address.clone(), h.size.clone(), h.hash.clone()]),
+            self.continuous_page_headers
+                .iter()
+                .flat_map(|h| vec![h.start_address.clone(), h.size.clone(), h.hash.clone()]),
         );
-
+        debug!("hash_data.len() = {}", hash_data.len());
         PoseidonHash::hash_many(&hash_data)
     }
 }
 
-fn get_continuous_pages_product<F: SimpleField + PoseidonHash>(page_headers: &[ContinuousPageHeader<F>]) -> (F, F) {
+fn get_continuous_pages_product<F: SimpleField + PoseidonHash>(
+    page_headers: &[ContinuousPageHeader<F>],
+) -> (F, F) {
     let mut res = F::one();
     let mut total_length = F::zero();
 

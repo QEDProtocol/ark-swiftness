@@ -10,7 +10,6 @@ use super::types::{Commitment, Decommitment, Witness};
 const MONTGOMERY_R: Felt =
     Felt::from_hex_unchecked("0x7FFFFFFFFFFFDF0FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFE1");
 
-
 pub fn table_decommit<F: SimpleField + PoseidonHash + KeccakHash + Blake2sHash>(
     commitment: Commitment<F>,
     queries: &[F],
@@ -22,9 +21,11 @@ pub fn table_decommit<F: SimpleField + PoseidonHash + KeccakHash + Blake2sHash>(
     let bottom_layer_depth = commitment.vector_commitment.config.height.clone() + F::one();
     // Determine if the table commitment should use a verifier friendly hash function for the bottom
     // layer. The other layers' hash function will be determined in the vector_commitment logic.
-    let is_bottom_layer_verifier_friendly =
-        commitment.vector_commitment.config.n_verifier_friendly_commitment_layers
-            .gte(&bottom_layer_depth);
+    let is_bottom_layer_verifier_friendly = commitment
+        .vector_commitment
+        .config
+        .n_verifier_friendly_commitment_layers
+        .gte(&bottom_layer_depth);
     // if n_columns as usize * queries.len() != decommitment.values.len() {
     //     return Err(Error::DecommitmentLength);
     // }
@@ -34,9 +35,7 @@ pub fn table_decommit<F: SimpleField + PoseidonHash + KeccakHash + Blake2sHash>(
     let montgomery_values: Vec<F> = decommitment
         .values
         .into_iter()
-        .map(|v| {
-            v * F::from_stark_felt(MONTGOMERY_R)
-        })
+        .map(|v| v * F::from_stark_felt(MONTGOMERY_R))
         .collect();
 
     // Generate queries to the underlying vector commitment.
@@ -63,35 +62,38 @@ fn generate_vector_queries<F: SimpleField + PoseidonHash + KeccakHash + Blake2sH
     let mut vector_queries = Vec::new();
     for i in 0..queries.len() {
         let hash = SimpleField::select(&n_columns.is_equal(&F::one()), values[i].clone(), {
-            SimpleField::select(&is_verifier_friendly, {
-                let slice = <F as SimpleField>::slice(
-                    &values,
-                    &n_columns.mul_by_constant(i),
-                    &n_columns.mul_by_constant(i + 1),
-                );
-                PoseidonHash::hash_many(&slice)
-            },
-            {
-                let slice = <F as SimpleField>::slice(
-                    &values,
-                    &n_columns.mul_by_constant(i),
-                    &n_columns.mul_by_constant(i + 1),
-                );
-                let mut data = Vec::new();
-                data.extend(slice.iter().flat_map(|x| x.to_be_bytes().to_vec()));
+            SimpleField::select(
+                &is_verifier_friendly,
+                {
+                    let slice = <F as SimpleField>::slice(
+                        &values,
+                        &n_columns.mul_by_constant(i),
+                        &n_columns.mul_by_constant(i + 1),
+                    );
+                    PoseidonHash::hash_many(&slice)
+                },
+                {
+                    let slice = <F as SimpleField>::slice(
+                        &values,
+                        &n_columns.mul_by_constant(i),
+                        &n_columns.mul_by_constant(i + 1),
+                    );
+                    let mut data = Vec::new();
+                    data.extend(slice.iter().flat_map(|x| x.to_be_bytes().to_vec()));
 
-                let final_hash: Vec<<F as SimpleField>::ByteType>;
-                cfg_if::cfg_if! {
-                    if #[cfg(feature = "keccak")] {
-                        final_hash = <F as KeccakHash>::hash(&data);
-                    } else if #[cfg(feature = "blake2s")] {
-                        final_hash = <F as Blake2sHash>::hash(&data);
-                    } else {
-                        compile_error!("Either 'keccak' or 'blake2s' feature must be enabled");
+                    let final_hash: Vec<<F as SimpleField>::ByteType>;
+                    cfg_if::cfg_if! {
+                        if #[cfg(feature = "keccak")] {
+                            final_hash = <F as KeccakHash>::hash(&data);
+                        } else if #[cfg(feature = "blake2s")] {
+                            final_hash = <F as Blake2sHash>::hash(&data);
+                        } else {
+                            compile_error!("Either 'keccak' or 'blake2s' feature must be enabled");
+                        }
                     }
-                }
-                F::from_be_bytes(&final_hash.as_slice()[12..32])
-            })
+                    F::from_be_bytes(&final_hash.as_slice()[12..32])
+                },
+            )
         });
 
         vector_queries.push(Query {

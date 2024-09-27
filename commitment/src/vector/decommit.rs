@@ -84,18 +84,10 @@ pub fn compute_root_from_queries<F: SimpleField + PoseidonHash + KeccakHash + Bl
                 sibling_value.clone(),
                 is_verifier_friendly.clone(),
             ),
-            hash_friendly_unfriendly(
-                sibling_value,
-                current.value.clone(),
-                is_verifier_friendly,
-            ),
+            hash_friendly_unfriendly(sibling_value, current.value.clone(), is_verifier_friendly),
         );
 
-        let hash = SimpleField::select(
-            &is_root,
-            root_value,
-            non_root_value
-        );
+        let hash = SimpleField::select(&is_root, root_value, non_root_value);
 
         let next_query = QueryWithDepth {
             index: parent.clone(),
@@ -135,14 +127,11 @@ fn hash_friendly_unfriendly<F: SimpleField + PoseidonHash + KeccakHash + Blake2s
 ) -> F {
     F::select(
         &is_verifier_friendly,
-        {
-            PoseidonHash::hash(x.clone(), y.clone())
-        },
+        { PoseidonHash::hash(x.clone(), y.clone()) },
         {
             let mut hash_data = Vec::with_capacity(64);
             hash_data.extend(x.to_be_bytes());
             hash_data.extend(y.to_be_bytes());
-
 
             let final_hash: Vec<<F as SimpleField>::ByteType>;
             cfg_if::cfg_if! {
@@ -155,7 +144,8 @@ fn hash_friendly_unfriendly<F: SimpleField + PoseidonHash + KeccakHash + Blake2s
                 }
             }
             F::from_be_bytes(&final_hash.as_slice()[12..32])
-        })
+        },
+    )
 }
 
 #[cfg(feature = "std")]

@@ -8,7 +8,10 @@ use swiftness_pow::pow;
 use swiftness_transcript::transcript::Transcript;
 
 // STARK commitment phase.
-pub fn stark_commit<F: SimpleField + PoseidonHash + Blake2sHash + KeccakHash, Layout: LayoutTrait<F>>(
+pub fn stark_commit<
+    F: SimpleField + PoseidonHash + Blake2sHash + KeccakHash,
+    Layout: LayoutTrait<F>,
+>(
     transcript: &mut Transcript<F>,
     public_input: &PublicInput<F>,
     unsent_commitment: &StarkUnsentCommitment<F>,
@@ -25,8 +28,11 @@ pub fn stark_commit<F: SimpleField + PoseidonHash + Blake2sHash + KeccakHash, La
         powers_array(F::one(), composition_alpha, Layout::N_CONSTRAINTS as u32);
 
     // Read composition commitment.
-    let composition_commitment =
-        table_commit(transcript, unsent_commitment.composition.clone(), config.composition.clone());
+    let composition_commitment = table_commit(
+        transcript,
+        unsent_commitment.composition.clone(),
+        config.composition.clone(),
+    );
 
     // Generate interaction values after composition.
     let interaction_after_composition = transcript.random_felt_to_prover();
@@ -47,14 +53,23 @@ pub fn stark_commit<F: SimpleField + PoseidonHash + Blake2sHash + KeccakHash, La
 
     // Generate interaction values after OODS.
     let oods_alpha = transcript.random_felt_to_prover();
-    let oods_coefficients =
-        powers_array(F::one(), oods_alpha, (Layout::MASK_SIZE + Layout::CONSTRAINT_DEGREE) as u32);
+    let oods_coefficients = powers_array(
+        F::one(),
+        oods_alpha,
+        (Layout::MASK_SIZE + Layout::CONSTRAINT_DEGREE) as u32,
+    );
 
     // Read fri commitment.
-    let fri_commitment = fri_commit(transcript, unsent_commitment.fri.clone(), config.fri.clone());
+    let fri_commitment = fri_commit(
+        transcript,
+        unsent_commitment.fri.clone(),
+        config.fri.clone(),
+    );
 
     // Proof of work commitment phase.
-    unsent_commitment.proof_of_work.commit(transcript, &config.proof_of_work)?;
+    unsent_commitment
+        .proof_of_work
+        .commit(transcript, &config.proof_of_work)?;
 
     // Return commitment.
     Ok(StarkCommitment {

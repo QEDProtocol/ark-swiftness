@@ -35,7 +35,8 @@ pub fn verify_oods<F: SimpleField + PoseidonHash, Layout: LayoutTrait<F>>(
     )?;
 
     // TODO support degree > 2?
-    let claimed_composition = oods[oods.len() - 2].clone() + oods[oods.len() - 1].clone() * oods_point;
+    let claimed_composition =
+        oods[oods.len() - 2].clone() + oods[oods.len() - 1].clone() * oods_point;
 
     // assure!(
     //     composition_from_trace == claimed_composition,

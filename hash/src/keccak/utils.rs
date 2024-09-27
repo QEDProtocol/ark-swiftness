@@ -1,7 +1,6 @@
 use ark_ff::PrimeField;
 use ark_r1cs_std::uint64::UInt64;
 
-
 //note: if aff-std version is 0.5, use rotate_left directly
 pub fn rotate_left<F: PrimeField>(a: &UInt64<F>, by: usize) -> UInt64<F> {
     // limit `b` to 0..63
@@ -28,7 +27,11 @@ pub fn not<F: PrimeField>(a: &UInt64<F>) -> UInt64<F> {
 pub fn bitand<F: PrimeField>(a: &UInt64<F>, b: &UInt64<F>) -> UInt64<F> {
     let a_bits = a.to_bits_le();
     let b_bits = b.to_bits_le();
-    let and_bits = a_bits.iter().zip(b_bits.iter()).map(|(a, b)| a.and(b).unwrap()).collect::<Vec<_>>();
+    let and_bits = a_bits
+        .iter()
+        .zip(b_bits.iter())
+        .map(|(a, b)| a.and(b).unwrap())
+        .collect::<Vec<_>>();
     UInt64::from_bits_le(&and_bits)
 }
 
@@ -48,15 +51,13 @@ fn from_bits_to_u8(bools: &[bool]) -> u8 {
     result
 }
 
-
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use ark_ff::PrimeField;
     use ark_r1cs_std::alloc::AllocVar;
-    use ark_r1cs_std::R1CSVar;
     use ark_r1cs_std::uint64::UInt64;
+    use ark_r1cs_std::R1CSVar;
     use ark_relations::r1cs::*;
     use swiftness_field::Fr;
 
@@ -66,9 +67,14 @@ mod tests {
         let expected = 0xb1a20000b2a1;
         let cs = ConstraintSystem::<Fr>::new_ref();
 
-        let input: UInt64<Fr> = UInt64::new_witness(ark_relations::ns!(cs, "new witness"), || Ok(input)).unwrap();
-        let expected: UInt64<Fr> = UInt64::new_input(ark_relations::ns!(cs, "new input"), || Ok(expected)).unwrap();
-        assert_eq!(rotate_left(&input, 8).value().unwrap(), expected.value().unwrap());
+        let input: UInt64<Fr> =
+            UInt64::new_witness(ark_relations::ns!(cs, "new witness"), || Ok(input)).unwrap();
+        let expected: UInt64<Fr> =
+            UInt64::new_input(ark_relations::ns!(cs, "new input"), || Ok(expected)).unwrap();
+        assert_eq!(
+            rotate_left(&input, 8).value().unwrap(),
+            expected.value().unwrap()
+        );
     }
     #[test]
     fn test_uint64_not() {
@@ -76,8 +82,10 @@ mod tests {
         let expected = !input;
         let cs = ConstraintSystem::<Fr>::new_ref();
 
-        let input: UInt64<Fr> = UInt64::new_witness(ark_relations::ns!(cs, "new witness"), || Ok(input)).unwrap();
-        let expected: UInt64<Fr> = UInt64::new_input(ark_relations::ns!(cs, "new input"), || Ok(expected)).unwrap();
+        let input: UInt64<Fr> =
+            UInt64::new_witness(ark_relations::ns!(cs, "new witness"), || Ok(input)).unwrap();
+        let expected: UInt64<Fr> =
+            UInt64::new_input(ark_relations::ns!(cs, "new input"), || Ok(expected)).unwrap();
         assert_eq!(not(&input).value().unwrap(), expected.value().unwrap());
     }
     #[test]
@@ -87,9 +95,15 @@ mod tests {
         let expected = input1 & input2;
         let cs = ConstraintSystem::<Fr>::new_ref();
 
-        let input1: UInt64<Fr> = UInt64::new_witness(ark_relations::ns!(cs, "new witness"), || Ok(input1)).unwrap();
-        let input2: UInt64<Fr> = UInt64::new_witness(ark_relations::ns!(cs, "new witness"), || Ok(input2)).unwrap();
-        let expected: UInt64<Fr> = UInt64::new_input(ark_relations::ns!(cs, "new input"), || Ok(expected)).unwrap();
-        assert_eq!(bitand(&input1, &input2).value().unwrap(), expected.value().unwrap());
+        let input1: UInt64<Fr> =
+            UInt64::new_witness(ark_relations::ns!(cs, "new witness"), || Ok(input1)).unwrap();
+        let input2: UInt64<Fr> =
+            UInt64::new_witness(ark_relations::ns!(cs, "new witness"), || Ok(input2)).unwrap();
+        let expected: UInt64<Fr> =
+            UInt64::new_input(ark_relations::ns!(cs, "new input"), || Ok(expected)).unwrap();
+        assert_eq!(
+            bitand(&input1, &input2).value().unwrap(),
+            expected.value().unwrap()
+        );
     }
 }
