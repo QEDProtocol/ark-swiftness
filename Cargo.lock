@@ -497,6 +497,8 @@ dependencies = [
  "ark_swiftness_pow",
  "ark_swiftness_transcript",
  "ark_swiftness_utils",
+ "hex",
+ "log",
  "serde",
  "serde_with 3.9.0",
  "starknet-core",

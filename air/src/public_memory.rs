@@ -7,6 +7,7 @@ use ark_r1cs_std::{
     fields::{fp::FpVar, FieldOpsBounds, FieldVar},
     prelude::Boolean,
 };
+use log::debug;
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 use starknet_crypto::Felt;
@@ -112,10 +113,13 @@ impl<F: SimpleField + PoseidonHash> PublicInput<F> {
             From<Boolean<<P::BaseField as Field>::BasePrimeField>>,
     {
         let mut main_page_hash = F::zero();
+        debug!("self.main_page.len() = {}", self.main_page.len());
+        let current = std::time::Instant::now();
         for memory in self.main_page.iter() {
             main_page_hash = PedersenHash::hash(main_page_hash.clone(), memory.address.clone());
             main_page_hash = PedersenHash::hash(main_page_hash.clone(), memory.value.clone());
         }
+        debug!("Main page hash computed in {}", current.elapsed().as_secs_f32());
         main_page_hash = PedersenHash::hash(
             main_page_hash,
             F::two() * F::from_constant(self.main_page.len() as u128),
@@ -152,7 +156,7 @@ impl<F: SimpleField + PoseidonHash> PublicInput<F> {
                 .iter()
                 .flat_map(|h| vec![h.start_address.clone(), h.size.clone(), h.hash.clone()]),
         );
-
+        debug!("hash_data.len() = {}", hash_data.len());
         PoseidonHash::hash_many(&hash_data)
     }
 }

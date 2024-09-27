@@ -17,6 +17,7 @@ impl<F: SimpleField + PoseidonHash + Blake2sHash + KeccakHash> StarkProof<F> {
         <FpVar<P::BaseField> as SimpleField>::BooleanType:
             From<Boolean<<P::BaseField as Field>::BasePrimeField>>,
     {
+        info!("Verifying proof");
         self.config.validate::<Layout>(security_bits)?;
 
         // Validate the public input.
@@ -25,14 +26,20 @@ impl<F: SimpleField + PoseidonHash + Blake2sHash + KeccakHash> StarkProof<F> {
             self.config.log_n_cosets.clone(),
         );
 
+        info!("Validating public input");
         Layout::validate_public_input(&self.public_input, &stark_domains)?;
 
+        info!("Computing initial hash seed for Fiat-Shamir transcript");
+        let current = std::time::Instant::now();
         // Compute the initial hash seed for the Fiat-Shamir transcript.
         let digest = self.public_input.get_hash();
+        info!("Initial hash seed computed in {}", current.elapsed().as_secs_f32());
+        debug!("public_input_hash={}", hex::encode(digest.get_value().into_bigint().to_bytes_le()));
         // Construct the transcript.
         // TODO: is this correct?
         let mut transcript = Transcript::new(digest);
 
+        info!("Committing to the public input");
         // STARK commitment phase.
         let stark_commitment = stark_commit::<F, Layout>(
             &mut transcript,
@@ -42,6 +49,7 @@ impl<F: SimpleField + PoseidonHash + Blake2sHash + KeccakHash> StarkProof<F> {
             &stark_domains,
         )?;
 
+        info!("Generating queries");
         // Generate queries.
         let queries = generate_queries(
             &mut transcript,
@@ -49,6 +57,7 @@ impl<F: SimpleField + PoseidonHash + Blake2sHash + KeccakHash> StarkProof<F> {
             stark_domains.eval_domain_size.clone(),
         );
 
+        info!("Verifying proof");
         // STARK verify phase.
         stark_verify::<F, Layout>(
             Layout::NUM_COLUMNS_FIRST,
@@ -59,12 +68,13 @@ impl<F: SimpleField + PoseidonHash + Blake2sHash + KeccakHash> StarkProof<F> {
             &stark_domains,
         )?;
 
+        info!("verifying public input ");
         Ok(Layout::verify_public_input(&self.public_input)?)
     }
 }
 
 use ark_ec::short_weierstrass::SWCurveConfig;
-use ark_ff::{Field, PrimeField};
+use ark_ff::{BigInteger, Field, PrimeField};
 use ark_r1cs_std::{
     fields::{fp::FpVar, FieldOpsBounds, FieldVar},
     prelude::Boolean,
@@ -100,6 +110,7 @@ pub enum Error<F: SimpleField + PoseidonHash> {
 
 #[cfg(not(feature = "std"))]
 use thiserror_no_std::Error;
+use log::{debug, info};
 
 #[cfg(not(feature = "std"))]
 #[derive(Error, Debug)]

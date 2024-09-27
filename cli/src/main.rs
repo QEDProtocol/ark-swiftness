@@ -62,9 +62,11 @@ fn init_logger() {
 }
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     init_logger();
+    info!("Parsing proof from file");
     let cli = CairoVMVerifier::parse();
     let stark_proof = parse(std::fs::read_to_string(cli.proof)?)?;
     let security_bits: FpVar<Fp> = stark_proof.config.security_bits();
+    info!("Verifying proof");
     let (program_hash, output_hash) =
         match stark_proof.verify::<StarkwareCurve, Layout>(security_bits) {
             Ok((program_hash, output_hash)) => (program_hash, output_hash),
