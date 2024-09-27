@@ -35,6 +35,8 @@ pub mod constants;
 pub mod periodic;
 
 pub fn pedersen_hash(a: Fp, b: Fp) -> Fp {
+    trace!("pedersen_hash for Fp");
+    let current = std::time::Instant::now();
     let a_p0 = P0;
     let a_p1 = P1;
     let a_p2 = P2;
@@ -47,7 +49,7 @@ pub fn pedersen_hash(a: Fp, b: Fp) -> Fp {
     // TODO: enable check
     // assert_eq!(a_steps.last().unwrap().point, b_p0);
     let b_steps = gen_element_steps(b, b_p0, b_p1, b_p2);
-
+    trace!("pedersen_hash for Fp: {}", current.elapsed().as_secs_f32());
     b_steps.last().unwrap().point.x
 }
 
@@ -264,7 +266,7 @@ where
 
     // generate partial sums
     let mut partial_point = NonZeroAffineVar::new(p0.x.clone(), p0.y.clone()).into_projective();
-    let mut res = Vec::new();
+    let mut res = Vec::with_capacity(256);//alloc with 256 to avoid reallocation
     #[allow(clippy::needless_range_loop)]
     for i in 0..256 {
         let suffix = x.rsh(i);
@@ -378,7 +380,7 @@ where
         let a_p2 = a_p2_proj.to_affine().unwrap();
         timing("a_p2");
 
-        let a_steps = gen_element_steps_var::<P, FpVar<P::BaseField>>(a.clone(), a_p0, a_p1, a_p2);
+        let _a_steps = gen_element_steps_var::<P, FpVar<P::BaseField>>(a.clone(), a_p0, a_p1, a_p2);
         timing("a_steps");
 
         let b_p0 = (a_p0_proj
@@ -409,8 +411,11 @@ where
         // assert_eq!(a_steps.last().unwrap().point, b_p0);
         let b_steps = gen_element_steps_var::<P, FpVar<P::BaseField>>(b.clone(), b_p0, b_p1, b_p2);
         timing("b_steps");
+        let b_steps_last = b_steps.last().unwrap();
+        let b_steps_last_point = b_steps_last.point.x.clone();
 
-        b_steps.last().unwrap().point.x.clone()
+        b_steps_last_point
+        //b_steps.last().unwrap().point.x.clone()
     }
 }
 

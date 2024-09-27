@@ -1,4 +1,5 @@
 use alloc::borrow::ToOwned;
+use log::trace;
 use swiftness_air::{domains::StarkDomains, layout::LayoutTrait};
 use swiftness_commitment::table::decommit::table_decommit;
 use swiftness_field::SimpleField;
@@ -26,6 +27,7 @@ pub fn stark_verify<
     witness: &StarkWitness<F>,
     stark_domains: &StarkDomains<F>,
 ) -> Result<(), Error<F>> {
+    trace!("stark verify");
     // First layer decommit.
     Layout::traces_decommit(
         queries,
