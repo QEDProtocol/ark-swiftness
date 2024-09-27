@@ -23,7 +23,10 @@ swiftness_hash = { workspace = true }
 swiftness_stark = { workspace = true }
 swiftness_utils = { workspace = true }
 swiftness_proof_parser = { workspace = true }
-
+log = { workspace = true }
+env_logger = { workspace = true }
+chrono = { workspace = true }
+jemallocator = { workspace = true }
 [features]
 default = ["recursive", "keccak"]
 dex = ["swiftness_air/dex", "swiftness_stark/dex"]
