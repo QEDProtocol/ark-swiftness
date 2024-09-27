@@ -203,7 +203,10 @@ pub trait PoseidonHash: SimpleField {
     /// Computes the Starknet Poseidon hash of an arbitrary number of [`Felt`]s.
     ///
     /// Using this function is the same as using [`PoseidonHasher`].
-    fn hash_many<'a, I: IntoIterator<Item = &'a Self>>(msgs: I) -> Self where Self: 'a {
+    fn hash_many<'a, I: IntoIterator<Item = &'a Self>>(msgs: I) -> Self
+    where
+        Self: 'a,
+    {
         let mut state = [
             Self::from_constant(0u64),
             Self::from_constant(0u64),
@@ -321,7 +324,10 @@ mod tests {
             Fp!("867921192302518434283879514999422690776342565400001269945778456016268852423"),
         ];
 
-        assert_eq!(expected, PoseidonHash::permute([Fp::ZERO, Fp::ZERO, Fp::ZERO]));
+        assert_eq!(
+            expected,
+            PoseidonHash::permute([Fp::ZERO, Fp::ZERO, Fp::ZERO])
+        );
     }
 
     #[test]

@@ -1980,9 +1980,9 @@ pub fn eval_composition_polynomial_inner<F: SimpleField + PoseidonHash>(
         column11_row326.clone() * &column11_row334;
     let poseidon_poseidon_partial_rounds_state1_cubed_21 =
         column11_row342.clone() * &column11_row350;
-    
+
     trace!("file{}, line{}", file!(), line!());
-    
+
     // Sum constraints.
     let mut total_sum = F::zero();
 

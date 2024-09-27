@@ -2,26 +2,26 @@ mod constants;
 mod periodic;
 mod utils;
 use ark_bls12_381::{Bls12_381, Fr};
-use constants::{ROUND_CONSTANTS, ROTR};
 use ark_ff::UniformRand;
 use ark_r1cs_std::boolean::Boolean;
 use ark_r1cs_std::eq::EqGadget;
-use ark_r1cs_std::{R1CSVar, ToBitsGadget};
 use ark_r1cs_std::uint64::UInt64;
+use ark_r1cs_std::{R1CSVar, ToBitsGadget};
 use ark_relations::r1cs::{ConstraintSynthesizer, ConstraintSystem};
 use ark_relations::r1cs::{ConstraintSystemRef, SynthesisError};
-use ark_std::rand::{thread_rng, Rng};
 use ark_std::ops::{BitAnd, BitXor, Not};
+use ark_std::rand::{thread_rng, Rng};
+use constants::{ROTR, ROUND_CONSTANTS};
 
+use crate::keccak::utils::{bitand, not, rotate_left};
 use ark_ff::PrimeField;
 use ark_r1cs_std::alloc::AllocVar;
 use ark_r1cs_std::fields::fp::FpVar;
 use ark_r1cs_std::uint8::UInt8;
+use sha3::Digest;
+use sha3::Keccak256;
 use swiftness_field::Fp;
 use swiftness_field::SimpleField;
-use sha3::Keccak256;
-use sha3::Digest;
-use crate::keccak::utils::{bitand, not, rotate_left};
 
 fn xor_2<F: PrimeField>(a: &UInt64<F>, b: &UInt64<F>) -> Result<UInt64<F>, SynthesisError> {
     a.xor(b)
@@ -60,7 +60,6 @@ fn round_1600<F: PrimeField>(
     a: Vec<UInt64<F>>,
     rc: u64,
 ) -> Result<Vec<UInt64<F>>, SynthesisError> {
-
     assert_eq!(a.len(), 25);
 
     // # θ step
@@ -83,10 +82,8 @@ fn round_1600<F: PrimeField>(
             &c[(x + 4usize) % 5usize],
             // &c[(x + 1usize) % 5usize].rotate_left(1),
             &rotate_left(&c[(x + 1usize) % 5usize], 1),
-
         )?);
     }
-
 
     // A[x,y] = A[x,y] xor D[x],                           for (x,y) in (0…4,0…4)
     let mut a_new1 = Vec::new();
@@ -133,7 +130,6 @@ fn keccak_f_1600<F: PrimeField>(
     // cs: &ConstraintSystemRef<F>,
     input: Vec<Boolean<F>>,
 ) -> Result<Vec<Boolean<F>>, SynthesisError> {
-
     assert_eq!(input.len(), 1600);
 
     let mut a = input
@@ -155,8 +151,7 @@ pub fn keccak256<F: PrimeField>(
     // cs: &ConstraintSystemRef<F>,
     input: &[Boolean<F>],
 ) -> Result<Vec<Boolean<F>>, SynthesisError> {
-
-    let block_size = 136 * 8;  //136 bytes * 8 = 1088 bit
+    let block_size = 136 * 8; //136 bytes * 8 = 1088 bit
     let input_len = input.len();
     let num_blocks = input_len / block_size + 1;
     let padded_len = num_blocks * block_size;
@@ -164,7 +159,6 @@ pub fn keccak256<F: PrimeField>(
     for i in 0..input.len() {
         padded[i] = input[i].clone();
     }
-
 
     // # Padding
     // d = 2^|Mbits| + sum for i=0..|Mbits|-1 of 2^i*Mbits[i]
@@ -205,7 +199,6 @@ pub fn keccak256<F: PrimeField>(
     return Ok(z);
 }
 
-
 pub trait KeccakHash: SimpleField {
     fn hash(data: &[<Self as SimpleField>::ByteType]) -> Vec<<Self as SimpleField>::ByteType>;
 }
@@ -221,11 +214,12 @@ impl KeccakHash for Fp {
 impl<F: PrimeField + SimpleField> KeccakHash for FpVar<F> {
     fn hash(data: &[<Self as SimpleField>::ByteType]) -> Vec<<Self as SimpleField>::ByteType> {
         // convert input to boolean
-        let input= data.iter()
+        let input = data
+            .iter()
             .flat_map(|byte| byte.to_bits_le().unwrap())
             .collect::<Vec<_>>();
 
-        let res = match keccak256(&input){
+        let res = match keccak256(&input) {
             Ok(res) => res,
             Err(e) => {
                 panic!("keccak256 hash err:{}", e);
@@ -233,23 +227,19 @@ impl<F: PrimeField + SimpleField> KeccakHash for FpVar<F> {
         };
 
         //convert output to bytes
-        let output = res
-            .chunks(8)
-            .map(UInt8::from_bits_le)
-            .collect::<Vec<_>>();
+        let output = res.chunks(8).map(UInt8::from_bits_le).collect::<Vec<_>>();
         output
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use swiftness_field::StarkArkConvert;
-    use KeccakHash;
     use ark_ff::Field;
     use ark_ff::MontFp as Fp;
     use swiftness_field::Fp;
+    use swiftness_field::StarkArkConvert;
+    use KeccakHash;
     fn keccak_hash(data: &[u8]) -> Vec<u8> {
         let mut hasher = Keccak256::new();
         hasher.update(data);
@@ -261,10 +251,9 @@ mod tests {
         let input_len = 1024;
         let mut rng = thread_rng();
         let input: Vec<u8> = (0..input_len).map(|_| rng.gen()).collect();
-        let real_bytes: Vec<u8> =  <Fp as KeccakHash>::hash(&input);
+        let real_bytes: Vec<u8> = <Fp as KeccakHash>::hash(&input);
         let expected = keccak_hash(&input);
         assert_eq!(real_bytes, expected);
-
     }
     #[test]
     fn test_keccak_hash_fp_var() {
@@ -274,12 +263,11 @@ mod tests {
         //let input_fp = input.iter().map(|x| Fp::from(*x)).collect::<Vec<_>>();
         let cs = ConstraintSystem::<Fp>::new_ref();
         let input_fp = UInt8::new_input_vec(ark_relations::ns!(cs, "input"), &input).unwrap();
-        let real_bytes: Vec<UInt8<Fp>> =  <FpVar<Fp> as KeccakHash>::hash(&input_fp);
+        let real_bytes: Vec<UInt8<Fp>> = <FpVar<Fp> as KeccakHash>::hash(&input_fp);
         let expected = keccak_hash(&input);
         assert_eq!(real_bytes.len(), expected.len());
         for i in 0..real_bytes.len() {
             assert_eq!(real_bytes[i].value().unwrap(), expected[i]);
         }
     }
-
 }

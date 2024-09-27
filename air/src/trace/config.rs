@@ -37,7 +37,10 @@ impl<F: SimpleField + PoseidonHash> Config<F> {
         Ok(self
             .original
             .vector
-            .validate(log_eval_domain_size.clone(), n_verifier_friendly_commitment_layers.clone())
+            .validate(
+                log_eval_domain_size.clone(),
+                n_verifier_friendly_commitment_layers.clone(),
+            )
             .and(
                 self.interaction
                     .vector

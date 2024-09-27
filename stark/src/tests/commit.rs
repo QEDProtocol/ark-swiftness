@@ -11,7 +11,9 @@ use crate::{
 #[test]
 pub fn test_stark_commit() {
     let mut transcript = Transcript::<Fp>::new_with_counter(
-        Fp::from_stark_felt(Felt::from_hex_unchecked( "0xaf91f2c71f4a594b1575d258ce82464475c82d8fb244142d0db450491c1b52",)),
+        Fp::from_stark_felt(Felt::from_hex_unchecked(
+            "0xaf91f2c71f4a594b1575d258ce82464475c82d8fb244142d0db450491c1b52",
+        )),
         Fp::from_stark_felt(Felt::from_hex_unchecked("0x0")),
     );
 
@@ -39,5 +41,8 @@ pub fn test_stark_commit() {
         ))
     );
 
-    assert_eq!(*transcript.counter(), Fp::from_stark_felt(Felt::from_hex_unchecked("0x0")))
+    assert_eq!(
+        *transcript.counter(),
+        Fp::from_stark_felt(Felt::from_hex_unchecked("0x0"))
+    )
 }

@@ -24,7 +24,12 @@ use swiftness_hash::poseidon::PoseidonHash;
 //   q_i = q_{i-1} * (1 + z * x_{i-1}) * p_{i-1} + x_{i-1}^2 * p_{i-1} + q_{i-1}
 //
 // Now we can compute p_{n_bits} and q_{n_bits} in just n_bits recursive steps and we are done.
-pub fn get_diluted_product<F: SimpleField + PoseidonHash>(n_bits: usize, spacing: usize, z: F, alpha: F) -> F {
+pub fn get_diluted_product<F: SimpleField + PoseidonHash>(
+    n_bits: usize,
+    spacing: usize,
+    z: F,
+    alpha: F,
+) -> F {
     let diff_multiplier = F::two().powers([spacing as u64]);
     let mut diff_x: F = diff_multiplier.clone() - F::two();
     let mut x: F = F::one();

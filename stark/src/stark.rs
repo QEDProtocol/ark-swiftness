@@ -3,7 +3,10 @@ use crate::{
 };
 
 impl<F: SimpleField + PoseidonHash + Blake2sHash + KeccakHash> StarkProof<F> {
-    pub fn verify<P: SWCurveConfig, Layout: LayoutTrait<F>>(&self, security_bits: F) -> Result<(F, F), Error<F>>
+    pub fn verify<P: SWCurveConfig, Layout: LayoutTrait<F>>(
+        &self,
+        security_bits: F,
+    ) -> Result<(F, F), Error<F>>
     where
         F: PedersenHash<P>,
         P::BaseField: PrimeField + SimpleField,
@@ -12,13 +15,15 @@ impl<F: SimpleField + PoseidonHash + Blake2sHash + KeccakHash> StarkProof<F> {
             FieldVar<P::BaseField, <P::BaseField as Field>::BasePrimeField> + SimpleField,
         for<'a> &'a FpVar<P::BaseField>: FieldOpsBounds<'a, P::BaseField, FpVar<P::BaseField>>,
         <FpVar<P::BaseField> as SimpleField>::BooleanType:
-            From<Boolean<<P::BaseField as Field>::BasePrimeField>>
+            From<Boolean<<P::BaseField as Field>::BasePrimeField>>,
     {
         self.config.validate::<Layout>(security_bits)?;
 
         // Validate the public input.
-        let stark_domains =
-            StarkDomains::new(self.config.log_trace_domain_size.clone(), self.config.log_n_cosets.clone());
+        let stark_domains = StarkDomains::new(
+            self.config.log_trace_domain_size.clone(),
+            self.config.log_n_cosets.clone(),
+        );
 
         Layout::validate_public_input(&self.public_input, &stark_domains)?;
 
@@ -60,13 +65,18 @@ impl<F: SimpleField + PoseidonHash + Blake2sHash + KeccakHash> StarkProof<F> {
 
 use ark_ec::short_weierstrass::SWCurveConfig;
 use ark_ff::{Field, PrimeField};
-use ark_r1cs_std::{fields::{fp::FpVar, FieldOpsBounds, FieldVar}, prelude::Boolean};
+use ark_r1cs_std::{
+    fields::{fp::FpVar, FieldOpsBounds, FieldVar},
+    prelude::Boolean,
+};
 use swiftness_air::{
     domains::StarkDomains,
     layout::{LayoutTrait, PublicInputError},
 };
 use swiftness_field::SimpleField;
-use swiftness_hash::{blake2s::Blake2sHash, keccak::KeccakHash, pedersen::PedersenHash, poseidon::PoseidonHash};
+use swiftness_hash::{
+    blake2s::Blake2sHash, keccak::KeccakHash, pedersen::PedersenHash, poseidon::PoseidonHash,
+};
 use swiftness_transcript::transcript::Transcript;
 
 #[cfg(feature = "std")]

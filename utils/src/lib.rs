@@ -320,8 +320,8 @@ mod tests {
 
     #[test]
     fn test_calculate_slope_var_2() {
-        use curve::StarkwareCurve;
         use ark_ff::MontFp as Fp;
+        use curve::StarkwareCurve;
 
         let cs = ConstraintSystem::<Fp>::new_ref();
         let p1_affine = Affine::new(

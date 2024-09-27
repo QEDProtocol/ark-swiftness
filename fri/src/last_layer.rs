@@ -11,10 +11,7 @@ pub fn verify_last_layer<F: SimpleField + PoseidonHash>(
     coefficients: Vec<F>,
 ) -> Result<(), Error<F>> {
     for query in quries.iter_mut() {
-        let horner_eval_result = horner_eval(
-            &coefficients,
-            F::one().field_div(&query.x_inv_value),
-        );
+        let horner_eval_result = horner_eval(&coefficients, F::one().field_div(&query.x_inv_value));
         horner_eval_result.assert_equal(&query.y_value);
         // if horner_eval_result != query.y_value {
         //     return Err(Error::QueryMismatch { expected: query.y_value, got: horner_eval_result });
@@ -68,8 +65,13 @@ mod tests {
 
     #[test]
     fn test_horner_eval_2() {
-        let coefs =
-            vec![Fp::from(4), Fp::from(10), Fp::from(19), Fp::from(1), Fp::from(9)];
+        let coefs = vec![
+            Fp::from(4),
+            Fp::from(10),
+            Fp::from(19),
+            Fp::from(1),
+            Fp::from(9),
+        ];
         let eval = horner_eval(&coefs, Fp::from(13));
         assert_eq!(eval, Fp::from(262591));
     }
@@ -93,6 +95,9 @@ mod tests {
             Fp::from(1),
         ];
         let eval = horner_eval(&coefs, Fp::from(19));
-        assert_eq!(eval, Fp::from_stark_felt(Felt::from_dec_str("288577899334361215").unwrap()));
+        assert_eq!(
+            eval,
+            Fp::from_stark_felt(Felt::from_dec_str("288577899334361215").unwrap())
+        );
     }
 }

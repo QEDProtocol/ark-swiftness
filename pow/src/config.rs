@@ -12,7 +12,10 @@ pub struct Config {
 impl Config {
     pub fn validate(&self) -> Result<(), Error> {
         if self.n_bits < MIN_PROOF_OF_WORK_BITS || self.n_bits > MAX_PROOF_OF_WORK_BITS {
-            Err(Error::OutOfBounds { min: MIN_PROOF_OF_WORK_BITS, max: MAX_PROOF_OF_WORK_BITS })
+            Err(Error::OutOfBounds {
+                min: MIN_PROOF_OF_WORK_BITS,
+                max: MAX_PROOF_OF_WORK_BITS,
+            })
         } else {
             Ok(())
         }

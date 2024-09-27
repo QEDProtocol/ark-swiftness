@@ -38,7 +38,15 @@ pub fn compute_coset_elements<F: SimpleField + PoseidonHash>(
     for index in F::range(&F::zero(), &coset_size) {
         let q = queries.first();
         // TODO: fix q.unwrap().index == coset_start_index + F::from_constant(index as u64)
-        if q.is_some() && F::from_boolean(q.unwrap().index.is_equal(&(coset_start_index.clone() + &index))).get_value() == F::one().get_value() {
+        if q.is_some()
+            && F::from_boolean(
+                q.unwrap()
+                    .index
+                    .is_equal(&(coset_start_index.clone() + &index)),
+            )
+            .get_value()
+                == F::one().get_value()
+        {
             let query: Vec<FriLayerQuery<F>> = queries.drain(0..1).collect();
             coset_elements.push(query[0].y_value.clone());
             coset_x_inv = query[0].x_inv_value.clone() * F::at(fri_group, &index);
@@ -89,8 +97,12 @@ pub fn compute_next_layer<F: SimpleField + PoseidonHash>(
         );
         verify_y_values.extend(coset_elements.iter().cloned());
 
-        let fri_formula_res =
-            fri_formula(coset_elements, params.eval_point.clone(), coset_x_inv.clone(), coset_size.clone())?;
+        let fri_formula_res = fri_formula(
+            coset_elements,
+            params.eval_point.clone(),
+            coset_x_inv.clone(),
+            coset_size.clone(),
+        )?;
 
         let next_x_inv = coset_x_inv.powers_felt(&params.coset_size);
         next_queries.push(FriLayerQuery {

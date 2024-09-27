@@ -12,9 +12,7 @@ pub fn eval_composition_polynomial_inner<F: SimpleField + PoseidonHash>(
     global_values: &GlobalValues<F>,
 ) -> F {
     // Compute powers.
-    let pow0 = point.powers_felt(
-        &global_values.trace_length.rsh(12),
-    );
+    let pow0 = point.powers_felt(&global_values.trace_length.rsh(12));
     let pow1 = pow0.clone() * &pow0; // pow(point, (safe_div(global_values.trace_length, 2048))).
     let pow2 = pow1.clone() * &pow1; // pow(point, (safe_div(global_values.trace_length, 1024))).
     let pow3 = pow2.clone() * &pow2; // pow(point, (safe_div(global_values.trace_length, 512))).
@@ -27,24 +25,22 @@ pub fn eval_composition_polynomial_inner<F: SimpleField + PoseidonHash>(
     let pow10 = pow9.clone() * &pow9; // pow(point, (safe_div(global_values.trace_length, 4))).
     let pow11 = pow10.clone() * &pow10; // pow(point, (safe_div(global_values.trace_length, 2))).
     let pow12 = pow11.clone() * &pow11; // pow(point, global_values.trace_length).
-    let pow13 = trace_generator.powers_felt(&(global_values.trace_length.clone() - &F::from_constant(512 as u64)));
-    let pow14 = trace_generator.powers_felt(&(global_values.trace_length.clone() - &F::from_constant(256 as u64)));
-    let pow15 = trace_generator.powers_felt(&(global_values.trace_length.clone() - &F::from_constant(4096 as u64)));
-    let pow16 = trace_generator.powers_felt(&(global_values.trace_length.clone() - &F::from_constant(4   as u64)));
-    let pow17 = trace_generator.powers_felt(&(global_values.trace_length.clone() - &F::from_constant(2   as u64)));
-    let pow18 = trace_generator.powers_felt(&(global_values.trace_length.clone() - &F::from_constant(16  as u64)));
-    let pow19 = trace_generator.powers_felt(
-        &(global_values.trace_length.rsh(1)),
-    );
-    let pow20 = trace_generator.powers_felt(
-        &(F::from_constant(255 as u64)
-           .clone() * &global_values
-                .trace_length
-                .rsh(8)),
-    );
-    let pow21 = trace_generator.powers_felt(
-        &(global_values.trace_length.rsh(6)),
-    );
+    let pow13 = trace_generator
+        .powers_felt(&(global_values.trace_length.clone() - &F::from_constant(512 as u64)));
+    let pow14 = trace_generator
+        .powers_felt(&(global_values.trace_length.clone() - &F::from_constant(256 as u64)));
+    let pow15 = trace_generator
+        .powers_felt(&(global_values.trace_length.clone() - &F::from_constant(4096 as u64)));
+    let pow16 = trace_generator
+        .powers_felt(&(global_values.trace_length.clone() - &F::from_constant(4 as u64)));
+    let pow17 = trace_generator
+        .powers_felt(&(global_values.trace_length.clone() - &F::from_constant(2 as u64)));
+    let pow18 = trace_generator
+        .powers_felt(&(global_values.trace_length.clone() - &F::from_constant(16 as u64)));
+    let pow19 = trace_generator.powers_felt(&(global_values.trace_length.rsh(1)));
+    let pow20 = trace_generator
+        .powers_felt(&(F::from_constant(255 as u64).clone() * &global_values.trace_length.rsh(8)));
+    let pow21 = trace_generator.powers_felt(&(global_values.trace_length.rsh(6)));
     let pow22 = pow21.clone() * &pow21; // pow(trace_generator, (safe_div(global_values.trace_length, 32))).
     let pow23 = pow21.clone() * &pow22; // pow(trace_generator, (safe_div((safe_mult(3, global_values.trace_length)), 64))).
     let pow24 = pow21.clone() * &pow23; // pow(trace_generator, (safe_div(global_values.trace_length, 16))).
@@ -332,40 +328,58 @@ pub fn eval_composition_polynomial_inner<F: SimpleField + PoseidonHash>(
     let column7_inter1_row5 = mask_values[191].clone();
 
     // Compute intermediate values.
-    let cpu_decode_opcode_range_check_bit_0 = column0_row0.clone() - &(column0_row1.clone() + &column0_row1);
-    let cpu_decode_opcode_range_check_bit_2 = column0_row2.clone() - &(column0_row3.clone() + &column0_row3);
-    let cpu_decode_opcode_range_check_bit_4 = column0_row4.clone() - &(column0_row5.clone() + &column0_row5);
-    let cpu_decode_opcode_range_check_bit_3 = column0_row3.clone() - &(column0_row4.clone() + &column0_row4);
-    let cpu_decode_flag_op1_base_op0_0 = F::one()
-       .clone() - &(cpu_decode_opcode_range_check_bit_2
-           .clone() + &cpu_decode_opcode_range_check_bit_4
-           .clone() + &cpu_decode_opcode_range_check_bit_3);
-    let cpu_decode_opcode_range_check_bit_5 = column0_row5.clone() - &(column0_row6.clone() + &column0_row6);
-    let cpu_decode_opcode_range_check_bit_6 = column0_row6.clone() - &(column0_row7.clone() + &column0_row7);
-    let cpu_decode_opcode_range_check_bit_9 = column0_row9.clone() - &(column0_row10.clone() + &column0_row10);
-    let cpu_decode_flag_res_op1_0 = F::one()
-       .clone() - &(cpu_decode_opcode_range_check_bit_5
-           .clone() + &cpu_decode_opcode_range_check_bit_6
-           .clone() + &cpu_decode_opcode_range_check_bit_9);
-    let cpu_decode_opcode_range_check_bit_7 = column0_row7.clone() - &(column0_row8.clone() + &column0_row8);
-    let cpu_decode_opcode_range_check_bit_8 = column0_row8.clone() - &(column0_row9.clone() + &column0_row9);
-    let cpu_decode_flag_pc_update_regular_0 = F::one()
-       .clone() - &(cpu_decode_opcode_range_check_bit_7
-           .clone() + &cpu_decode_opcode_range_check_bit_8
-           .clone() + &cpu_decode_opcode_range_check_bit_9);
-    let cpu_decode_opcode_range_check_bit_12 = column0_row12.clone() - &(column0_row13.clone() + &column0_row13);
-    let cpu_decode_opcode_range_check_bit_13 = column0_row13.clone() - &(column0_row14.clone() + &column0_row14);
-    let cpu_decode_fp_update_regular_0 =
-        F::one().clone() - &(cpu_decode_opcode_range_check_bit_12.clone() + &cpu_decode_opcode_range_check_bit_13.clone());
-    let cpu_decode_opcode_range_check_bit_1 = column0_row1.clone() - &(column0_row2.clone() + &column0_row2);
+    let cpu_decode_opcode_range_check_bit_0 =
+        column0_row0.clone() - &(column0_row1.clone() + &column0_row1);
+    let cpu_decode_opcode_range_check_bit_2 =
+        column0_row2.clone() - &(column0_row3.clone() + &column0_row3);
+    let cpu_decode_opcode_range_check_bit_4 =
+        column0_row4.clone() - &(column0_row5.clone() + &column0_row5);
+    let cpu_decode_opcode_range_check_bit_3 =
+        column0_row3.clone() - &(column0_row4.clone() + &column0_row4);
+    let cpu_decode_flag_op1_base_op0_0 = F::one().clone()
+        - &(cpu_decode_opcode_range_check_bit_2.clone()
+            + &cpu_decode_opcode_range_check_bit_4.clone()
+            + &cpu_decode_opcode_range_check_bit_3);
+    let cpu_decode_opcode_range_check_bit_5 =
+        column0_row5.clone() - &(column0_row6.clone() + &column0_row6);
+    let cpu_decode_opcode_range_check_bit_6 =
+        column0_row6.clone() - &(column0_row7.clone() + &column0_row7);
+    let cpu_decode_opcode_range_check_bit_9 =
+        column0_row9.clone() - &(column0_row10.clone() + &column0_row10);
+    let cpu_decode_flag_res_op1_0 = F::one().clone()
+        - &(cpu_decode_opcode_range_check_bit_5.clone()
+            + &cpu_decode_opcode_range_check_bit_6.clone()
+            + &cpu_decode_opcode_range_check_bit_9);
+    let cpu_decode_opcode_range_check_bit_7 =
+        column0_row7.clone() - &(column0_row8.clone() + &column0_row8);
+    let cpu_decode_opcode_range_check_bit_8 =
+        column0_row8.clone() - &(column0_row9.clone() + &column0_row9);
+    let cpu_decode_flag_pc_update_regular_0 = F::one().clone()
+        - &(cpu_decode_opcode_range_check_bit_7.clone()
+            + &cpu_decode_opcode_range_check_bit_8.clone()
+            + &cpu_decode_opcode_range_check_bit_9);
+    let cpu_decode_opcode_range_check_bit_12 =
+        column0_row12.clone() - &(column0_row13.clone() + &column0_row13);
+    let cpu_decode_opcode_range_check_bit_13 =
+        column0_row13.clone() - &(column0_row14.clone() + &column0_row14);
+    let cpu_decode_fp_update_regular_0 = F::one().clone()
+        - &(cpu_decode_opcode_range_check_bit_12.clone()
+            + &cpu_decode_opcode_range_check_bit_13.clone());
+    let cpu_decode_opcode_range_check_bit_1 =
+        column0_row1.clone() - &(column0_row2.clone() + &column0_row2);
     let npc_reg_0 = column1_row0.clone() + cpu_decode_opcode_range_check_bit_2.clone() + &F::one();
-    let cpu_decode_opcode_range_check_bit_10 = column0_row10.clone() - &(column0_row11.clone() + &column0_row11);
-    let cpu_decode_opcode_range_check_bit_11 = column0_row11.clone() - &(column0_row12.clone() + &column0_row12);
-    let cpu_decode_opcode_range_check_bit_14 = column0_row14.clone() - &(column0_row15.clone() + &column0_row15);
+    let cpu_decode_opcode_range_check_bit_10 =
+        column0_row10.clone() - &(column0_row11.clone() + &column0_row11);
+    let cpu_decode_opcode_range_check_bit_11 =
+        column0_row11.clone() - &(column0_row12.clone() + &column0_row12);
+    let cpu_decode_opcode_range_check_bit_14 =
+        column0_row14.clone() - &(column0_row15.clone() + &column0_row15);
     let memory_address_diff_0 = column2_row2.clone() - &column2_row0;
     let range_check16_diff_0 = column4_row6.clone() - &column4_row2;
-    let pedersen_hash0_ec_subset_sum_bit_0 = column4_row3.clone() - &(column4_row11.clone() + &column4_row11);
-    let pedersen_hash0_ec_subset_sum_bit_neg_0 = F::one().clone() - &pedersen_hash0_ec_subset_sum_bit_0;
+    let pedersen_hash0_ec_subset_sum_bit_0 =
+        column4_row3.clone() - &(column4_row11.clone() + &column4_row11);
+    let pedersen_hash0_ec_subset_sum_bit_neg_0 =
+        F::one().clone() - &pedersen_hash0_ec_subset_sum_bit_0;
     let range_check_builtin_value0_0 = column4_row12;
     let range_check_builtin_value1_0 =
         range_check_builtin_value0_0.clone() * global_values.offset_size.clone() + &column4_row44;
@@ -381,27 +395,57 @@ pub fn eval_composition_polynomial_inner<F: SimpleField + PoseidonHash>(
         range_check_builtin_value5_0.clone() * global_values.offset_size.clone() + &column4_row204;
     let range_check_builtin_value7_0 =
         range_check_builtin_value6_0.clone() * global_values.offset_size.clone() + &column4_row236;
-    let bitwise_sum_var_0_0 = column3_row0
-       .clone() + column3_row4.clone() * &F::from_stark_felt(Felt::from_hex_unchecked("0x2"))
-       .clone() + column3_row8.clone() * &F::from_stark_felt(Felt::from_hex_unchecked("0x4"))
-       .clone() + column3_row12.clone() * &F::from_stark_felt(Felt::from_hex_unchecked("0x8"))
-       .clone() + column3_row16.clone() * &F::from_stark_felt(Felt::from_hex_unchecked("0x10000000000000000"))
-       .clone() + column3_row20.clone() * &F::from_stark_felt(Felt::from_hex_unchecked("0x20000000000000000"))
-       .clone() + column3_row24.clone() * &F::from_stark_felt(Felt::from_hex_unchecked("0x40000000000000000"))
-       .clone() + column3_row28.clone() * &F::from_stark_felt(Felt::from_hex_unchecked("0x80000000000000000"));
-    let bitwise_sum_var_8_0 = column3_row32
-       .clone() * &F::from_stark_felt(Felt::from_hex_unchecked("0x100000000000000000000000000000000"))
-       .clone() + column3_row36.clone() * &F::from_stark_felt(Felt::from_hex_unchecked("0x200000000000000000000000000000000"))
-       .clone() + column3_row40.clone() * &F::from_stark_felt(Felt::from_hex_unchecked("0x400000000000000000000000000000000"))
-       .clone() + column3_row44.clone() * &F::from_stark_felt(Felt::from_hex_unchecked("0x800000000000000000000000000000000"))
-       .clone() + column3_row48
-           .clone() * &F::from_stark_felt(Felt::from_hex_unchecked("0x1000000000000000000000000000000000000000000000000"))
-       .clone() + column3_row52
-           .clone() * &F::from_stark_felt(Felt::from_hex_unchecked("0x2000000000000000000000000000000000000000000000000"))
-       .clone() + column3_row56
-           .clone() * &F::from_stark_felt(Felt::from_hex_unchecked("0x4000000000000000000000000000000000000000000000000"))
-       .clone() + column3_row60
-           .clone() * &F::from_stark_felt(Felt::from_hex_unchecked("0x8000000000000000000000000000000000000000000000000"));
+    let bitwise_sum_var_0_0 = column3_row0.clone()
+        + column3_row4.clone() * &F::from_stark_felt(Felt::from_hex_unchecked("0x2")).clone()
+        + column3_row8.clone() * &F::from_stark_felt(Felt::from_hex_unchecked("0x4")).clone()
+        + column3_row12.clone() * &F::from_stark_felt(Felt::from_hex_unchecked("0x8")).clone()
+        + column3_row16.clone()
+            * &F::from_stark_felt(Felt::from_hex_unchecked("0x10000000000000000")).clone()
+        + column3_row20.clone()
+            * &F::from_stark_felt(Felt::from_hex_unchecked("0x20000000000000000")).clone()
+        + column3_row24.clone()
+            * &F::from_stark_felt(Felt::from_hex_unchecked("0x40000000000000000")).clone()
+        + column3_row28.clone()
+            * &F::from_stark_felt(Felt::from_hex_unchecked("0x80000000000000000"));
+    let bitwise_sum_var_8_0 = column3_row32.clone()
+        * &F::from_stark_felt(Felt::from_hex_unchecked(
+            "0x100000000000000000000000000000000",
+        ))
+        .clone()
+        + column3_row36.clone()
+            * &F::from_stark_felt(Felt::from_hex_unchecked(
+                "0x200000000000000000000000000000000",
+            ))
+            .clone()
+        + column3_row40.clone()
+            * &F::from_stark_felt(Felt::from_hex_unchecked(
+                "0x400000000000000000000000000000000",
+            ))
+            .clone()
+        + column3_row44.clone()
+            * &F::from_stark_felt(Felt::from_hex_unchecked(
+                "0x800000000000000000000000000000000",
+            ))
+            .clone()
+        + column3_row48.clone()
+            * &F::from_stark_felt(Felt::from_hex_unchecked(
+                "0x1000000000000000000000000000000000000000000000000",
+            ))
+            .clone()
+        + column3_row52.clone()
+            * &F::from_stark_felt(Felt::from_hex_unchecked(
+                "0x2000000000000000000000000000000000000000000000000",
+            ))
+            .clone()
+        + column3_row56.clone()
+            * &F::from_stark_felt(Felt::from_hex_unchecked(
+                "0x4000000000000000000000000000000000000000000000000",
+            ))
+            .clone()
+        + column3_row60.clone()
+            * &F::from_stark_felt(Felt::from_hex_unchecked(
+                "0x8000000000000000000000000000000000000000000000000",
+            ));
     let poseidon_poseidon_full_rounds_state0_cubed_0 = column5_row9.clone() * &column5_row105;
     let poseidon_poseidon_full_rounds_state1_cubed_0 = column5_row73.clone() * &column5_row25;
     let poseidon_poseidon_full_rounds_state2_cubed_0 = column5_row41.clone() * &column5_row89;
@@ -425,9 +469,11 @@ pub fn eval_composition_polynomial_inner<F: SimpleField + PoseidonHash>(
     let mut total_sum = F::zero();
 
     // Constraint: cpu/decode/opcode_range_check/bit.
-    let mut value = (cpu_decode_opcode_range_check_bit_0.clone() * &cpu_decode_opcode_range_check_bit_0
-       .clone() - &cpu_decode_opcode_range_check_bit_0)
-       .clone() * &domain4.field_div(&(domain0));
+    let mut value = (cpu_decode_opcode_range_check_bit_0.clone()
+        * &cpu_decode_opcode_range_check_bit_0.clone()
+        - &cpu_decode_opcode_range_check_bit_0)
+        .clone()
+        * &domain4.field_div(&(domain0));
     total_sum += constraint_coefficients[0].clone() * &value;
 
     // Constraint: cpu/decode/opcode_range_check/zero.
@@ -435,116 +481,129 @@ pub fn eval_composition_polynomial_inner<F: SimpleField + PoseidonHash>(
     total_sum += constraint_coefficients[1].clone() * &value;
 
     // Constraint: cpu/decode/opcode_range_check_input.
-    value = (column1_row1
-       .clone() - &(((column0_row0.clone() * global_values.offset_size.clone() + &column4_row4)
-           .clone() * &global_values.offset_size
-           .clone() + &column4_row8)
-           .clone() * &global_values.offset_size
-           .clone() + &column4_row0))
+    value = (column1_row1.clone()
+        - &(((column0_row0.clone() * global_values.offset_size.clone() + &column4_row4).clone()
+            * &global_values.offset_size.clone()
+            + &column4_row8)
+            .clone()
+            * &global_values.offset_size.clone()
+            + &column4_row0))
         .field_div(&(domain5));
     total_sum += constraint_coefficients[2].clone() * &value;
 
     // Constraint: cpu/decode/flag_op1_base_op0_bit.
-    value = (cpu_decode_flag_op1_base_op0_0.clone() * &cpu_decode_flag_op1_base_op0_0
-       .clone() - &cpu_decode_flag_op1_base_op0_0)
+    value = (cpu_decode_flag_op1_base_op0_0.clone() * &cpu_decode_flag_op1_base_op0_0.clone()
+        - &cpu_decode_flag_op1_base_op0_0)
         .field_div(&(domain5));
     total_sum += constraint_coefficients[3].clone() * &value;
 
     // Constraint: cpu/decode/flag_res_op1_bit.
-    value = (cpu_decode_flag_res_op1_0.clone() * cpu_decode_flag_res_op1_0.clone() - &cpu_decode_flag_res_op1_0)
+    value = (cpu_decode_flag_res_op1_0.clone() * cpu_decode_flag_res_op1_0.clone()
+        - &cpu_decode_flag_res_op1_0)
         .field_div(&(domain5));
     total_sum += constraint_coefficients[4].clone() * &value;
 
     // Constraint: cpu/decode/flag_pc_update_regular_bit.
-    value = (cpu_decode_flag_pc_update_regular_0.clone() * &cpu_decode_flag_pc_update_regular_0
-       .clone() - &cpu_decode_flag_pc_update_regular_0)
+    value = (cpu_decode_flag_pc_update_regular_0.clone()
+        * &cpu_decode_flag_pc_update_regular_0.clone()
+        - &cpu_decode_flag_pc_update_regular_0)
         .field_div(&(domain5));
     total_sum += constraint_coefficients[5].clone() * &value;
 
     // Constraint: cpu/decode/fp_update_regular_bit.
-    value = (cpu_decode_fp_update_regular_0.clone() * &cpu_decode_fp_update_regular_0
-       .clone() - &cpu_decode_fp_update_regular_0)
+    value = (cpu_decode_fp_update_regular_0.clone() * &cpu_decode_fp_update_regular_0.clone()
+        - &cpu_decode_fp_update_regular_0)
         .field_div(&(domain5));
     total_sum += constraint_coefficients[6].clone() * &value;
 
     // Constraint: cpu/operands/mem_dst_addr.
-    value = (column1_row8.clone() + &global_values.half_offset_size
-       .clone() - &(cpu_decode_opcode_range_check_bit_0.clone() * &column5_row8
-            + (F::one().clone() - &cpu_decode_opcode_range_check_bit_0).clone() * &column5_row0
-           .clone() + &column4_row0))
+    value = (column1_row8.clone() + &global_values.half_offset_size.clone()
+        - &(cpu_decode_opcode_range_check_bit_0.clone() * &column5_row8
+            + (F::one().clone() - &cpu_decode_opcode_range_check_bit_0).clone()
+                * &column5_row0.clone()
+            + &column4_row0))
         .field_div(&(domain5));
     total_sum += constraint_coefficients[7].clone() * &value;
 
     // Constraint: cpu/operands/mem0_addr.
-    value = (column1_row4.clone() + &global_values.half_offset_size
-       .clone() - &(cpu_decode_opcode_range_check_bit_1.clone() * &column5_row8
-            + (F::one().clone() - &cpu_decode_opcode_range_check_bit_1).clone() * &column5_row0
-           .clone() + &column4_row8))
+    value = (column1_row4.clone() + &global_values.half_offset_size.clone()
+        - &(cpu_decode_opcode_range_check_bit_1.clone() * &column5_row8
+            + (F::one().clone() - &cpu_decode_opcode_range_check_bit_1).clone()
+                * &column5_row0.clone()
+            + &column4_row8))
         .field_div(&(domain5));
     total_sum += constraint_coefficients[8].clone() * &value;
 
     // Constraint: cpu/operands/mem1_addr.
-    value = (column1_row12.clone() + &global_values.half_offset_size
-       .clone() - &(cpu_decode_opcode_range_check_bit_2.clone() * &column1_row0
-           .clone() + cpu_decode_opcode_range_check_bit_4.clone() * &column5_row0
-           .clone() + cpu_decode_opcode_range_check_bit_3.clone() * &column5_row8
-           .clone() + cpu_decode_flag_op1_base_op0_0.clone() * &column1_row5
-           .clone() + &column4_row4))
+    value = (column1_row12.clone() + &global_values.half_offset_size.clone()
+        - &(cpu_decode_opcode_range_check_bit_2.clone() * &column1_row0.clone()
+            + cpu_decode_opcode_range_check_bit_4.clone() * &column5_row0.clone()
+            + cpu_decode_opcode_range_check_bit_3.clone() * &column5_row8.clone()
+            + cpu_decode_flag_op1_base_op0_0.clone() * &column1_row5.clone()
+            + &column4_row4))
         .field_div(&(domain5));
     total_sum += constraint_coefficients[9].clone() * &value;
 
     // Constraint: cpu/operands/ops_mul.
-    value = (column5_row4.clone() - column1_row5.clone() * &column1_row13)
-        .field_div(&(domain5));
+    value = (column5_row4.clone() - column1_row5.clone() * &column1_row13).field_div(&(domain5));
     total_sum += constraint_coefficients[10].clone() * &value;
 
     // Constraint: cpu/operands/res.
-    value = ((F::one().clone() - &cpu_decode_opcode_range_check_bit_9).clone() * &column5_row12
-       .clone() - &(cpu_decode_opcode_range_check_bit_5 * (column1_row5.clone() + &column1_row13)
-           .clone() + cpu_decode_opcode_range_check_bit_6.clone() * &column5_row4
-           .clone() + cpu_decode_flag_res_op1_0.clone() * &column1_row13))
+    value = ((F::one().clone() - &cpu_decode_opcode_range_check_bit_9).clone()
+        * &column5_row12.clone()
+        - &(cpu_decode_opcode_range_check_bit_5 * (column1_row5.clone() + &column1_row13).clone()
+            + cpu_decode_opcode_range_check_bit_6.clone() * &column5_row4.clone()
+            + cpu_decode_flag_res_op1_0.clone() * &column1_row13))
         .field_div(&(domain5));
     total_sum += constraint_coefficients[11].clone() * &value;
 
     // Constraint: cpu/update_registers/update_pc/tmp0.
     value = (column5_row2.clone() - cpu_decode_opcode_range_check_bit_9.clone() * &column1_row9)
-       .clone() * &domain24.field_div(&(domain5));
+        .clone()
+        * &domain24.field_div(&(domain5));
     total_sum += constraint_coefficients[12].clone() * &value;
 
     // Constraint: cpu/update_registers/update_pc/tmp1.
-    value = (column5_row10.clone() - column5_row2.clone() * &column5_row12)
-       .clone() * &domain24.field_div(&(domain5));
+    value = (column5_row10.clone() - column5_row2.clone() * &column5_row12).clone()
+        * &domain24.field_div(&(domain5));
     total_sum += constraint_coefficients[13].clone() * &value;
 
     // Constraint: cpu/update_registers/update_pc/pc_cond_negative.
-    value = ((F::one().clone() - &cpu_decode_opcode_range_check_bit_9).clone() * &column1_row16
-       .clone() + column5_row2 * (column1_row16.clone() - &(column1_row0.clone() + &column1_row13))
-       .clone() - &(cpu_decode_flag_pc_update_regular_0.clone() * &npc_reg_0
-           .clone() + cpu_decode_opcode_range_check_bit_7.clone() * &column5_row12
-           .clone() + cpu_decode_opcode_range_check_bit_8 * (column1_row0.clone() + &column5_row12)))
-       .clone() * &domain24.field_div(&(domain5));
+    value = ((F::one().clone() - &cpu_decode_opcode_range_check_bit_9).clone()
+        * &column1_row16.clone()
+        + column5_row2
+            * (column1_row16.clone() - &(column1_row0.clone() + &column1_row13)).clone()
+        - &(cpu_decode_flag_pc_update_regular_0.clone() * &npc_reg_0.clone()
+            + cpu_decode_opcode_range_check_bit_7.clone() * &column5_row12.clone()
+            + cpu_decode_opcode_range_check_bit_8 * (column1_row0.clone() + &column5_row12)))
+        .clone()
+        * &domain24.field_div(&(domain5));
     total_sum += constraint_coefficients[14].clone() * &value;
 
     // Constraint: cpu/update_registers/update_pc/pc_cond_positive.
-    value = ((column5_row10.clone() - &cpu_decode_opcode_range_check_bit_9) * (column1_row16.clone() - &npc_reg_0))
-       .clone() * &domain24.field_div(&(domain5));
+    value = ((column5_row10.clone() - &cpu_decode_opcode_range_check_bit_9)
+        * (column1_row16.clone() - &npc_reg_0))
+        .clone()
+        * &domain24.field_div(&(domain5));
     total_sum += constraint_coefficients[15].clone() * &value;
 
     // Constraint: cpu/update_registers/update_ap/ap_update.
-    value = (column5_row16
-       .clone() - &(column5_row0
-           .clone() + cpu_decode_opcode_range_check_bit_10.clone() * &column5_row12
-           .clone() + &cpu_decode_opcode_range_check_bit_11
-           .clone() + cpu_decode_opcode_range_check_bit_12.clone() * &F::two()))
-       .clone() * &domain24.field_div(&(domain5));
+    value = (column5_row16.clone()
+        - &(column5_row0.clone()
+            + cpu_decode_opcode_range_check_bit_10.clone() * &column5_row12.clone()
+            + &cpu_decode_opcode_range_check_bit_11.clone()
+            + cpu_decode_opcode_range_check_bit_12.clone() * &F::two()))
+        .clone()
+        * &domain24.field_div(&(domain5));
     total_sum += constraint_coefficients[16].clone() * &value;
 
     // Constraint: cpu/update_registers/update_fp/fp_update.
-    value = (column5_row24
-       .clone() - &(cpu_decode_fp_update_regular_0.clone() * &column5_row8
-           .clone() + cpu_decode_opcode_range_check_bit_13.clone() * &column1_row9
-           .clone() + cpu_decode_opcode_range_check_bit_12.clone() * (column5_row0.clone() + &F::two())))
-       .clone() * &domain24.field_div(&(domain5));
+    value = (column5_row24.clone()
+        - &(cpu_decode_fp_update_regular_0.clone() * &column5_row8.clone()
+            + cpu_decode_opcode_range_check_bit_13.clone() * &column1_row9.clone()
+            + cpu_decode_opcode_range_check_bit_12.clone() * (column5_row0.clone() + &F::two())))
+        .clone()
+        * &domain24.field_div(&(domain5));
     total_sum += constraint_coefficients[17].clone() * &value;
 
     // Constraint: cpu/opcodes/call/push_fp.
@@ -554,7 +613,8 @@ pub fn eval_composition_polynomial_inner<F: SimpleField + PoseidonHash>(
 
     // Constraint: cpu/opcodes/call/push_pc.
     value = (cpu_decode_opcode_range_check_bit_12.clone()
-        * (column1_row5.clone() - &(column1_row0.clone() + cpu_decode_opcode_range_check_bit_2.clone() + &F::one())))
+        * (column1_row5.clone()
+            - &(column1_row0.clone() + cpu_decode_opcode_range_check_bit_2.clone() + &F::one())))
         .field_div(&(domain5));
     total_sum += constraint_coefficients[19].clone() * &value;
 
@@ -572,11 +632,14 @@ pub fn eval_composition_polynomial_inner<F: SimpleField + PoseidonHash>(
 
     // Constraint: cpu/opcodes/call/flags.
     value = (cpu_decode_opcode_range_check_bit_12.clone()
-        * (cpu_decode_opcode_range_check_bit_12.clone()
-           .clone() + &cpu_decode_opcode_range_check_bit_12.clone()
-           .clone() + &F::one()
-           .clone() + &F::one()
-           .clone() - &(cpu_decode_opcode_range_check_bit_0.clone() + cpu_decode_opcode_range_check_bit_1.clone() + &F::two().clone() + &F::two())))
+        * (cpu_decode_opcode_range_check_bit_12.clone().clone()
+            + &cpu_decode_opcode_range_check_bit_12.clone().clone()
+            + &F::one().clone()
+            + &F::one().clone()
+            - &(cpu_decode_opcode_range_check_bit_0.clone()
+                + cpu_decode_opcode_range_check_bit_1.clone()
+                + &F::two().clone()
+                + &F::two())))
         .field_div(&(domain5));
     total_sum += constraint_coefficients[22].clone() * &value;
 
@@ -594,11 +657,12 @@ pub fn eval_composition_polynomial_inner<F: SimpleField + PoseidonHash>(
 
     // Constraint: cpu/opcodes/ret/flags.
     value = (cpu_decode_opcode_range_check_bit_13.clone()
-        * (cpu_decode_opcode_range_check_bit_7
-           .clone() + &cpu_decode_opcode_range_check_bit_0
-           .clone() + &cpu_decode_opcode_range_check_bit_3
-           .clone() + &cpu_decode_flag_res_op1_0
-           .clone() - &F::two().clone() - &F::two()))
+        * (cpu_decode_opcode_range_check_bit_7.clone()
+            + &cpu_decode_opcode_range_check_bit_0.clone()
+            + &cpu_decode_opcode_range_check_bit_3.clone()
+            + &cpu_decode_flag_res_op1_0.clone()
+            - &F::two().clone()
+            - &F::two()))
         .field_div(&(domain5));
     total_sum += constraint_coefficients[25].clone() * &value;
 
@@ -608,71 +672,91 @@ pub fn eval_composition_polynomial_inner<F: SimpleField + PoseidonHash>(
     total_sum += constraint_coefficients[26].clone() * &value;
 
     // Constraint: initial_ap.
-    value = (column5_row0.clone() - &global_values.initial_ap)
-        .field_div(&(domain25));
+    value = (column5_row0.clone() - &global_values.initial_ap).field_div(&(domain25));
     total_sum += constraint_coefficients[27].clone() * &value;
 
     // Constraint: initial_fp.
-    value = (column5_row8.clone() - &global_values.initial_ap)
-        .field_div(&(domain25));
+    value = (column5_row8.clone() - &global_values.initial_ap).field_div(&(domain25));
     total_sum += constraint_coefficients[28].clone() * &value;
 
     // Constraint: initial_pc.
-    value = (column1_row0.clone() - &global_values.initial_pc)
-        .field_div(&(domain25));
+    value = (column1_row0.clone() - &global_values.initial_pc).field_div(&(domain25));
     total_sum += constraint_coefficients[29].clone() * &value;
 
     // Constraint: final_ap.
-    value = (column5_row0.clone() - &global_values.final_ap)
-        .field_div(&(domain24));
+    value = (column5_row0.clone() - &global_values.final_ap).field_div(&(domain24));
     total_sum += constraint_coefficients[30].clone() * &value;
 
     // Constraint: final_fp.
-    value = (column5_row8.clone() - &global_values.initial_ap)
-        .field_div(&(domain24));
+    value = (column5_row8.clone() - &global_values.initial_ap).field_div(&(domain24));
     total_sum += constraint_coefficients[31].clone() * &value;
 
     // Constraint: final_pc.
-    value = (column1_row0.clone() - &global_values.final_pc)
-        .field_div(&(domain24));
+    value = (column1_row0.clone() - &global_values.final_pc).field_div(&(domain24));
     total_sum += constraint_coefficients[32].clone() * &value;
 
     // Constraint: memory/multi_column_perm/perm/init0.
-    value = ((global_values.memory_multi_column_perm_perm_interaction_elm
-       .clone() - &(column2_row0
-           .clone() + global_values.memory_multi_column_perm_hash_interaction_elm0.clone() * &column2_row1))
-       .clone() * &column6_inter1_row0
-       .clone() + &column1_row0
-       .clone() + global_values.memory_multi_column_perm_hash_interaction_elm0.clone() * &column1_row1
-       .clone() - &global_values.memory_multi_column_perm_perm_interaction_elm)
+    value = ((global_values
+        .memory_multi_column_perm_perm_interaction_elm
+        .clone()
+        - &(column2_row0.clone()
+            + global_values
+                .memory_multi_column_perm_hash_interaction_elm0
+                .clone()
+                * &column2_row1))
+        .clone()
+        * &column6_inter1_row0.clone()
+        + &column1_row0.clone()
+        + global_values
+            .memory_multi_column_perm_hash_interaction_elm0
+            .clone()
+            * &column1_row1.clone()
+        - &global_values.memory_multi_column_perm_perm_interaction_elm)
         .field_div(&(domain25));
     total_sum += constraint_coefficients[33].clone() * &value;
 
     // Constraint: memory/multi_column_perm/perm/step0.
-    value = ((global_values.memory_multi_column_perm_perm_interaction_elm
-       .clone() - &(column2_row2
-           .clone() + global_values.memory_multi_column_perm_hash_interaction_elm0.clone() * &column2_row3))
-       .clone() * &column6_inter1_row2
-       .clone() - (global_values.memory_multi_column_perm_perm_interaction_elm
-           .clone() - &(column1_row2
-               .clone() + global_values.memory_multi_column_perm_hash_interaction_elm0.clone() * &column1_row3))
-           .clone() * &column6_inter1_row0)
-       .clone() * &domain26.field_div(&(domain1));
+    value = ((global_values
+        .memory_multi_column_perm_perm_interaction_elm
+        .clone()
+        - &(column2_row2.clone()
+            + global_values
+                .memory_multi_column_perm_hash_interaction_elm0
+                .clone()
+                * &column2_row3))
+        .clone()
+        * &column6_inter1_row2.clone()
+        - (global_values
+            .memory_multi_column_perm_perm_interaction_elm
+            .clone()
+            - &(column1_row2.clone()
+                + global_values
+                    .memory_multi_column_perm_hash_interaction_elm0
+                    .clone()
+                    * &column1_row3))
+            .clone()
+            * &column6_inter1_row0)
+        .clone()
+        * &domain26.field_div(&(domain1));
     total_sum += constraint_coefficients[34].clone() * &value;
 
     // Constraint: memory/multi_column_perm/perm/last.
-    value = (column6_inter1_row0.clone() - &global_values.memory_multi_column_perm_perm_public_memory_prod)
+    value = (column6_inter1_row0.clone()
+        - &global_values.memory_multi_column_perm_perm_public_memory_prod)
         .field_div(&(domain26));
     total_sum += constraint_coefficients[35].clone() * &value;
 
     // Constraint: memory/diff_is_bit.
-    value = (memory_address_diff_0.clone() * memory_address_diff_0.clone() - &memory_address_diff_0)
-       .clone() * &domain26.field_div(&(domain1));
+    value = (memory_address_diff_0.clone() * memory_address_diff_0.clone()
+        - &memory_address_diff_0)
+        .clone()
+        * &domain26.field_div(&(domain1));
     total_sum += constraint_coefficients[36].clone() * &value;
 
     // Constraint: memory/is_func.
     value = ((memory_address_diff_0.clone() - &F::one()) * (column2_row1.clone() - &column2_row3))
-       .clone() * &domain26.field_div(&(domain1));
+        .clone()
+        * &domain26.field_div(&(domain1));
     total_sum += constraint_coefficients[37].clone() * &value;
 
     // Constraint: memory/initial_addr.
@@ -688,18 +772,20 @@ pub fn eval_composition_polynomial_inner<F: SimpleField + PoseidonHash>(
     total_sum += constraint_coefficients[40].clone() * &value;
 
     // Constraint: range_check16/perm/init0.
-    value = ((global_values.range_check16_perm_interaction_elm.clone() - &column4_row2)
-       .clone() * &column7_inter1_row1
-       .clone() + &column4_row0
-       .clone() - &global_values.range_check16_perm_interaction_elm)
+    value = ((global_values.range_check16_perm_interaction_elm.clone() - &column4_row2).clone()
+        * &column7_inter1_row1.clone()
+        + &column4_row0.clone()
+        - &global_values.range_check16_perm_interaction_elm)
         .field_div(&(domain25));
     total_sum += constraint_coefficients[41].clone() * &value;
 
     // Constraint: range_check16/perm/step0.
-    value = ((global_values.range_check16_perm_interaction_elm.clone() - &column4_row6)
-       .clone() * &column7_inter1_row5
-       .clone() - (global_values.range_check16_perm_interaction_elm.clone() - &column4_row4).clone() * &column7_inter1_row1)
-       .clone() * &domain27.field_div(&(domain2));
+    value = ((global_values.range_check16_perm_interaction_elm.clone() - &column4_row6).clone()
+        * &column7_inter1_row5.clone()
+        - (global_values.range_check16_perm_interaction_elm.clone() - &column4_row4).clone()
+            * &column7_inter1_row1)
+        .clone()
+        * &domain27.field_div(&(domain2));
     total_sum += constraint_coefficients[42].clone() * &value;
 
     // Constraint: range_check16/perm/last.
@@ -709,37 +795,50 @@ pub fn eval_composition_polynomial_inner<F: SimpleField + PoseidonHash>(
 
     // Constraint: range_check16/diff_is_bit.
     value = (range_check16_diff_0.clone() * range_check16_diff_0.clone() - &range_check16_diff_0)
-       .clone() * &domain27.field_div(&(domain2));
+        .clone()
+        * &domain27.field_div(&(domain2));
     total_sum += constraint_coefficients[44].clone() * &value;
 
     // Constraint: range_check16/minimum.
-    value = (column4_row2.clone() - &global_values.range_check_min)
-        .field_div(&(domain25));
+    value = (column4_row2.clone() - &global_values.range_check_min).field_div(&(domain25));
     total_sum += constraint_coefficients[45].clone() * &value;
 
     // Constraint: range_check16/maximum.
-    value = (column4_row2.clone() - &global_values.range_check_max)
-        .field_div(&(domain27));
+    value = (column4_row2.clone() - &global_values.range_check_max).field_div(&(domain27));
     total_sum += constraint_coefficients[46].clone() * &value;
 
     // Constraint: diluted_check/permutation/init0.
-    value = ((global_values.diluted_check_permutation_interaction_elm.clone() - &column3_row1)
-       .clone() * &column7_inter1_row0
-       .clone() + &column3_row0
-       .clone() - &global_values.diluted_check_permutation_interaction_elm)
+    value = ((global_values
+        .diluted_check_permutation_interaction_elm
+        .clone()
+        - &column3_row1)
+        .clone()
+        * &column7_inter1_row0.clone()
+        + &column3_row0.clone()
+        - &global_values.diluted_check_permutation_interaction_elm)
         .field_div(&(domain25));
     total_sum += constraint_coefficients[47].clone() * &value;
 
     // Constraint: diluted_check/permutation/step0.
-    value = ((global_values.diluted_check_permutation_interaction_elm.clone() - &column3_row3)
-       .clone() * &column7_inter1_row2
-       .clone() - (global_values.diluted_check_permutation_interaction_elm.clone() - &column3_row2)
-           .clone() * &column7_inter1_row0)
-       .clone() * &domain26.field_div(&(domain1));
+    value = ((global_values
+        .diluted_check_permutation_interaction_elm
+        .clone()
+        - &column3_row3)
+        .clone()
+        * &column7_inter1_row2.clone()
+        - (global_values
+            .diluted_check_permutation_interaction_elm
+            .clone()
+            - &column3_row2)
+            .clone()
+            * &column7_inter1_row0)
+        .clone()
+        * &domain26.field_div(&(domain1));
     total_sum += constraint_coefficients[48].clone() * &value;
 
     // Constraint: diluted_check/permutation/last.
-    value = (column7_inter1_row0.clone() - &global_values.diluted_check_permutation_public_memory_prod)
+    value = (column7_inter1_row0.clone()
+        - &global_values.diluted_check_permutation_public_memory_prod)
         .field_div(&(domain26));
     total_sum += constraint_coefficients[49].clone() * &value;
 
@@ -748,19 +847,21 @@ pub fn eval_composition_polynomial_inner<F: SimpleField + PoseidonHash>(
     total_sum += constraint_coefficients[50].clone() * &value;
 
     // Constraint: diluted_check/first_element.
-    value = (column3_row1.clone() - &global_values.diluted_check_first_elm)
-        .field_div(&(domain25));
+    value = (column3_row1.clone() - &global_values.diluted_check_first_elm).field_div(&(domain25));
     total_sum += constraint_coefficients[51].clone() * &value;
 
     // Constraint: diluted_check/step.
-    value = (column6_inter1_row3
-       .clone() - &(column6_inter1_row1.clone()
-            * (F::one()
-               .clone() + global_values.diluted_check_interaction_z.clone() * (column3_row3.clone() - &column3_row1))
-           .clone() + global_values.diluted_check_interaction_alpha.clone()
+    value = (column6_inter1_row3.clone()
+        - &(column6_inter1_row1.clone()
+            * (F::one().clone()
+                + global_values.diluted_check_interaction_z.clone()
+                    * (column3_row3.clone() - &column3_row1))
+                .clone()
+            + global_values.diluted_check_interaction_alpha.clone()
                 * (column3_row3.clone() - &column3_row1)
                 * (column3_row3.clone() - &column3_row1)))
-       .clone() * &domain26.field_div(&(domain1));
+        .clone()
+        * &domain26.field_div(&(domain1));
     total_sum += constraint_coefficients[52].clone() * &value;
 
     // Constraint: diluted_check/last.
@@ -769,45 +870,55 @@ pub fn eval_composition_polynomial_inner<F: SimpleField + PoseidonHash>(
     total_sum += constraint_coefficients[53].clone() * &value;
 
     // Constraint: pedersen/hash0/ec_subset_sum/bit_unpacking/last_one_is_zero.
-    value = (column5_row57.clone() * (column4_row3.clone() - &(column4_row11.clone() + &column4_row11)))
+    value = (column5_row57.clone()
+        * (column4_row3.clone() - &(column4_row11.clone() + &column4_row11)))
         .field_div(&(domain19));
     total_sum += constraint_coefficients[54].clone() * &value;
 
     // Constraint: pedersen/hash0/ec_subset_sum/bit_unpacking/zeroes_between_ones0.
     value = (column5_row57.clone()
-        * (column4_row11
-           .clone() - F::from_stark_felt(Felt::from_hex_unchecked("0x800000000000000000000000000000000000000000000000"))
-               .clone() * &column4_row1539))
+        * (column4_row11.clone()
+            - F::from_stark_felt(Felt::from_hex_unchecked(
+                "0x800000000000000000000000000000000000000000000000",
+            ))
+            .clone()
+                * &column4_row1539))
         .field_div(&(domain19));
     total_sum += constraint_coefficients[55].clone() * &value;
 
     // Constraint: pedersen/hash0/ec_subset_sum/bit_unpacking/cumulative_bit192.
-    value = (column5_row57
-       .clone() - column4_row2047.clone() * (column4_row1539.clone() - &(column4_row1547.clone() + &column4_row1547)))
+    value = (column5_row57.clone()
+        - column4_row2047.clone()
+            * (column4_row1539.clone() - &(column4_row1547.clone() + &column4_row1547)))
         .field_div(&(domain19));
     total_sum += constraint_coefficients[56].clone() * &value;
 
     // Constraint: pedersen/hash0/ec_subset_sum/bit_unpacking/zeroes_between_ones192.
-    value = (column4_row2047.clone() * (column4_row1547.clone() - F::from_constant(8 as u64) * &column4_row1571))
+    value = (column4_row2047.clone()
+        * (column4_row1547.clone() - F::from_constant(8 as u64) * &column4_row1571))
         .field_div(&(domain19));
     total_sum += constraint_coefficients[57].clone() * &value;
 
     // Constraint: pedersen/hash0/ec_subset_sum/bit_unpacking/cumulative_bit196.
-    value = (column4_row2047
-       .clone() - (column4_row2011.clone() - &(column4_row2019.clone() + &column4_row2019))
+    value = (column4_row2047.clone()
+        - (column4_row2011.clone() - &(column4_row2019.clone() + &column4_row2019))
             * (column4_row1571.clone() - &(column4_row1579.clone() + &column4_row1579)))
         .field_div(&(domain19));
     total_sum += constraint_coefficients[58].clone() * &value;
 
     // Constraint: pedersen/hash0/ec_subset_sum/bit_unpacking/zeroes_between_ones196.
     value = ((column4_row2011.clone() - &(column4_row2019.clone() + &column4_row2019))
-        * (column4_row1579.clone() - F::from_stark_felt(Felt::from_hex_unchecked("0x40000000000000")).clone() * &column4_row2011))
+        * (column4_row1579.clone()
+            - F::from_stark_felt(Felt::from_hex_unchecked("0x40000000000000")).clone()
+                * &column4_row2011))
         .field_div(&(domain19));
     total_sum += constraint_coefficients[59].clone() * &value;
 
     // Constraint: pedersen/hash0/ec_subset_sum/booleanity_test.
-    value = (pedersen_hash0_ec_subset_sum_bit_0.clone() * (pedersen_hash0_ec_subset_sum_bit_0.clone() - &F::one()))
-       .clone() * &domain20.field_div(&(domain3));
+    value = (pedersen_hash0_ec_subset_sum_bit_0.clone()
+        * (pedersen_hash0_ec_subset_sum_bit_0.clone() - &F::one()))
+        .clone()
+        * &domain20.field_div(&(domain3));
     total_sum += constraint_coefficients[60].clone() * &value;
 
     // Constraint: pedersen/hash0/ec_subset_sum/bit_extraction_end.
@@ -819,52 +930,55 @@ pub fn eval_composition_polynomial_inner<F: SimpleField + PoseidonHash>(
     total_sum += constraint_coefficients[62].clone() * &value;
 
     // Constraint: pedersen/hash0/ec_subset_sum/add_points/slope.
-    value = (pedersen_hash0_ec_subset_sum_bit_0.clone() * (column4_row5.clone() - &global_values.pedersen_points_y)
-       .clone() - column4_row7.clone() * (column4_row1.clone() - &global_values.pedersen_points_x))
-       .clone() * &domain20.field_div(&(domain3));
+    value = (pedersen_hash0_ec_subset_sum_bit_0.clone()
+        * (column4_row5.clone() - &global_values.pedersen_points_y).clone()
+        - column4_row7.clone() * (column4_row1.clone() - &global_values.pedersen_points_x))
+        .clone()
+        * &domain20.field_div(&(domain3));
     total_sum += constraint_coefficients[63].clone() * &value;
 
     // Constraint: pedersen/hash0/ec_subset_sum/add_points/x.
-    value = (column4_row7.clone() * &column4_row7
-       .clone() - pedersen_hash0_ec_subset_sum_bit_0.clone()
+    value = (column4_row7.clone() * &column4_row7.clone()
+        - pedersen_hash0_ec_subset_sum_bit_0.clone()
             * (column4_row1.clone() + global_values.pedersen_points_x.clone() + &column4_row9))
-       .clone() * &domain20.field_div(&(domain3));
+        .clone()
+        * &domain20.field_div(&(domain3));
     total_sum += constraint_coefficients[64].clone() * &value;
 
     // Constraint: pedersen/hash0/ec_subset_sum/add_points/y.
-    value = (pedersen_hash0_ec_subset_sum_bit_0 * (column4_row5.clone() + &column4_row13)
-       .clone() - column4_row7.clone() * (column4_row1.clone() - &column4_row9))
-       .clone() * &domain20.field_div(&(domain3));
+    value = (pedersen_hash0_ec_subset_sum_bit_0 * (column4_row5.clone() + &column4_row13).clone()
+        - column4_row7.clone() * (column4_row1.clone() - &column4_row9))
+        .clone()
+        * &domain20.field_div(&(domain3));
     total_sum += constraint_coefficients[65].clone() * &value;
 
     // Constraint: pedersen/hash0/ec_subset_sum/copy_point/x.
-    value = (pedersen_hash0_ec_subset_sum_bit_neg_0.clone() * (column4_row9.clone() - &column4_row1))
-       .clone() * &domain20.field_div(&(domain3));
+    value = (pedersen_hash0_ec_subset_sum_bit_neg_0.clone()
+        * (column4_row9.clone() - &column4_row1))
+        .clone()
+        * &domain20.field_div(&(domain3));
     total_sum += constraint_coefficients[66].clone() * &value;
 
     // Constraint: pedersen/hash0/ec_subset_sum/copy_point/y.
     value = (pedersen_hash0_ec_subset_sum_bit_neg_0 * (column4_row13.clone() - &column4_row5))
-       .clone() * &domain20.field_div(&(domain3));
+        .clone()
+        * &domain20.field_div(&(domain3));
     total_sum += constraint_coefficients[67].clone() * &value;
 
     // Constraint: pedersen/hash0/copy_point/x.
-    value = (column4_row2049.clone() - &column4_row2041)
-       .clone() * &domain22.field_div(&(domain19));
+    value = (column4_row2049.clone() - &column4_row2041).clone() * &domain22.field_div(&(domain19));
     total_sum += constraint_coefficients[68].clone() * &value;
 
     // Constraint: pedersen/hash0/copy_point/y.
-    value = (column4_row2053.clone() - &column4_row2045)
-       .clone() * &domain22.field_div(&(domain19));
+    value = (column4_row2053.clone() - &column4_row2045).clone() * &domain22.field_div(&(domain19));
     total_sum += constraint_coefficients[69].clone() * &value;
 
     // Constraint: pedersen/hash0/init/x.
-    value = (column4_row1.clone() - &global_values.pedersen_shift_point.x)
-        .field_div(&(domain23));
+    value = (column4_row1.clone() - &global_values.pedersen_shift_point.x).field_div(&(domain23));
     total_sum += constraint_coefficients[70].clone() * &value;
 
     // Constraint: pedersen/hash0/init/y.
-    value = (column4_row5.clone() - &global_values.pedersen_shift_point.y)
-        .field_div(&(domain23));
+    value = (column4_row5.clone() - &global_values.pedersen_shift_point.y).field_div(&(domain23));
     total_sum += constraint_coefficients[71].clone() * &value;
 
     // Constraint: pedersen/input0_value0.
@@ -872,68 +986,61 @@ pub fn eval_composition_polynomial_inner<F: SimpleField + PoseidonHash>(
     total_sum += constraint_coefficients[72].clone() * &value;
 
     // Constraint: pedersen/input0_addr.
-    value = (column1_row4106.clone() - &(column1_row1034.clone() + &F::one()))
-       .clone() * &domain28.field_div(&(domain23));
+    value = (column1_row4106.clone() - &(column1_row1034.clone() + &F::one())).clone()
+        * &domain28.field_div(&(domain23));
     total_sum += constraint_coefficients[73].clone() * &value;
 
     // Constraint: pedersen/init_addr.
-    value = (column1_row10.clone() - &global_values.initial_pedersen_addr)
-        .field_div(&(domain25));
+    value = (column1_row10.clone() - &global_values.initial_pedersen_addr).field_div(&(domain25));
     total_sum += constraint_coefficients[74].clone() * &value;
 
     // Constraint: pedersen/input1_value0.
-    value =
-        (column1_row2059.clone() - &column4_row2051).field_div(&(domain23));
+    value = (column1_row2059.clone() - &column4_row2051).field_div(&(domain23));
     total_sum += constraint_coefficients[75].clone() * &value;
 
     // Constraint: pedersen/input1_addr.
-    value = (column1_row2058.clone() - &(column1_row10.clone() + &F::one()))
-        .field_div(&(domain23));
+    value = (column1_row2058.clone() - &(column1_row10.clone() + &F::one())).field_div(&(domain23));
     total_sum += constraint_coefficients[76].clone() * &value;
 
     // Constraint: pedersen/output_value0.
-    value =
-        (column1_row1035.clone() - &column4_row4089).field_div(&(domain23));
+    value = (column1_row1035.clone() - &column4_row4089).field_div(&(domain23));
     total_sum += constraint_coefficients[77].clone() * &value;
 
     // Constraint: pedersen/output_addr.
-    value = (column1_row1034.clone() - &(column1_row2058.clone() + &F::one()))
-        .field_div(&(domain23));
+    value =
+        (column1_row1034.clone() - &(column1_row2058.clone() + &F::one())).field_div(&(domain23));
     total_sum += constraint_coefficients[78].clone() * &value;
 
     // Constraint: range_check_builtin/value.
-    value = (range_check_builtin_value7_0.clone() - &column1_row139)
-        .field_div(&(domain9));
+    value = (range_check_builtin_value7_0.clone() - &column1_row139).field_div(&(domain9));
     total_sum += constraint_coefficients[79].clone() * &value;
 
     // Constraint: range_check_builtin/addr_step.
-    value = (column1_row394.clone() - &(column1_row138.clone() + &F::one()))
-       .clone() * &domain29.field_div(&(domain9));
+    value = (column1_row394.clone() - &(column1_row138.clone() + &F::one())).clone()
+        * &domain29.field_div(&(domain9));
     total_sum += constraint_coefficients[80].clone() * &value;
 
     // Constraint: range_check_builtin/init_addr.
-    value = (column1_row138.clone() - &global_values.initial_range_check_addr)
-        .field_div(&(domain25));
+    value =
+        (column1_row138.clone() - &global_values.initial_range_check_addr).field_div(&(domain25));
     total_sum += constraint_coefficients[81].clone() * &value;
 
     // Constraint: bitwise/init_var_pool_addr.
-    value = (column1_row42.clone() - &global_values.initial_bitwise_addr)
-        .field_div(&(domain25));
+    value = (column1_row42.clone() - &global_values.initial_bitwise_addr).field_div(&(domain25));
     total_sum += constraint_coefficients[82].clone() * &value;
 
     // Constraint: bitwise/step_var_pool_addr.
-    value = (column1_row106.clone() - &(column1_row42.clone() + &F::one()))
-       .clone() * &domain10.field_div(&(domain7));
+    value = (column1_row106.clone() - &(column1_row42.clone() + &F::one())).clone()
+        * &domain10.field_div(&(domain7));
     total_sum += constraint_coefficients[83].clone() * &value;
 
     // Constraint: bitwise/x_or_y_addr.
-    value = (column1_row74.clone() - &(column1_row234.clone() + &F::one()))
-        .field_div(&(domain9));
+    value = (column1_row74.clone() - &(column1_row234.clone() + &F::one())).field_div(&(domain9));
     total_sum += constraint_coefficients[84].clone() * &value;
 
     // Constraint: bitwise/next_var_pool_addr.
-    value = (column1_row298.clone() - &(column1_row74.clone() + &F::one()))
-       .clone() * &domain29.field_div(&(domain9));
+    value = (column1_row298.clone() - &(column1_row74.clone() + &F::one())).clone()
+        * &domain29.field_div(&(domain9));
     total_sum += constraint_coefficients[85].clone() * &value;
 
     // Constraint: bitwise/partition.
@@ -942,43 +1049,48 @@ pub fn eval_composition_polynomial_inner<F: SimpleField + PoseidonHash>(
     total_sum += constraint_coefficients[86].clone() * &value;
 
     // Constraint: bitwise/or_is_and_plus_xor.
-    value = (column1_row75.clone() - &(column1_row171.clone() + &column1_row235))
-        .field_div(&(domain9));
+    value =
+        (column1_row75.clone() - &(column1_row171.clone() + &column1_row235)).field_div(&(domain9));
     total_sum += constraint_coefficients[87].clone() * &value;
 
     // Constraint: bitwise/addition_is_xor_with_and.
-    value = (column3_row0.clone() + column3_row64.clone() - &(column3_row192.clone() + column3_row128.clone() + &column3_row128))
+    value = (column3_row0.clone() + column3_row64.clone()
+        - &(column3_row192.clone() + column3_row128.clone() + &column3_row128))
         .field_div(&(domain11));
     total_sum += constraint_coefficients[88].clone() * &value;
 
     // Constraint: bitwise/unique_unpacking192.
-    value = ((column3_row176.clone() + &column3_row240).clone() * F::from_constant(16 as u64) - &column3_row2)
+    value = ((column3_row176.clone() + &column3_row240).clone() * F::from_constant(16 as u64)
+        - &column3_row2)
         .field_div(&(domain9));
     total_sum += constraint_coefficients[89].clone() * &value;
 
     // Constraint: bitwise/unique_unpacking193.
-    value = ((column3_row180.clone() + &column3_row244).clone() * F::from_constant(16 as u64) - &column3_row130)
+    value = ((column3_row180.clone() + &column3_row244).clone() * F::from_constant(16 as u64)
+        - &column3_row130)
         .field_div(&(domain9));
     total_sum += constraint_coefficients[90].clone() * &value;
 
     // Constraint: bitwise/unique_unpacking194.
-    value = ((column3_row184.clone() + &column3_row248).clone() * F::from_constant(16 as u64) - &column3_row66)
+    value = ((column3_row184.clone() + &column3_row248).clone() * F::from_constant(16 as u64)
+        - &column3_row66)
         .field_div(&(domain9));
     total_sum += constraint_coefficients[91].clone() * &value;
 
     // Constraint: bitwise/unique_unpacking195.
-    value = ((column3_row188.clone() + &column3_row252).clone() * F::from_constant(256 as u64) - &column3_row194)
+    value = ((column3_row188.clone() + &column3_row252).clone() * F::from_constant(256 as u64)
+        - &column3_row194)
         .field_div(&(domain9));
     total_sum += constraint_coefficients[92].clone() * &value;
 
     // Constraint: poseidon/param_0/init_input_output_addr.
-    value = (column1_row266.clone() - &global_values.initial_poseidon_addr)
-        .field_div(&(domain25));
+    value = (column1_row266.clone() - &global_values.initial_poseidon_addr).field_div(&(domain25));
     total_sum += constraint_coefficients[93].clone() * &value;
 
     // Constraint: poseidon/param_0/addr_input_output_step.
     value = (column1_row778.clone() - &(column1_row266.clone() + &F::two().clone() + &F::one()))
-       .clone() * &domain30.field_div(&(domain12));
+        .clone()
+        * &domain30.field_div(&(domain12));
     total_sum += constraint_coefficients[94].clone() * &value;
 
     // Constraint: poseidon/param_1/init_input_output_addr.
@@ -988,7 +1100,8 @@ pub fn eval_composition_polynomial_inner<F: SimpleField + PoseidonHash>(
 
     // Constraint: poseidon/param_1/addr_input_output_step.
     value = (column1_row714.clone() - &(column1_row202.clone() + &F::two().clone() + &F::one()))
-       .clone() * &domain30.field_div(&(domain12));
+        .clone()
+        * &domain30.field_div(&(domain12));
     total_sum += constraint_coefficients[96].clone() * &value;
 
     // Constraint: poseidon/param_2/init_input_output_addr.
@@ -998,113 +1111,116 @@ pub fn eval_composition_polynomial_inner<F: SimpleField + PoseidonHash>(
 
     // Constraint: poseidon/param_2/addr_input_output_step.
     value = (column1_row970.clone() - &(column1_row458.clone() + &F::two().clone() + &F::one()))
-       .clone() * &domain30.field_div(&(domain12));
+        .clone()
+        * &domain30.field_div(&(domain12));
     total_sum += constraint_coefficients[98].clone() * &value;
 
     // Constraint: poseidon/poseidon/full_rounds_state0_squaring.
-    value = (column5_row9.clone() * column5_row9.clone() - &column5_row105)
-        .field_div(&(domain8));
+    value = (column5_row9.clone() * column5_row9.clone() - &column5_row105).field_div(&(domain8));
     total_sum += constraint_coefficients[99].clone() * &value;
 
     // Constraint: poseidon/poseidon/full_rounds_state1_squaring.
-    value = (column5_row73.clone() * column5_row73.clone() - &column5_row25)
-        .field_div(&(domain8));
+    value = (column5_row73.clone() * column5_row73.clone() - &column5_row25).field_div(&(domain8));
     total_sum += constraint_coefficients[100].clone() * &value;
 
     // Constraint: poseidon/poseidon/full_rounds_state2_squaring.
-    value = (column5_row41.clone() * column5_row41.clone() - &column5_row89)
-        .field_div(&(domain8));
+    value = (column5_row41.clone() * column5_row41.clone() - &column5_row89).field_div(&(domain8));
     total_sum += constraint_coefficients[101].clone() * &value;
 
     // Constraint: poseidon/poseidon/partial_rounds_state0_squaring.
-    value = (column5_row6.clone() * column5_row6.clone() - &column5_row14)
-        .field_div(&(domain5));
+    value = (column5_row6.clone() * column5_row6.clone() - &column5_row14).field_div(&(domain5));
     total_sum += constraint_coefficients[102].clone() * &value;
 
     // Constraint: poseidon/poseidon/partial_rounds_state1_squaring.
-    value = (column5_row1.clone() * column5_row1.clone() - &column5_row17)
-       .clone() * &domain15.field_div(&(domain6));
+    value = (column5_row1.clone() * column5_row1.clone() - &column5_row17).clone()
+        * &domain15.field_div(&(domain6));
     total_sum += constraint_coefficients[103].clone() * &value;
 
     // Constraint: poseidon/poseidon/add_first_round_key0.
-    value = (column1_row267
-       .clone() + &F::from_stark_felt(Felt::from_hex_unchecked(
+    value = (column1_row267.clone()
+        + &F::from_stark_felt(Felt::from_hex_unchecked(
             "0x6861759EA556A2339DD92F9562A30B9E58E2AD98109AE4780B7FD8EAC77FE6F",
-    ))
-       .clone() - &column5_row9)
+        ))
+        .clone()
+        - &column5_row9)
         .field_div(&(domain16));
     total_sum += constraint_coefficients[104].clone() * &value;
 
     // Constraint: poseidon/poseidon/add_first_round_key1.
-    value = (column1_row203
-       .clone() + &F::from_stark_felt(Felt::from_hex_unchecked(
+    value = (column1_row203.clone()
+        + &F::from_stark_felt(Felt::from_hex_unchecked(
             "0x3827681995D5AF9FFC8397A3D00425A3DA43F76ABF28A64E4AB1A22F27508C4",
-    ))
-       .clone() - &column5_row73)
+        ))
+        .clone()
+        - &column5_row73)
         .field_div(&(domain16));
     total_sum += constraint_coefficients[105].clone() * &value;
 
     // Constraint: poseidon/poseidon/add_first_round_key2.
-    value = (column1_row459
-       .clone() + &F::from_stark_felt(Felt::from_hex_unchecked(
+    value = (column1_row459.clone()
+        + &F::from_stark_felt(Felt::from_hex_unchecked(
             "0x3A3956D2FAD44D0E7F760A2277DC7CB2CAC75DC279B2D687A0DBE17704A8309",
-    ))
-       .clone() - &column5_row41)
+        ))
+        .clone()
+        - &column5_row41)
         .field_div(&(domain16));
     total_sum += constraint_coefficients[106].clone() * &value;
 
     // Constraint: poseidon/poseidon/full_round0.
-    value = (column5_row137
-       .clone() - &(poseidon_poseidon_full_rounds_state0_cubed_0
-           .clone() + &poseidon_poseidon_full_rounds_state0_cubed_0
-           .clone() + &poseidon_poseidon_full_rounds_state0_cubed_0
-           .clone() + &poseidon_poseidon_full_rounds_state1_cubed_0
-           .clone() + &poseidon_poseidon_full_rounds_state2_cubed_0
-           .clone() + &global_values.poseidon_poseidon_full_round_key0))
-       .clone() * &domain13.field_div(&(domain8));
+    value = (column5_row137.clone()
+        - &(poseidon_poseidon_full_rounds_state0_cubed_0.clone()
+            + &poseidon_poseidon_full_rounds_state0_cubed_0.clone()
+            + &poseidon_poseidon_full_rounds_state0_cubed_0.clone()
+            + &poseidon_poseidon_full_rounds_state1_cubed_0.clone()
+            + &poseidon_poseidon_full_rounds_state2_cubed_0.clone()
+            + &global_values.poseidon_poseidon_full_round_key0))
+        .clone()
+        * &domain13.field_div(&(domain8));
     total_sum += constraint_coefficients[107].clone() * &value;
 
     // Constraint: poseidon/poseidon/full_round1.
-    value = (column5_row201.clone() + &poseidon_poseidon_full_rounds_state1_cubed_0
-       .clone() - &(poseidon_poseidon_full_rounds_state0_cubed_0
-           .clone() + &poseidon_poseidon_full_rounds_state2_cubed_0
-           .clone() + &global_values.poseidon_poseidon_full_round_key1))
-       .clone() * &domain13.field_div(&(domain8));
+    value = (column5_row201.clone() + &poseidon_poseidon_full_rounds_state1_cubed_0.clone()
+        - &(poseidon_poseidon_full_rounds_state0_cubed_0.clone()
+            + &poseidon_poseidon_full_rounds_state2_cubed_0.clone()
+            + &global_values.poseidon_poseidon_full_round_key1))
+        .clone()
+        * &domain13.field_div(&(domain8));
     total_sum += constraint_coefficients[108].clone() * &value;
 
     // Constraint: poseidon/poseidon/full_round2.
-    value = (column5_row169
-       .clone() + &poseidon_poseidon_full_rounds_state2_cubed_0
-       .clone() + &poseidon_poseidon_full_rounds_state2_cubed_0
-       .clone() - &(poseidon_poseidon_full_rounds_state0_cubed_0
-           .clone() + &poseidon_poseidon_full_rounds_state1_cubed_0
-           .clone() + &global_values.poseidon_poseidon_full_round_key2))
-       .clone() * &domain13.field_div(&(domain8));
+    value = (column5_row169.clone()
+        + &poseidon_poseidon_full_rounds_state2_cubed_0.clone()
+        + &poseidon_poseidon_full_rounds_state2_cubed_0.clone()
+        - &(poseidon_poseidon_full_rounds_state0_cubed_0.clone()
+            + &poseidon_poseidon_full_rounds_state1_cubed_0.clone()
+            + &global_values.poseidon_poseidon_full_round_key2))
+        .clone()
+        * &domain13.field_div(&(domain8));
     total_sum += constraint_coefficients[109].clone() * &value;
 
     // Constraint: poseidon/poseidon/last_full_round0.
-    value = (column1_row779
-       .clone() - &(poseidon_poseidon_full_rounds_state0_cubed_7
-           .clone() + &poseidon_poseidon_full_rounds_state0_cubed_7
-           .clone() + &poseidon_poseidon_full_rounds_state0_cubed_7
-           .clone() + &poseidon_poseidon_full_rounds_state1_cubed_7
-           .clone() + &poseidon_poseidon_full_rounds_state2_cubed_7))
+    value = (column1_row779.clone()
+        - &(poseidon_poseidon_full_rounds_state0_cubed_7.clone()
+            + &poseidon_poseidon_full_rounds_state0_cubed_7.clone()
+            + &poseidon_poseidon_full_rounds_state0_cubed_7.clone()
+            + &poseidon_poseidon_full_rounds_state1_cubed_7.clone()
+            + &poseidon_poseidon_full_rounds_state2_cubed_7))
         .field_div(&(domain16));
     total_sum += constraint_coefficients[110].clone() * &value;
 
     // Constraint: poseidon/poseidon/last_full_round1.
-    value = (column1_row715.clone() + &poseidon_poseidon_full_rounds_state1_cubed_7
-       .clone() - &(poseidon_poseidon_full_rounds_state0_cubed_7
-           .clone() + &poseidon_poseidon_full_rounds_state2_cubed_7))
+    value = (column1_row715.clone() + &poseidon_poseidon_full_rounds_state1_cubed_7.clone()
+        - &(poseidon_poseidon_full_rounds_state0_cubed_7.clone()
+            + &poseidon_poseidon_full_rounds_state2_cubed_7))
         .field_div(&(domain16));
     total_sum += constraint_coefficients[111].clone() * &value;
 
     // Constraint: poseidon/poseidon/last_full_round2.
-    value = (column1_row971
-       .clone() + &poseidon_poseidon_full_rounds_state2_cubed_7
-       .clone() + &poseidon_poseidon_full_rounds_state2_cubed_7
-       .clone() - &(poseidon_poseidon_full_rounds_state0_cubed_7
-           .clone() + &poseidon_poseidon_full_rounds_state1_cubed_7))
+    value = (column1_row971.clone()
+        + &poseidon_poseidon_full_rounds_state2_cubed_7.clone()
+        + &poseidon_poseidon_full_rounds_state2_cubed_7.clone()
+        - &(poseidon_poseidon_full_rounds_state0_cubed_7.clone()
+            + &poseidon_poseidon_full_rounds_state1_cubed_7))
         .field_div(&(domain16));
     total_sum += constraint_coefficients[112].clone() * &value;
 
@@ -1117,121 +1233,146 @@ pub fn eval_composition_polynomial_inner<F: SimpleField + PoseidonHash>(
     total_sum += constraint_coefficients[114].clone() * &value;
 
     // Constraint: poseidon/poseidon/copy_partial_rounds0_i2.
-    value =
-        (column5_row1014.clone() - &column5_row65).field_div(&(domain16));
+    value = (column5_row1014.clone() - &column5_row65).field_div(&(domain16));
     total_sum += constraint_coefficients[115].clone() * &value;
 
     // Constraint: poseidon/poseidon/margin_full_to_partial0.
-    value = (column5_row6
-       .clone() + &poseidon_poseidon_full_rounds_state2_cubed_3
-       .clone() + &poseidon_poseidon_full_rounds_state2_cubed_3
-       .clone() - &(poseidon_poseidon_full_rounds_state0_cubed_3
-           .clone() + &poseidon_poseidon_full_rounds_state1_cubed_3
-           .clone() + &F::from_stark_felt(Felt::from_hex_unchecked(
+    value = (column5_row6.clone()
+        + &poseidon_poseidon_full_rounds_state2_cubed_3.clone()
+        + &poseidon_poseidon_full_rounds_state2_cubed_3.clone()
+        - &(poseidon_poseidon_full_rounds_state0_cubed_3.clone()
+            + &poseidon_poseidon_full_rounds_state1_cubed_3.clone()
+            + &F::from_stark_felt(Felt::from_hex_unchecked(
                 "0x4B085EB1DF4258C3453CC97445954BF3433B6AB9DD5A99592864C00F54A3F9A",
-    ))))
-    .field_div(&(domain16));
+            ))))
+        .field_div(&(domain16));
     total_sum += constraint_coefficients[116].clone() * &value;
 
     // Constraint: poseidon/poseidon/margin_full_to_partial1.
-    value = (column5_row22
-       .clone() - &(F::from_stark_felt(Felt::from_hex_unchecked(
+    value = (column5_row22.clone()
+        - &(F::from_stark_felt(Felt::from_hex_unchecked(
             "0x800000000000010FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFD",
-        )).clone() * &poseidon_poseidon_full_rounds_state1_cubed_3
-           .clone() + F::from_constant(10 as u64).clone() * &poseidon_poseidon_full_rounds_state2_cubed_3
-           .clone() + F::from_constant(4 as u64).clone() * &column5_row6
-           .clone() + F::from_stark_felt(Felt::from_hex_unchecked(
+        ))
+        .clone()
+            * &poseidon_poseidon_full_rounds_state1_cubed_3.clone()
+            + F::from_constant(10 as u64).clone()
+                * &poseidon_poseidon_full_rounds_state2_cubed_3.clone()
+            + F::from_constant(4 as u64).clone() * &column5_row6.clone()
+            + F::from_stark_felt(Felt::from_hex_unchecked(
                 "0x800000000000010FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF",
-            )).clone() * &poseidon_poseidon_partial_rounds_state0_cubed_0
-           .clone() + F::from_stark_felt(Felt::from_hex_unchecked(
+            ))
+            .clone()
+                * &poseidon_poseidon_partial_rounds_state0_cubed_0.clone()
+            + F::from_stark_felt(Felt::from_hex_unchecked(
                 "0x46FB825257FEC76C50FE043684D4E6D2D2F2FDFE9B7C8D7128CA7ACC0F66F30",
             ))))
-    .field_div(&(domain16));
+        .field_div(&(domain16));
     total_sum += constraint_coefficients[117].clone() * &value;
 
     // Constraint: poseidon/poseidon/margin_full_to_partial2.
-    value = (column5_row38
-       .clone() - &(F::from_constant(8 as u64).clone() * &poseidon_poseidon_full_rounds_state2_cubed_3
-           .clone() + F::from_constant(4 as u64) * &column5_row6
-           .clone() + F::from_constant(6 as u64) * &poseidon_poseidon_partial_rounds_state0_cubed_0
-           .clone() + &column5_row22
-           .clone() + &column5_row22
-           .clone() + F::from_stark_felt(Felt::from_hex_unchecked(
+    value = (column5_row38.clone()
+        - &(F::from_constant(8 as u64).clone()
+            * &poseidon_poseidon_full_rounds_state2_cubed_3.clone()
+            + F::from_constant(4 as u64) * &column5_row6.clone()
+            + F::from_constant(6 as u64)
+                * &poseidon_poseidon_partial_rounds_state0_cubed_0.clone()
+            + &column5_row22.clone()
+            + &column5_row22.clone()
+            + F::from_stark_felt(Felt::from_hex_unchecked(
                 "0x800000000000010FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF",
-            )).clone() * &poseidon_poseidon_partial_rounds_state0_cubed_1
-           .clone() + &F::from_stark_felt(Felt::from_hex_unchecked(
+            ))
+            .clone()
+                * &poseidon_poseidon_partial_rounds_state0_cubed_1.clone()
+            + &F::from_stark_felt(Felt::from_hex_unchecked(
                 "0xF2193BA0C7EA33CE6222D9446C1E166202AE5461005292F4A2BCB93420151A",
             ))))
-    .field_div(&(domain16));
+        .field_div(&(domain16));
     total_sum += constraint_coefficients[118].clone() * &value;
 
     // Constraint: poseidon/poseidon/partial_round0.
-    value = (column5_row54
-       .clone() - &(F::from_constant(8 as u64).clone() * &poseidon_poseidon_partial_rounds_state0_cubed_0
-           .clone() + F::from_constant(4 as u64) * &column5_row22
-           .clone() + F::from_constant(6 as u64) * &poseidon_poseidon_partial_rounds_state0_cubed_1
-           .clone() + &column5_row38
-           .clone() + &column5_row38
-           .clone() + F::from_stark_felt(Felt::from_hex_unchecked(
+    value = (column5_row54.clone()
+        - &(F::from_constant(8 as u64).clone()
+            * &poseidon_poseidon_partial_rounds_state0_cubed_0.clone()
+            + F::from_constant(4 as u64) * &column5_row22.clone()
+            + F::from_constant(6 as u64)
+                * &poseidon_poseidon_partial_rounds_state0_cubed_1.clone()
+            + &column5_row38.clone()
+            + &column5_row38.clone()
+            + F::from_stark_felt(Felt::from_hex_unchecked(
                 "0x800000000000010FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF",
-            )).clone() * &poseidon_poseidon_partial_rounds_state0_cubed_2
-           .clone() + &global_values.poseidon_poseidon_partial_round_key0))
-       .clone() * &domain17.field_div(&(domain5));
+            ))
+            .clone()
+                * &poseidon_poseidon_partial_rounds_state0_cubed_2.clone()
+            + &global_values.poseidon_poseidon_partial_round_key0))
+        .clone()
+        * &domain17.field_div(&(domain5));
     total_sum += constraint_coefficients[119].clone() * &value;
 
     // Constraint: poseidon/poseidon/partial_round1.
-    value = (column5_row97
-       .clone() - &(F::from_constant(8 as u64).clone() * &poseidon_poseidon_partial_rounds_state1_cubed_0
-           .clone() + F::from_constant(4 as u64) * &column5_row33
-           .clone() + F::from_constant(6 as u64) * &poseidon_poseidon_partial_rounds_state1_cubed_1
-           .clone() + &column5_row65
-           .clone() + &column5_row65
-           .clone() + F::from_stark_felt(Felt::from_hex_unchecked(
+    value = (column5_row97.clone()
+        - &(F::from_constant(8 as u64).clone()
+            * &poseidon_poseidon_partial_rounds_state1_cubed_0.clone()
+            + F::from_constant(4 as u64) * &column5_row33.clone()
+            + F::from_constant(6 as u64)
+                * &poseidon_poseidon_partial_rounds_state1_cubed_1.clone()
+            + &column5_row65.clone()
+            + &column5_row65.clone()
+            + F::from_stark_felt(Felt::from_hex_unchecked(
                 "0x800000000000010FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF",
-            )).clone() * &poseidon_poseidon_partial_rounds_state1_cubed_2
-           .clone() + &global_values.poseidon_poseidon_partial_round_key1))
-       .clone() * &domain18.field_div(&(domain6));
+            ))
+            .clone()
+                * &poseidon_poseidon_partial_rounds_state1_cubed_2.clone()
+            + &global_values.poseidon_poseidon_partial_round_key1))
+        .clone()
+        * &domain18.field_div(&(domain6));
     total_sum += constraint_coefficients[120].clone() * &value;
 
     // Constraint: poseidon/poseidon/margin_partial_to_full0.
-    value = (column5_row521
-       .clone() - &(F::from_constant(16 as u64).clone() * &poseidon_poseidon_partial_rounds_state1_cubed_19
-           .clone() + F::from_constant(8 as u64) * &column5_row641
-           .clone() + F::from_constant(16 as u64) * &poseidon_poseidon_partial_rounds_state1_cubed_20
-           .clone() + F::from_constant(6 as u64) * &column5_row673
-           .clone() + &poseidon_poseidon_partial_rounds_state1_cubed_21
-           .clone() + &F::from_stark_felt(Felt::from_hex_unchecked(
+    value = (column5_row521.clone()
+        - &(F::from_constant(16 as u64).clone()
+            * &poseidon_poseidon_partial_rounds_state1_cubed_19.clone()
+            + F::from_constant(8 as u64) * &column5_row641.clone()
+            + F::from_constant(16 as u64)
+                * &poseidon_poseidon_partial_rounds_state1_cubed_20.clone()
+            + F::from_constant(6 as u64) * &column5_row673.clone()
+            + &poseidon_poseidon_partial_rounds_state1_cubed_21.clone()
+            + &F::from_stark_felt(Felt::from_hex_unchecked(
                 "0x13D1B5CFD87693224F0AC561AB2C15CA53365D768311AF59CEFAF701BC53B37",
             ))))
-    .field_div(&(domain16));
+        .field_div(&(domain16));
     total_sum += constraint_coefficients[121].clone() * &value;
 
     // Constraint: poseidon/poseidon/margin_partial_to_full1.
-    value = (column5_row585
-       .clone() - &(F::from_constant(4 as u64).clone() * &poseidon_poseidon_partial_rounds_state1_cubed_20
-           .clone() + &column5_row673
-           .clone() + &column5_row673
-           .clone() + &poseidon_poseidon_partial_rounds_state1_cubed_21
-           .clone() + &F::from_stark_felt(Felt::from_hex_unchecked(
+    value = (column5_row585.clone()
+        - &(F::from_constant(4 as u64).clone()
+            * &poseidon_poseidon_partial_rounds_state1_cubed_20.clone()
+            + &column5_row673.clone()
+            + &column5_row673.clone()
+            + &poseidon_poseidon_partial_rounds_state1_cubed_21.clone()
+            + &F::from_stark_felt(Felt::from_hex_unchecked(
                 "0x3195D6B2D930E71CEDE286D5B8B41D49296DDF222BCD3BF3717A12A9A6947FF",
             ))))
-    .field_div(&(domain16));
+        .field_div(&(domain16));
     total_sum += constraint_coefficients[122].clone() * &value;
 
     // Constraint: poseidon/poseidon/margin_partial_to_full2.
-    value = (column5_row553
-       .clone() - &(F::from_constant(8 as u64).clone() * &poseidon_poseidon_partial_rounds_state1_cubed_19
-           .clone() + F::from_constant(4 as u64) * &column5_row641
-           .clone() + F::from_constant(6 as u64) * &poseidon_poseidon_partial_rounds_state1_cubed_20
-           .clone() + &column5_row673
-           .clone() + &column5_row673
-           .clone() + F::from_stark_felt(Felt::from_hex_unchecked(
+    value = (column5_row553.clone()
+        - &(F::from_constant(8 as u64).clone()
+            * &poseidon_poseidon_partial_rounds_state1_cubed_19.clone()
+            + F::from_constant(4 as u64) * &column5_row641.clone()
+            + F::from_constant(6 as u64)
+                * &poseidon_poseidon_partial_rounds_state1_cubed_20.clone()
+            + &column5_row673.clone()
+            + &column5_row673.clone()
+            + F::from_stark_felt(Felt::from_hex_unchecked(
                 "0x800000000000010FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF",
-            )).clone() * poseidon_poseidon_partial_rounds_state1_cubed_21
-           .clone() + F::from_stark_felt(Felt::from_hex_unchecked(
+            ))
+            .clone()
+                * poseidon_poseidon_partial_rounds_state1_cubed_21.clone()
+            + F::from_stark_felt(Felt::from_hex_unchecked(
                 "0x2C14FCCABC26929170CC7AC9989C823608B9008BEF3B8E16B6089A5D33CD72E",
             ))))
-    .field_div(&(domain16));
+        .field_div(&(domain16));
     total_sum += constraint_coefficients[123].clone() * &value;
 
     total_sum
@@ -1246,11 +1387,11 @@ pub fn eval_oods_polynomial_inner<F: SimpleField + PoseidonHash, Layout: LayoutT
     trace_generator: &F,
 ) -> F {
     // Compute powers.
-    let pow0 = trace_generator.powers([0_u64]   );
+    let pow0 = trace_generator.powers([0_u64]);
     let pow1 = trace_generator.powers([4089_u64]);
     let pow2 = trace_generator.powers([2011_u64]);
     let pow3 = trace_generator.powers([1539_u64]);
-    let pow4 = trace_generator.powers([1_u64]   );
+    let pow4 = trace_generator.powers([1_u64]);
     let pow5 = pow4.clone() * &pow4; // pow(trace_generator, 2).
     let pow6 = pow4.clone() * &pow5; // pow(trace_generator, 3).
     let pow7 = pow4.clone() * &pow6; // pow(trace_generator, 4).
@@ -1394,32 +1535,32 @@ pub fn eval_oods_polynomial_inner<F: SimpleField + PoseidonHash, Layout: LayoutT
     // Sum constraints.
     let mut total_sum = F::zero();
 
-    let mut value = (column0.clone() - &oods_values[0])
-        .field_div(&(point.clone() - pow0.clone() * oods_point));
+    let mut value =
+        (column0.clone() - &oods_values[0]).field_div(&(point.clone() - pow0.clone() * oods_point));
     total_sum += constraint_coefficients[0].clone() * &value;
 
-    value = (column0.clone() - &oods_values[1])
-        .field_div(&(point.clone() - pow4.clone() * oods_point));
+    value =
+        (column0.clone() - &oods_values[1]).field_div(&(point.clone() - pow4.clone() * oods_point));
     total_sum += constraint_coefficients[1].clone() * &value;
 
-    value = (column0.clone() - &oods_values[2])
-        .field_div(&(point.clone() - pow5.clone() * oods_point));
+    value =
+        (column0.clone() - &oods_values[2]).field_div(&(point.clone() - pow5.clone() * oods_point));
     total_sum += constraint_coefficients[2].clone() * &value;
 
-    value = (column0.clone() - &oods_values[3])
-        .field_div(&(point.clone() - pow6.clone() * oods_point));
+    value =
+        (column0.clone() - &oods_values[3]).field_div(&(point.clone() - pow6.clone() * oods_point));
     total_sum += constraint_coefficients[3].clone() * &value;
 
-    value = (column0.clone() - &oods_values[4])
-        .field_div(&(point.clone() - pow7.clone() * oods_point));
+    value =
+        (column0.clone() - &oods_values[4]).field_div(&(point.clone() - pow7.clone() * oods_point));
     total_sum += constraint_coefficients[4].clone() * &value;
 
-    value = (column0.clone() - &oods_values[5])
-        .field_div(&(point.clone() - pow8.clone() * oods_point));
+    value =
+        (column0.clone() - &oods_values[5]).field_div(&(point.clone() - pow8.clone() * oods_point));
     total_sum += constraint_coefficients[5].clone() * &value;
 
-    value = (column0.clone() - &oods_values[6])
-        .field_div(&(point.clone() - pow9.clone() * oods_point));
+    value =
+        (column0.clone() - &oods_values[6]).field_div(&(point.clone() - pow9.clone() * oods_point));
     total_sum += constraint_coefficients[6].clone() * &value;
 
     value = (column0.clone() - &oods_values[7])
@@ -2166,12 +2307,15 @@ pub fn eval_oods_polynomial_inner<F: SimpleField + PoseidonHash, Layout: LayoutT
     let oods_point_to_deg = oods_point.powers([Layout::CONSTRAINT_DEGREE as u64]);
 
     value = (column_values[Layout::NUM_COLUMNS_FIRST.clone() + &Layout::NUM_COLUMNS_SECOND]
-       .clone() - &oods_values[192])
+        .clone()
+        - &oods_values[192])
         .field_div(&(point.clone() - &oods_point_to_deg));
     total_sum += constraint_coefficients[192].clone() * &value;
 
-    value = (column_values[Layout::NUM_COLUMNS_FIRST.clone() + &Layout::NUM_COLUMNS_SECOND.clone() + &1]
-       .clone() - &oods_values[193])
+    value = (column_values
+        [Layout::NUM_COLUMNS_FIRST.clone() + &Layout::NUM_COLUMNS_SECOND.clone() + &1]
+        .clone()
+        - &oods_values[193])
         .field_div(&(point.clone() - &oods_point_to_deg));
     total_sum += constraint_coefficients[193].clone() * &value;
 

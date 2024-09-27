@@ -16,12 +16,17 @@ use alloc::vec;
 use alloc::vec::Vec;
 use ark_ec::short_weierstrass::SWCurveConfig;
 use ark_ff::{Field, PrimeField};
-use ark_r1cs_std::{fields::{fp::FpVar, FieldOpsBounds, FieldVar}, prelude::Boolean};
+use ark_r1cs_std::{
+    fields::{fp::FpVar, FieldOpsBounds, FieldVar},
+    prelude::Boolean,
+};
 use global_values::{CurveConfig, EcPoint, EcdsaSigConfig, GlobalValues, InteractionElements};
 use starknet_crypto::Felt;
 use swiftness_commitment::table::{commit::table_commit, decommit::table_decommit};
 use swiftness_field::SimpleField;
-use swiftness_hash::{blake2s::Blake2sHash, keccak::KeccakHash, pedersen::PedersenHash, poseidon::PoseidonHash};
+use swiftness_hash::{
+    blake2s::Blake2sHash, keccak::KeccakHash, pedersen::PedersenHash, poseidon::PoseidonHash,
+};
 use swiftness_transcript::ensure;
 
 use super::{CompositionPolyEvalError, LayoutTrait, PublicInputError};
@@ -126,12 +131,16 @@ impl<F: SimpleField + PoseidonHash> LayoutTrait<F> for Layout {
         trace_domain_size: &F,
         trace_generator: &F,
     ) -> Result<F, CompositionPolyEvalError> {
-        let memory_z = interaction_elements.memory_multi_column_perm_perm_interaction_elm.clone();
-        let memory_alpha = interaction_elements.memory_multi_column_perm_hash_interaction_elm0.clone();
+        let memory_z = interaction_elements
+            .memory_multi_column_perm_perm_interaction_elm
+            .clone();
+        let memory_alpha = interaction_elements
+            .memory_multi_column_perm_hash_interaction_elm0
+            .clone();
 
         // Public memory
-        let public_memory_column_size = trace_domain_size
-            .field_div(&F::from_constant(PUBLIC_MEMORY_STEP as u128));
+        let public_memory_column_size =
+            trace_domain_size.field_div(&F::from_constant(PUBLIC_MEMORY_STEP as u128));
         // assert!(public_memory_column_size < u128::MAX.into());
         public_memory_column_size.assert_lt(&F::from_constant(u128::MAX));
         let public_memory_prod_ratio = public_input.get_public_memory_product_ratio(
@@ -152,26 +161,25 @@ impl<F: SimpleField + PoseidonHash> LayoutTrait<F> for Layout {
 
         // Periodic columns
         let n_steps = F::two().powers_felt(&public_input.log_n_steps);
-        let n_pedersen_hash_copies = n_steps.field_div(&
-            F::from_constant((PEDERSEN_BUILTIN_RATIO * PEDERSEN_BUILTIN_REPETITIONS) as u128),
-        );
+        let n_pedersen_hash_copies = n_steps.field_div(&F::from_constant(
+            (PEDERSEN_BUILTIN_RATIO * PEDERSEN_BUILTIN_REPETITIONS) as u128,
+        ));
         // assert!(n_pedersen_hash_copies < u128::MAX.into());
         n_pedersen_hash_copies.assert_lt(&F::from_constant(u128::MAX));
         let pedersen_point = point.powers_felt(&n_pedersen_hash_copies);
         let pedersen_points_x = eval_pedersen_x(pedersen_point.clone());
         let pedersen_points_y = eval_pedersen_y(pedersen_point);
 
-        let n_ecdsa_signature_copies = n_steps.field_div(&
-            F::from_constant((ECDSA_BUILTIN_RATIO * ECDSA_BUILTIN_REPETITIONS) as u128),
-        );
+        let n_ecdsa_signature_copies = n_steps.field_div(&F::from_constant(
+            (ECDSA_BUILTIN_RATIO * ECDSA_BUILTIN_REPETITIONS) as u128,
+        ));
         // assert!(n_ecdsa_signature_copies < u128::MAX.into());
         n_ecdsa_signature_copies.assert_lt(&F::from_constant(u128::MAX));
         let ecdsa_point = point.powers_felt(&n_ecdsa_signature_copies);
         let ecdsa_generator_points_x = eval_ecdsa_x(ecdsa_point.clone());
         let ecdsa_generator_points_y = eval_ecdsa_y(ecdsa_point);
 
-        let n_poseidon_copies =
-            n_steps.field_div(&F::from_constant(POSEIDON_RATIO as u128));
+        let n_poseidon_copies = n_steps.field_div(&F::from_constant(POSEIDON_RATIO as u128));
         // assert!(n_pedersen_hash_copies < u128::MAX.into());
         n_pedersen_hash_copies.assert_lt(&F::from_constant(u128::MAX));
         let poseidon_point = point.powers_felt(&n_poseidon_copies);
@@ -194,69 +202,100 @@ impl<F: SimpleField + PoseidonHash> LayoutTrait<F> for Layout {
                 .ok_or(CompositionPolyEvalError::SegmentMissing {
                     segment: crate::layout::segments::PROGRAM,
                 })?
-                .begin_addr.clone(),
+                .begin_addr
+                .clone(),
             final_pc: public_input
                 .segments
                 .get(crate::layout::segments::PROGRAM)
                 .ok_or(CompositionPolyEvalError::SegmentMissing {
                     segment: crate::layout::segments::PROGRAM,
                 })?
-                .stop_ptr.clone(),
+                .stop_ptr
+                .clone(),
             initial_ap: public_input
                 .segments
                 .get(crate::layout::segments::EXECUTION)
                 .ok_or(CompositionPolyEvalError::SegmentMissing {
                     segment: crate::layout::segments::EXECUTION,
                 })?
-                .begin_addr.clone(),
+                .begin_addr
+                .clone(),
             final_ap: public_input
                 .segments
                 .get(crate::layout::segments::EXECUTION)
                 .ok_or(CompositionPolyEvalError::SegmentMissing {
                     segment: crate::layout::segments::EXECUTION,
                 })?
-                .stop_ptr.clone(),
+                .stop_ptr
+                .clone(),
             initial_pedersen_addr: public_input
                 .segments
                 .get(segments::PEDERSEN)
-                .ok_or(CompositionPolyEvalError::SegmentMissing { segment: segments::PEDERSEN })?
-                .begin_addr.clone(),
+                .ok_or(CompositionPolyEvalError::SegmentMissing {
+                    segment: segments::PEDERSEN,
+                })?
+                .begin_addr
+                .clone(),
             initial_range_check_addr: public_input
                 .segments
                 .get(segments::RANGE_CHECK)
-                .ok_or(CompositionPolyEvalError::SegmentMissing { segment: segments::RANGE_CHECK })?
-                .begin_addr.clone(),
+                .ok_or(CompositionPolyEvalError::SegmentMissing {
+                    segment: segments::RANGE_CHECK,
+                })?
+                .begin_addr
+                .clone(),
             initial_ecdsa_addr: public_input
                 .segments
                 .get(segments::ECDSA)
-                .ok_or(CompositionPolyEvalError::SegmentMissing { segment: segments::ECDSA })?
-                .begin_addr.clone(),
+                .ok_or(CompositionPolyEvalError::SegmentMissing {
+                    segment: segments::ECDSA,
+                })?
+                .begin_addr
+                .clone(),
             initial_bitwise_addr: public_input
                 .segments
                 .get(segments::BITWISE)
-                .ok_or(CompositionPolyEvalError::SegmentMissing { segment: segments::BITWISE })?
-                .begin_addr.clone(),
+                .ok_or(CompositionPolyEvalError::SegmentMissing {
+                    segment: segments::BITWISE,
+                })?
+                .begin_addr
+                .clone(),
             initial_ec_op_addr: public_input
                 .segments
                 .get(segments::EC_OP)
-                .ok_or(CompositionPolyEvalError::SegmentMissing { segment: segments::EC_OP })?
-                .begin_addr.clone(),
+                .ok_or(CompositionPolyEvalError::SegmentMissing {
+                    segment: segments::EC_OP,
+                })?
+                .begin_addr
+                .clone(),
             initial_poseidon_addr: public_input
                 .segments
                 .get(segments::POSEIDON)
-                .ok_or(CompositionPolyEvalError::SegmentMissing { segment: segments::POSEIDON })?
-                .begin_addr.clone(),
+                .ok_or(CompositionPolyEvalError::SegmentMissing {
+                    segment: segments::POSEIDON,
+                })?
+                .begin_addr
+                .clone(),
             range_check_min: public_input.range_check_min.clone(),
             range_check_max: public_input.range_check_max.clone(),
-            offset_size: F::from_stark_felt(Felt::from(0x10000)),     // 2**16
+            offset_size: F::from_stark_felt(Felt::from(0x10000)), // 2**16
             half_offset_size: F::from_stark_felt(Felt::from(0x8000)), // 2**15
-            pedersen_shift_point: EcPoint { x: F::from_stark_felt(SHIFT_POINT_X), y: F::from_stark_felt(SHIFT_POINT_Y) },
+            pedersen_shift_point: EcPoint {
+                x: F::from_stark_felt(SHIFT_POINT_X),
+                y: F::from_stark_felt(SHIFT_POINT_Y),
+            },
             ecdsa_sig_config: EcdsaSigConfig {
                 alpha: F::from_stark_felt(stark_curve::ALPHA),
-                beta:  F::from_stark_felt(stark_curve::BETA),
-                shift_point: EcPoint { x: F::from_stark_felt(SHIFT_POINT_X), y: F::from_stark_felt(SHIFT_POINT_Y) },
+                beta: F::from_stark_felt(stark_curve::BETA),
+                shift_point: EcPoint {
+                    x: F::from_stark_felt(SHIFT_POINT_X),
+                    y: F::from_stark_felt(SHIFT_POINT_Y),
+                },
             },
-            ec_op_curve_config: CurveConfig { alpha: F::from_stark_felt(stark_curve::ALPHA), beta: F::from_stark_felt(stark_curve::BETA) },
+            ec_op_curve_config: CurveConfig {
+                alpha: F::from_stark_felt(stark_curve::ALPHA),
+                beta: F::from_stark_felt(stark_curve::BETA),
+            },
             pedersen_points_x,
             pedersen_points_y,
             ecdsa_generator_points_x,
@@ -269,9 +308,11 @@ impl<F: SimpleField + PoseidonHash> LayoutTrait<F> for Layout {
             memory_multi_column_perm_perm_interaction_elm: memory_z,
             memory_multi_column_perm_hash_interaction_elm0: memory_alpha,
             range_check16_perm_interaction_elm: interaction_elements
-                .range_check16_perm_interaction_elm.clone(),
+                .range_check16_perm_interaction_elm
+                .clone(),
             diluted_check_permutation_interaction_elm: interaction_elements
-                .diluted_check_permutation_interaction_elm.clone(),
+                .diluted_check_permutation_interaction_elm
+                .clone(),
             diluted_check_interaction_z: diluted_z,
             diluted_check_interaction_alpha: diluted_alpha,
             memory_multi_column_perm_perm_public_memory_prod: public_memory_prod_ratio,
@@ -312,15 +353,21 @@ impl<F: SimpleField + PoseidonHash> LayoutTrait<F> for Layout {
         config: crate::trace::config::Config<F>,
     ) -> crate::trace::Commitment<Self::InteractionElements, F> {
         // Read original commitment.
-        let original_commitment =
-            table_commit(transcript, unsent_commitment.original.clone(), config.original);
+        let original_commitment = table_commit(
+            transcript,
+            unsent_commitment.original.clone(),
+            config.original,
+        );
 
         // Generate interaction elements for the first interaction.
         let interaction_elements = Self::InteractionElements::new(transcript);
 
         // Read interaction commitment.
-        let interaction_commitment =
-            table_commit(transcript, unsent_commitment.interaction.clone(), config.interaction);
+        let interaction_commitment = table_commit(
+            transcript,
+            unsent_commitment.interaction.clone(),
+            config.interaction,
+        );
 
         crate::trace::Commitment {
             original: original_commitment,
@@ -333,21 +380,31 @@ impl<F: SimpleField + PoseidonHash> LayoutTrait<F> for Layout {
         commitment: crate::trace::Commitment<Self::InteractionElements, F>,
         decommitment: crate::trace::Decommitment<F>,
         witness: crate::trace::Witness<F>,
-    ) -> Result<(), crate::trace::decommit::Error<F>> where F: KeccakHash + Blake2sHash {
-        Ok(table_decommit(commitment.original, queries, decommitment.original, witness.original)
-            .and(table_decommit(
-                commitment.interaction,
-                queries,
-                decommitment.interaction,
-                witness.interaction,
-            ))?)
+    ) -> Result<(), crate::trace::decommit::Error<F>>
+    where
+        F: KeccakHash + Blake2sHash,
+    {
+        Ok(table_decommit(
+            commitment.original,
+            queries,
+            decommitment.original,
+            witness.original,
+        )
+        .and(table_decommit(
+            commitment.interaction,
+            queries,
+            decommitment.interaction,
+            witness.interaction,
+        ))?)
     }
     fn validate_public_input(
         public_input: &PublicInput<F>,
         stark_domains: &crate::domains::StarkDomains<F>,
     ) -> Result<(), PublicInputError> {
         // ensure!(public_input.log_n_steps < MAX_LOG_N_STEPS, PublicInputError::MaxSteps);
-        public_input.log_n_steps .assert_lt(&F::from_stark_felt(MAX_LOG_N_STEPS));
+        public_input
+            .log_n_steps
+            .assert_lt(&F::from_stark_felt(MAX_LOG_N_STEPS));
 
         let n_steps = F::two().powers_felt(&public_input.log_n_steps);
         let trace_length = stark_domains.trace_domain_size.clone();
@@ -373,8 +430,11 @@ impl<F: SimpleField + PoseidonHash> LayoutTrait<F> for Layout {
         let output_uses = public_input
             .segments
             .get(crate::layout::segments::OUTPUT)
-            .ok_or(PublicInputError::SegmentMissing { segment: crate::layout::segments::OUTPUT })?
-            .stop_ptr.clone()
+            .ok_or(PublicInputError::SegmentMissing {
+                segment: crate::layout::segments::OUTPUT,
+            })?
+            .stop_ptr
+            .clone()
             - &public_input
                 .segments
                 .get(crate::layout::segments::OUTPUT)
@@ -385,13 +445,16 @@ impl<F: SimpleField + PoseidonHash> LayoutTrait<F> for Layout {
         // ensure!(output_uses < u128::MAX.into(), PublicInputError::UsesInvalid);
         output_uses.assert_lt(&F::from_constant(u128::MAX));
 
-        let pedersen_copies = trace_length
-            .field_div(&F::from_constant(PEDERSEN_BUILTIN_ROW_RATIO as u128));
+        let pedersen_copies =
+            trace_length.field_div(&F::from_constant(PEDERSEN_BUILTIN_ROW_RATIO as u128));
         let pedersen_uses = (public_input
             .segments
             .get(segments::PEDERSEN)
-            .ok_or(PublicInputError::SegmentMissing { segment: crate::layout::segments::OUTPUT })?
-            .stop_ptr.clone()
+            .ok_or(PublicInputError::SegmentMissing {
+                segment: crate::layout::segments::OUTPUT,
+            })?
+            .stop_ptr
+            .clone()
             - &public_input
                 .segments
                 .get(segments::PEDERSEN)
@@ -403,14 +466,16 @@ impl<F: SimpleField + PoseidonHash> LayoutTrait<F> for Layout {
         // ensure!(pedersen_uses < pedersen_copies, PublicInputError::UsesInvalid);
         pedersen_uses.assert_lt(&pedersen_copies);
 
-        let range_check_copies = trace_length.field_div(&
-            F::from_constant(RANGE_CHECK_BUILTIN_ROW_RATIO as u128),
-        );
+        let range_check_copies =
+            trace_length.field_div(&F::from_constant(RANGE_CHECK_BUILTIN_ROW_RATIO as u128));
         let range_check_uses = public_input
             .segments
             .get(segments::RANGE_CHECK)
-            .ok_or(PublicInputError::SegmentMissing { segment: crate::layout::segments::OUTPUT })?
-            .stop_ptr.clone()
+            .ok_or(PublicInputError::SegmentMissing {
+                segment: crate::layout::segments::OUTPUT,
+            })?
+            .stop_ptr
+            .clone()
             - &public_input
                 .segments
                 .get(segments::RANGE_CHECK)
@@ -421,13 +486,15 @@ impl<F: SimpleField + PoseidonHash> LayoutTrait<F> for Layout {
         // ensure!(range_check_uses < range_check_copies, PublicInputError::UsesInvalid);
         range_check_uses.assert_lt(&range_check_copies);
 
-        let bitwise_copies = trace_length
-            .field_div(&F::from_constant(BITWISE_ROW_RATIO as u128));
+        let bitwise_copies = trace_length.field_div(&F::from_constant(BITWISE_ROW_RATIO as u128));
         let bitwise_uses = (public_input
             .segments
             .get(segments::BITWISE)
-            .ok_or(PublicInputError::SegmentMissing { segment: crate::layout::segments::OUTPUT })?
-            .stop_ptr.clone()
+            .ok_or(PublicInputError::SegmentMissing {
+                segment: crate::layout::segments::OUTPUT,
+            })?
+            .stop_ptr
+            .clone()
             - &public_input
                 .segments
                 .get(segments::BITWISE)
@@ -441,7 +508,9 @@ impl<F: SimpleField + PoseidonHash> LayoutTrait<F> for Layout {
         Ok(())
     }
 
-    fn verify_public_input<P: SWCurveConfig>(public_input: &PublicInput<F>) -> Result<(F, F), PublicInputError>
+    fn verify_public_input<P: SWCurveConfig>(
+        public_input: &PublicInput<F>,
+    ) -> Result<(F, F), PublicInputError>
     where
         F: PedersenHash<P>,
         P::BaseField: PrimeField + SimpleField,
@@ -450,35 +519,53 @@ impl<F: SimpleField + PoseidonHash> LayoutTrait<F> for Layout {
             FieldVar<P::BaseField, <P::BaseField as Field>::BasePrimeField> + SimpleField,
         for<'a> &'a FpVar<P::BaseField>: FieldOpsBounds<'a, P::BaseField, FpVar<P::BaseField>>,
         <FpVar<P::BaseField> as SimpleField>::BooleanType:
-            From<Boolean<<P::BaseField as Field>::BasePrimeField>>
+            From<Boolean<<P::BaseField as Field>::BasePrimeField>>,
     {
         let public_segments = &public_input.segments;
 
         let initial_pc = public_segments
             .get(crate::layout::segments::PROGRAM)
-            .ok_or(PublicInputError::SegmentMissing { segment: crate::layout::segments::PROGRAM })?
-            .begin_addr.clone();
+            .ok_or(PublicInputError::SegmentMissing {
+                segment: crate::layout::segments::PROGRAM,
+            })?
+            .begin_addr
+            .clone();
         let final_pc = public_segments
             .get(crate::layout::segments::PROGRAM)
-            .ok_or(PublicInputError::SegmentMissing { segment: crate::layout::segments::PROGRAM })?
-            .stop_ptr.clone();
+            .ok_or(PublicInputError::SegmentMissing {
+                segment: crate::layout::segments::PROGRAM,
+            })?
+            .stop_ptr
+            .clone();
         let initial_ap = public_segments
             .get(crate::layout::segments::EXECUTION)
-            .ok_or(PublicInputError::SegmentMissing { segment: crate::layout::segments::PROGRAM })?
-            .begin_addr.clone();
+            .ok_or(PublicInputError::SegmentMissing {
+                segment: crate::layout::segments::PROGRAM,
+            })?
+            .begin_addr
+            .clone();
         let initial_fp = initial_ap.clone();
         let final_ap = public_segments
             .get(crate::layout::segments::EXECUTION)
-            .ok_or(PublicInputError::SegmentMissing { segment: crate::layout::segments::PROGRAM })?
-            .stop_ptr.clone();
+            .ok_or(PublicInputError::SegmentMissing {
+                segment: crate::layout::segments::PROGRAM,
+            })?
+            .stop_ptr
+            .clone();
         let output_start = public_segments
             .get(crate::layout::segments::OUTPUT)
-            .ok_or(PublicInputError::SegmentMissing { segment: crate::layout::segments::PROGRAM })?
-            .begin_addr.clone();
+            .ok_or(PublicInputError::SegmentMissing {
+                segment: crate::layout::segments::PROGRAM,
+            })?
+            .begin_addr
+            .clone();
         let output_stop = public_segments
             .get(crate::layout::segments::OUTPUT)
-            .ok_or(PublicInputError::SegmentMissing { segment: crate::layout::segments::PROGRAM })?
-            .stop_ptr.clone();
+            .ok_or(PublicInputError::SegmentMissing {
+                segment: crate::layout::segments::PROGRAM,
+            })?
+            .stop_ptr
+            .clone();
 
         // ensure!(initial_ap < MAX_ADDRESS, PublicInputError::MaxSteps);
         initial_ap.assert_lt(&F::from_stark_felt(MAX_ADDRESS));
@@ -486,7 +573,10 @@ impl<F: SimpleField + PoseidonHash> LayoutTrait<F> for Layout {
         final_ap.assert_lt(&F::from_stark_felt(MAX_ADDRESS));
 
         // TODO support more pages?
-        ensure!(public_input.continuous_page_headers.is_empty(), PublicInputError::MaxSteps);
+        ensure!(
+            public_input.continuous_page_headers.is_empty(),
+            PublicInputError::MaxSteps
+        );
 
         let memory = &public_input
             .main_page
@@ -501,18 +591,27 @@ impl<F: SimpleField + PoseidonHash> LayoutTrait<F> for Layout {
 
         let program_end_pc = initial_fp - F::two();
 
-        let program: Vec<F> = F::take(&F::skip(memory.as_slice(), &initial_pc)
-            .into_iter()
-            .step_by(2)
-            .collect::<Vec<_>>(), &(program_end_pc - F::one()));
+        let program: Vec<F> = F::take(
+            &F::skip(memory.as_slice(), &initial_pc)
+                .into_iter()
+                .step_by(2)
+                .collect::<Vec<_>>(),
+            &(program_end_pc - F::one()),
+        );
 
-        let hash = program.iter().fold(F::zero(), |acc, e| PedersenHash::<P>::hash(acc.clone(), e.clone()));
+        let hash = program.iter().fold(F::zero(), |acc, e| {
+            PedersenHash::<P>::hash(acc.clone(), e.clone())
+        });
         let program_hash = PedersenHash::<P>::hash(hash, F::from_constant(program.len()));
 
         let output_len = output_stop - output_start;
-        let output = F::skip(&memory, &(F::from_constant(memory.len()) - output_len.mul_by_constant(2u64)));
-        let hash =
-            output.iter().skip(1).step_by(2).fold(F::zero(), |acc, e| PedersenHash::<P>::hash(acc.clone(), e.clone()));
+        let output = F::skip(
+            &memory,
+            &(F::from_constant(memory.len()) - output_len.mul_by_constant(2u64)),
+        );
+        let hash = output.iter().skip(1).step_by(2).fold(F::zero(), |acc, e| {
+            PedersenHash::<P>::hash(acc.clone(), e.clone())
+        });
         let output_hash = PedersenHash::<P>::hash(hash, output_len);
 
         Ok((program_hash, output_hash))

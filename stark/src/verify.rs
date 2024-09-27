@@ -15,7 +15,10 @@ use crate::{
 };
 
 // STARK verify phase.
-pub fn stark_verify<F: SimpleField + PoseidonHash + KeccakHash + Blake2sHash, Layout: LayoutTrait<F>>(
+pub fn stark_verify<
+    F: SimpleField + PoseidonHash + KeccakHash + Blake2sHash,
+    Layout: LayoutTrait<F>,
+>(
     n_original_columns: usize,
     n_interaction_columns: usize,
     queries: &[F],
@@ -58,8 +61,16 @@ pub fn stark_verify<F: SimpleField + PoseidonHash + KeccakHash + Blake2sHash, La
     );
 
     // Decommit FRI.
-    let fri_decommitment = types::Decommitment { values: oods_poly_evals, points };
-    Ok(fri_verify(queries, commitment.fri, fri_decommitment, witness.fri_witness.to_owned())?)
+    let fri_decommitment = types::Decommitment {
+        values: oods_poly_evals,
+        points,
+    };
+    Ok(fri_verify(
+        queries,
+        commitment.fri,
+        fri_decommitment,
+        witness.fri_witness.to_owned(),
+    )?)
 }
 
 #[cfg(feature = "std")]
