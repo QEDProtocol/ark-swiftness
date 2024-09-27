@@ -20,6 +20,9 @@ use std::fmt::Debug;
 
 use std::ops::*;
 
+pub mod simple;
+pub use simple::*;
+
 #[derive(MontConfig)]
 #[modulus = "3618502788666131213697322783095070105623107215331596699973092056135872020481"]
 #[generator = "3"]
@@ -960,7 +963,7 @@ mod tests {
     use std::str::FromStr;
 
     use super::*;
-    use ark_bls12_381::Fr;
+    // use ark_bls12_381::Fr;
     use ark_ff::Field;
     use ark_groth16::Groth16;
     use ark_r1cs_std::fields::fp::FpVar;
@@ -1812,5 +1815,31 @@ mod tests {
         // Check if we can retrieve the original array
         let retrieved_array: [u64; 4] = fp.into_bigint().0;
         assert_eq!(retrieved_array, array);
+    }
+
+    #[test]
+    fn test_simple() {
+        fn convert<TargetField: PrimeField, BaseField: PrimeField>(
+            value: TargetField,
+        ) -> BaseField {
+            let value: num_bigint::BigUint = value.into_bigint().into();
+            BaseField::from_bigint(BaseField::BigInt::try_from(value).unwrap()).unwrap()
+        }
+        let cs = ConstraintSystem::<Fp>::new_ref();
+        let mut rng = ark_std::rand::rngs::StdRng::seed_from_u64(ark_std::rand::RngCore::next_u64(&mut ark_std::test_rng()));
+
+        let a: Fr = ark_std::rand::Rng::gen(&mut rng);
+        let b: Fr = ark_std::rand::Rng::gen(&mut rng);
+
+        let c = a * b;
+
+        let a = convert::<Fr, Fp>(a);
+        let b = convert::<Fr, Fp>(b);
+
+        let a_var = SimpleFpVar::<Fp>::new_witness(cs.clone(), || Ok(a)).unwrap();
+        let b_var = SimpleFpVar::<Fp>::new_witness(cs.clone(), || Ok(b)).unwrap();
+        let c_var = a_var * b_var;
+        assert_eq!(c_var.value().unwrap(), convert(c));
+
     }
 }
