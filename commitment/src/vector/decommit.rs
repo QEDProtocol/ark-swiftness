@@ -127,7 +127,7 @@ fn hash_friendly_unfriendly<F: SimpleField + PoseidonHash + KeccakHash + Blake2s
 ) -> F {
     F::select(
         &is_verifier_friendly,
-        { PoseidonHash::hash(x.clone(), y.clone()) },
+        PoseidonHash::hash(x.clone(), y.clone()),
         {
             let mut hash_data = Vec::with_capacity(64);
             hash_data.extend(x.to_be_bytes());

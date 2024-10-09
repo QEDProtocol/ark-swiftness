@@ -43,10 +43,10 @@ ark-bls12-381  = { version = "0.4", default-features =  false, features = ["scal
 ark-bn254 = { version = "0.4", default-features =  false, features = ["scalar_field","curve"] }
 ark-groth16 = { version = "0.4", default-features = false }
 ark-snark = { version =  "0.4"  }
-ark-r1cs-std = { version = "0.4", default-features = false }
+ark-r1cs-std = { git = "https://github.com/zilong-dai/r1cs-std.git", rev = "eef39ccb03ffa1a3921b9f35a6be55082bd271f2", default-features = false }
 ark-poly = { version = "0.4", default-features = false }
 ark-relations = { version = "0.4" }
-ark-crypto-primitives = { version = "0.4", default-features = false, features = ["r1cs","sponge","snark","merkle_tree","prf"]  }
+ark-crypto-primitives = { git = "https://github.com/zilong-dai/crypto-primitives.git", rev = "d8ac81e93993872406026e8164f3a3214a72f66b", default-features = false, features = ["r1cs","sponge","snark","merkle_tree","prf"]  }
 
 num = { version = "0.4.0", default-features = false }
 num-bigint = { version = "0.4.4", default-features = false, features = ["serde"] }

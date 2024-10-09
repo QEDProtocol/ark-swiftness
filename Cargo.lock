@@ -130,6 +130,23 @@ checksum = "1f3a13b34da09176a8baba701233fdffbaa7c1b1192ce031a3da4e55ce1f1a56"
 dependencies = [
  "ark-ec",
  "ark-ff",
+ "ark-relations",
+ "ark-serialize",
+ "ark-snark",
+ "ark-std",
+ "blake2",
+ "derivative",
+ "digest",
+ "sha2",
+]
+
+[[package]]
+name = "ark-crypto-primitives"
+version = "0.4.0"
+source = "git+https://github.com/zilong-dai/crypto-primitives.git?rev=d8ac81e93993872406026e8164f3a3214a72f66b#d8ac81e93993872406026e8164f3a3214a72f66b"
+dependencies = [
+ "ark-ec",
+ "ark-ff",
  "ark-r1cs-std",
  "ark-relations",
  "ark-serialize",
@@ -208,7 +225,7 @@ version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "20ceafa83848c3e390f1cbf124bc3193b3e639b3f02009e0e290809a501b95fc"
 dependencies = [
- "ark-crypto-primitives",
+ "ark-crypto-primitives 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ark-ec",
  "ark-ff",
  "ark-poly",
@@ -233,9 +250,9 @@ dependencies = [
 [[package]]
 name = "ark-r1cs-std"
 version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "de1d1472e5cb020cb3405ce2567c91c8d43f21b674aef37b0202f5c3304761db"
+source = "git+https://github.com/zilong-dai/r1cs-std.git?rev=eef39ccb03ffa1a3921b9f35a6be55082bd271f2#eef39ccb03ffa1a3921b9f35a6be55082bd271f2"
 dependencies = [
+ "ark-bls12-381",
  "ark-ec",
  "ark-ff",
  "ark-relations",
@@ -334,6 +351,7 @@ dependencies = [
  "ark-r1cs-std",
  "ark-relations",
  "ark-snark",
+ "ark-std",
  "ark_swiftness_air",
  "ark_swiftness_field",
  "ark_swiftness_hash",
@@ -417,7 +435,7 @@ name = "ark_swiftness_hash"
 version = "0.0.1"
 dependencies = [
  "ark-bls12-381",
- "ark-crypto-primitives",
+ "ark-crypto-primitives 0.4.0 (git+https://github.com/zilong-dai/crypto-primitives.git?rev=d8ac81e93993872406026e8164f3a3214a72f66b)",
  "ark-ec",
  "ark-ff",
  "ark-poly",

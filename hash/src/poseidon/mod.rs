@@ -2,9 +2,14 @@
 //! <https://github.com/CryptoExperts/poseidon>
 
 use ark_ff::MontFp as Fp;
+use ark_r1cs_std::fields::nonnative::NonNativeFieldVar;
+use params::MDS_MATRIX_EMVAR;
+use params::MDS_MATRIX_NNVAR;
+// use params::ROUND_KEYS_SIMPLE;
 use std::iter::zip;
 use swiftness_field::Fp;
 use swiftness_field::SimpleField;
+use swiftness_field::SimpleFpVar;
 use swiftness_utils::binary::PoseidonInstance;
 pub mod params;
 pub mod periodic;
@@ -17,6 +22,7 @@ use self::params::ROUND_KEYS;
 use crate::poseidon::params::FULL_ROUND_KEYS_2ND_HALF;
 use crate::poseidon::params::MDS_MATRIX_VAR;
 use crate::poseidon::params::PARTIAL_ROUND_KEYS_OPTIMIZED;
+use ark_bls12_381::Fr;
 use ark_ff::Field;
 use ark_r1cs_std::fields::fp::FpVar;
 use num_bigint::BigUint;
@@ -247,6 +253,16 @@ impl PoseidonHash for Fp {
 impl PoseidonHash for FpVar<Fp> {
     const ROUND_KEYS: [[Fp; 3]; NUM_FULL_ROUNDS + NUM_PARTIAL_ROUNDS] = ROUND_KEYS;
     const MDS_MATRIX: [[Self; 3]; 3] = MDS_MATRIX_VAR;
+}
+
+impl PoseidonHash for SimpleFpVar<Fr> {
+    const ROUND_KEYS: [[Fp; 3]; NUM_FULL_ROUNDS + NUM_PARTIAL_ROUNDS] = ROUND_KEYS;
+    const MDS_MATRIX: [[Self; 3]; 3] = MDS_MATRIX_EMVAR;
+}
+
+impl PoseidonHash for NonNativeFieldVar<Fp, Fr> {
+    const ROUND_KEYS: [[Fp; 3]; NUM_FULL_ROUNDS + NUM_PARTIAL_ROUNDS] = ROUND_KEYS;
+    const MDS_MATRIX: [[Self; 3]; 3] = MDS_MATRIX_NNVAR;
 }
 
 /// Computes the Poseidon hash using StarkWare's parameters. Source:

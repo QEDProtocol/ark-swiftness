@@ -4,7 +4,7 @@ use crate::layout::starknet_with_keccak::const_relations::{
     init_pow_relation_for_eval_oods_polynomial_inner,
 };
 use crate::layout::LayoutTrait;
-use log::{debug, info, trace};
+use log::{debug, trace};
 use starknet_crypto::Felt;
 use std::collections::HashMap;
 use swiftness_field::SimpleField;

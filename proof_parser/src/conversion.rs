@@ -3,7 +3,7 @@ use std::borrow::Borrow;
 use ark_ff::PrimeField;
 use ark_r1cs_std::{
     alloc::{AllocVar, AllocationMode},
-    fields::fp::FpVar,
+    fields::{fp::FpVar, nonnative::NonNativeFieldVar},
 };
 use ark_relations::r1cs::{Namespace, SynthesisError};
 use swiftness_air::{
@@ -65,6 +65,45 @@ where
 {
     fn new_variable<T: Borrow<StarkProof>>(
         cs: impl Into<Namespace<F>>,
+        f: impl FnOnce() -> Result<T, SynthesisError>,
+        mode: AllocationMode,
+    ) -> Result<Self, SynthesisError> {
+        f().and_then(|proof| {
+            let ns = cs.into();
+            let cs = ns.cs();
+            let proof = proof.borrow();
+
+            Ok(StarkProofVerifier {
+                config: StarkConfigVerifier::new_variable(cs.clone(), || Ok(&proof.config), mode)?,
+                public_input: PublicInputVerifier::new_variable(
+                    cs.clone(),
+                    || Ok(&proof.public_input),
+                    mode,
+                )?,
+                unsent_commitment: StarkUnsentCommitmentVerifier::new_variable(
+                    cs.clone(),
+                    || Ok(&proof.unsent_commitment),
+                    mode,
+                )?,
+                witness: StarkWitnessVerifier::new_variable(
+                    cs.clone(),
+                    || Ok(&proof.witness),
+                    mode,
+                )?,
+            })
+        })
+    }
+}
+
+impl<
+        F: PrimeField + SimpleField + PoseidonHash,
+        ConstraintF: PrimeField + SimpleField,
+    > AllocVar<StarkProof, ConstraintF> for StarkProofVerifier<NonNativeFieldVar<F, ConstraintF>>
+where
+    NonNativeFieldVar<F, ConstraintF>: PoseidonHash,
+{
+    fn new_variable<T: Borrow<StarkProof>>(
+        cs: impl Into<Namespace<ConstraintF>>,
         f: impl FnOnce() -> Result<T, SynthesisError>,
         mode: AllocationMode,
     ) -> Result<Self, SynthesisError> {
@@ -165,6 +204,61 @@ where
     }
 }
 
+impl<
+        F: PrimeField + SimpleField + PoseidonHash,
+        ConstraintF: PrimeField + SimpleField,
+    > AllocVar<StarkConfig, ConstraintF> for StarkConfigVerifier<NonNativeFieldVar<F, ConstraintF>>
+where
+    NonNativeFieldVar<F, ConstraintF>: PoseidonHash,
+{
+    fn new_variable<T: Borrow<StarkConfig>>(
+        cs: impl Into<Namespace<ConstraintF>>,
+        f: impl FnOnce() -> Result<T, SynthesisError>,
+        mode: AllocationMode,
+    ) -> Result<Self, SynthesisError> {
+        f().and_then(|config| {
+            let ns = cs.into();
+            let cs = ns.cs();
+            let config = config.borrow();
+
+            Ok(StarkConfigVerifier {
+                traces: TraceConfigVerifier::new_variable(cs.clone(), || Ok(&config.traces), mode)?,
+                composition: TableConfigVerifier::new_variable(
+                    cs.clone(),
+                    || Ok(&config.composition),
+                    mode,
+                )?,
+                fri: FriConfigVerifier::new_variable(cs.clone(), || Ok(&config.fri), mode)?,
+                proof_of_work: PowConfigVerifier::from(config.proof_of_work.clone()),
+                log_trace_domain_size: NonNativeFieldVar::new_variable(
+                    cs.clone(),
+                    || Ok(F::from_constant(config.log_trace_domain_size)),
+                    mode,
+                )?,
+                n_queries: NonNativeFieldVar::new_variable(
+                    cs.clone(),
+                    || Ok(F::from_constant(config.n_queries)),
+                    mode,
+                )?,
+                log_n_cosets: NonNativeFieldVar::new_variable(
+                    cs.clone(),
+                    || Ok(F::from_constant(config.log_n_cosets)),
+                    mode,
+                )?,
+                n_verifier_friendly_commitment_layers: NonNativeFieldVar::new_variable(
+                    cs.clone(),
+                    || {
+                        Ok(F::from_constant(
+                            config.n_verifier_friendly_commitment_layers,
+                        ))
+                    },
+                    mode,
+                )?,
+            })
+        })
+    }
+}
+
 impl From<ProofOfWorkConfig> for PowConfigVerifier {
     fn from(pow: ProofOfWorkConfig) -> Self {
         PowConfigVerifier {
@@ -235,6 +329,52 @@ where
     }
 }
 
+impl<F: PrimeField + SimpleField + PoseidonHash, ConstraintF: PrimeField + SimpleField> AllocVar<FriConfig, ConstraintF>
+    for FriConfigVerifier<NonNativeFieldVar<F, ConstraintF>>
+where
+    NonNativeFieldVar<F, ConstraintF>: PoseidonHash,
+{
+    fn new_variable<T: Borrow<FriConfig>>(
+        cs: impl Into<Namespace<ConstraintF>>,
+        f: impl FnOnce() -> Result<T, SynthesisError>,
+        mode: AllocationMode,
+    ) -> Result<Self, SynthesisError> {
+        f().and_then(|fri| {
+            let ns = cs.into();
+            let cs = ns.cs();
+            let fri = fri.borrow();
+
+            Ok(FriConfigVerifier {
+                log_input_size: NonNativeFieldVar::new_variable(
+                    cs.clone(),
+                    || Ok(F::from_constant(fri.log_input_size)),
+                    mode,
+                )?,
+                n_layers: NonNativeFieldVar::new_variable(
+                    cs.clone(),
+                    || Ok(F::from_constant(fri.n_layers)),
+                    mode,
+                )?,
+                inner_layers: fri
+                    .inner_layers
+                    .iter()
+                    .map(|x| TableConfigVerifier::new_variable(cs.clone(), || Ok(x.clone()), mode))
+                    .collect::<Result<Vec<_>, _>>()?,
+                fri_step_sizes: fri
+                    .fri_step_sizes
+                    .iter()
+                    .map(|x| NonNativeFieldVar::new_variable(cs.clone(), || Ok(F::from_constant(*x)), mode))
+                    .collect::<Result<Vec<_>, _>>()?,
+                log_last_layer_degree_bound: NonNativeFieldVar::new_variable(
+                    cs.clone(),
+                    || Ok(F::from_constant(fri.log_last_layer_degree_bound)),
+                    mode,
+                )?,
+            })
+        })
+    }
+}
+
 impl<F: SimpleField + PoseidonHash> From<TracesConfig> for TraceConfigVerifier<F> {
     fn from(traces: TracesConfig) -> Self {
         TraceConfigVerifier {
@@ -275,6 +415,37 @@ where
     }
 }
 
+impl<F: PrimeField + SimpleField + PoseidonHash, ConstraintF: PrimeField + SimpleField> AllocVar<TracesConfig, ConstraintF>
+for TraceConfigVerifier<NonNativeFieldVar<F, ConstraintF>>
+where
+NonNativeFieldVar<F, ConstraintF>: PoseidonHash,
+{
+fn new_variable<T: Borrow<TracesConfig>>(
+    cs: impl Into<Namespace<ConstraintF>>,
+    f: impl FnOnce() -> Result<T, SynthesisError>,
+    mode: AllocationMode,
+) -> Result<Self, SynthesisError> {
+    f().and_then(|traces| {
+        let ns = cs.into();
+        let cs = ns.cs();
+        let traces = traces.borrow();
+
+        Ok(TraceConfigVerifier {
+            original: TableConfigVerifier::new_variable(
+                cs.clone(),
+                || Ok(&traces.original),
+                mode,
+            )?,
+            interaction: TableConfigVerifier::new_variable(
+                cs.clone(),
+                || Ok(&traces.interaction),
+                mode,
+            )?,
+        })
+    })
+}
+}
+
 impl<F: SimpleField + PoseidonHash> From<TableCommitmentConfig> for TableConfigVerifier<F> {
     fn from(config: TableCommitmentConfig) -> Self {
         TableConfigVerifier {
@@ -301,6 +472,37 @@ where
 
             Ok(TableConfigVerifier {
                 n_columns: FpVar::new_variable(
+                    cs.clone(),
+                    || Ok(F::from_constant(config.n_columns)),
+                    mode,
+                )?,
+                vector: VectorConfigVerifier::new_variable(
+                    cs.clone(),
+                    || Ok(&config.vector),
+                    mode,
+                )?,
+            })
+        })
+    }
+}
+
+impl<F: PrimeField + SimpleField + PoseidonHash, ConstraintF: PrimeField + SimpleField> AllocVar<TableCommitmentConfig, ConstraintF>
+    for TableConfigVerifier<NonNativeFieldVar<F, ConstraintF>>
+where
+    NonNativeFieldVar<F, ConstraintF>: PoseidonHash,
+{
+    fn new_variable<T: Borrow<TableCommitmentConfig>>(
+        cs: impl Into<Namespace<ConstraintF>>,
+        f: impl FnOnce() -> Result<T, SynthesisError>,
+        mode: AllocationMode,
+    ) -> Result<Self, SynthesisError> {
+        f().and_then(|config| {
+            let ns = cs.into();
+            let cs = ns.cs();
+            let config = config.borrow();
+
+            Ok(TableConfigVerifier {
+                n_columns: NonNativeFieldVar::new_variable(
                     cs.clone(),
                     || Ok(F::from_constant(config.n_columns)),
                     mode,
@@ -348,6 +550,41 @@ where
                     mode,
                 )?,
                 n_verifier_friendly_commitment_layers: FpVar::new_variable(
+                    cs.clone(),
+                    || {
+                        Ok(F::from_constant(
+                            vector.n_verifier_friendly_commitment_layers,
+                        ))
+                    },
+                    mode,
+                )?,
+            })
+        })
+    }
+}
+
+impl<F: PrimeField + SimpleField + PoseidonHash, ConstraintF: PrimeField + SimpleField> AllocVar<VectorCommitmentConfig, ConstraintF>
+    for VectorConfigVerifier<NonNativeFieldVar<F, ConstraintF>>
+where
+    NonNativeFieldVar<F, ConstraintF>: PoseidonHash,
+{
+    fn new_variable<T: Borrow<VectorCommitmentConfig>>(
+        cs: impl Into<Namespace<ConstraintF>>,
+        f: impl FnOnce() -> Result<T, SynthesisError>,
+        mode: AllocationMode,
+    ) -> Result<Self, SynthesisError> {
+        f().and_then(|vector| {
+            let ns = cs.into();
+            let cs = ns.cs();
+            let vector = vector.borrow();
+
+            Ok(VectorConfigVerifier {
+                height: NonNativeFieldVar::new_variable(
+                    cs.clone(),
+                    || Ok(F::from_constant(vector.height)),
+                    mode,
+                )?,
+                n_verifier_friendly_commitment_layers: NonNativeFieldVar::new_variable(
                     cs.clone(),
                     || {
                         Ok(F::from_constant(
@@ -465,6 +702,77 @@ where
     }
 }
 
+impl<F: PrimeField + SimpleField + PoseidonHash, ConstraintF: PrimeField + SimpleField> AllocVar<CairoPublicInput, ConstraintF>
+    for PublicInputVerifier<NonNativeFieldVar<F, ConstraintF>>
+where
+    NonNativeFieldVar<F, ConstraintF>: PoseidonHash,
+{
+    fn new_variable<T: Borrow<CairoPublicInput>>(
+        cs: impl Into<Namespace<ConstraintF>>,
+        f: impl FnOnce() -> Result<T, SynthesisError>,
+        mode: AllocationMode,
+    ) -> Result<Self, SynthesisError> {
+        f().and_then(|public_input| {
+            let ns = cs.into();
+            let cs = ns.cs();
+            let public_input = public_input.borrow();
+
+            Ok(PublicInputVerifier {
+                log_n_steps: NonNativeFieldVar::new_variable(
+                    cs.clone(),
+                    || Ok(F::from_constant(public_input.log_n_steps)),
+                    mode,
+                )?,
+                range_check_min: NonNativeFieldVar::new_variable(
+                    cs.clone(),
+                    || Ok(F::from_constant(public_input.range_check_min)),
+                    mode,
+                )?,
+                range_check_max: NonNativeFieldVar::new_variable(
+                    cs.clone(),
+                    || Ok(F::from_constant(public_input.range_check_max)),
+                    mode,
+                )?,
+                layout: NonNativeFieldVar::new_variable(
+                    cs.clone(),
+                    || Ok(F::from_biguint(public_input.layout.clone())),
+                    mode,
+                )?,
+                dynamic_params: public_input
+                    .dynamic_params
+                    .values()
+                    .map(|x| {
+                        NonNativeFieldVar::new_variable(cs.clone(), || Ok(F::from_biguint(x.clone())), mode)
+                    })
+                    .collect::<Result<Vec<_>, _>>()?,
+                segments: public_input
+                    .segments
+                    .iter()
+                    .map(|x| SegmentInfoVerifier::new_variable(cs.clone(), || Ok(x), mode))
+                    .collect::<Result<Vec<_>, _>>()?,
+                padding_addr: NonNativeFieldVar::new_variable(
+                    cs.clone(),
+                    || Ok(F::from_constant(public_input.padding_addr)),
+                    mode,
+                )?,
+                padding_value: NonNativeFieldVar::new_variable(
+                    cs.clone(),
+                    || Ok(F::from_biguint(public_input.padding_value.clone())),
+                    mode,
+                )?,
+                main_page: Page(
+                    public_input
+                        .main_page
+                        .iter()
+                        .map(|x| AddrValue::new_variable(cs.clone(), || Ok(x), mode))
+                        .collect::<Result<Vec<_>, _>>()?,
+                ),
+                continuous_page_headers: vec![],
+            })
+        })
+    }
+}
+
 impl<F: SimpleField + PoseidonHash> From<SegmentInfo> for SegmentInfoVerifier<F> {
     fn from(segment_info: SegmentInfo) -> Self {
         SegmentInfoVerifier {
@@ -505,6 +813,37 @@ where
     }
 }
 
+impl<F: PrimeField + SimpleField + PoseidonHash, ConstraintF: PrimeField + SimpleField> AllocVar<SegmentInfo, ConstraintF>
+    for SegmentInfoVerifier<NonNativeFieldVar<F, ConstraintF>>
+where
+    NonNativeFieldVar<F, ConstraintF>: PoseidonHash,
+{
+    fn new_variable<T: Borrow<SegmentInfo>>(
+        cs: impl Into<Namespace<ConstraintF>>,
+        f: impl FnOnce() -> Result<T, SynthesisError>,
+        mode: AllocationMode,
+    ) -> Result<Self, SynthesisError> {
+        f().and_then(|segment_info| {
+            let ns = cs.into();
+            let cs = ns.cs();
+            let segment_info = segment_info.borrow();
+
+            Ok(SegmentInfoVerifier {
+                begin_addr: NonNativeFieldVar::new_variable(
+                    cs.clone(),
+                    || Ok(F::from_constant(segment_info.begin_addr)),
+                    mode,
+                )?,
+                stop_ptr: NonNativeFieldVar::new_variable(
+                    cs.clone(),
+                    || Ok(F::from_constant(segment_info.stop_ptr)),
+                    mode,
+                )?,
+            })
+        })
+    }
+}
+
 impl<F: SimpleField + PoseidonHash> From<PubilcMemoryCell> for AddrValue<F> {
     fn from(cell: PubilcMemoryCell) -> Self {
         AddrValue {
@@ -536,6 +875,37 @@ where
                     mode,
                 )?,
                 value: FpVar::new_variable(
+                    cs.clone(),
+                    || Ok(F::from_biguint(cell.value.clone())),
+                    mode,
+                )?,
+            })
+        })
+    }
+}
+
+impl<F: PrimeField + SimpleField + PoseidonHash, ConstraintF: PrimeField + SimpleField> AllocVar<PubilcMemoryCell, ConstraintF>
+    for AddrValue<NonNativeFieldVar<F, ConstraintF>>
+where
+    NonNativeFieldVar<F, ConstraintF>: PoseidonHash,
+{
+    fn new_variable<T: Borrow<PubilcMemoryCell>>(
+        cs: impl Into<Namespace<ConstraintF>>,
+        f: impl FnOnce() -> Result<T, SynthesisError>,
+        mode: AllocationMode,
+    ) -> Result<Self, SynthesisError> {
+        f().and_then(|cell| {
+            let ns = cs.into();
+            let cs = ns.cs();
+            let cell = cell.borrow();
+
+            Ok(AddrValue {
+                address: NonNativeFieldVar::new_variable(
+                    cs.clone(),
+                    || Ok(F::from_constant(cell.address)),
+                    mode,
+                )?,
+                value: NonNativeFieldVar::new_variable(
                     cs.clone(),
                     || Ok(F::from_biguint(cell.value.clone())),
                     mode,
@@ -609,6 +979,50 @@ where
     }
 }
 
+impl<F: PrimeField + SimpleField + PoseidonHash, ConstraintF: PrimeField + SimpleField> AllocVar<StarkUnsentCommitment, ConstraintF>
+    for StarkUnsentCommitmentVerifier<NonNativeFieldVar<F, ConstraintF>>
+where
+    NonNativeFieldVar<F, ConstraintF>: PoseidonHash,
+{
+    fn new_variable<T: Borrow<StarkUnsentCommitment>>(
+        cs: impl Into<Namespace<ConstraintF>>,
+        f: impl FnOnce() -> Result<T, SynthesisError>,
+        mode: AllocationMode,
+    ) -> Result<Self, SynthesisError> {
+        f().and_then(|unsent_commitment| {
+            let ns = cs.into();
+            let cs = ns.cs();
+            let unsent_commitment = unsent_commitment.borrow();
+
+            Ok(StarkUnsentCommitmentVerifier {
+                traces: TraceUnsentCommitmentVerifier::new_variable(
+                    cs.clone(),
+                    || Ok(unsent_commitment.traces.clone()),
+                    mode,
+                )?,
+                composition: NonNativeFieldVar::new_variable(
+                    cs.clone(),
+                    || Ok(F::from_biguint(unsent_commitment.composition.clone())),
+                    mode,
+                )?,
+                oods_values: unsent_commitment
+                    .oods_values
+                    .iter()
+                    .map(|x| {
+                        NonNativeFieldVar::new_variable(cs.clone(), || Ok(F::from_biguint(x.clone())), mode)
+                    })
+                    .collect::<Result<Vec<_>, _>>()?,
+                fri: FriUnsentCommitmentVerifier::new_variable(
+                    cs.clone(),
+                    || Ok(unsent_commitment.fri.clone()),
+                    mode,
+                )?,
+                proof_of_work: unsent_commitment.proof_of_work.clone().into(),
+            })
+        })
+    }
+}
+
 impl<F: SimpleField + PoseidonHash> From<TracesUnsentCommitment>
     for TraceUnsentCommitmentVerifier<F>
 {
@@ -642,6 +1056,37 @@ where
                     mode,
                 )?,
                 interaction: FpVar::new_variable(
+                    cs.clone(),
+                    || Ok(F::from_biguint(traces.interaction.clone())),
+                    mode,
+                )?,
+            })
+        })
+    }
+}
+
+impl<F: PrimeField + SimpleField + PoseidonHash, ConstraintF: PrimeField + SimpleField> AllocVar<TracesUnsentCommitment, ConstraintF>
+    for TraceUnsentCommitmentVerifier<NonNativeFieldVar<F, ConstraintF>>
+where
+    NonNativeFieldVar<F, ConstraintF>: PoseidonHash,
+{
+    fn new_variable<T: Borrow<TracesUnsentCommitment>>(
+        cs: impl Into<Namespace<ConstraintF>>,
+        f: impl FnOnce() -> Result<T, SynthesisError>,
+        mode: AllocationMode,
+    ) -> Result<Self, SynthesisError> {
+        f().and_then(|traces| {
+            let ns = cs.into();
+            let cs = ns.cs();
+            let traces = traces.borrow();
+
+            Ok(TraceUnsentCommitmentVerifier {
+                original: NonNativeFieldVar::new_variable(
+                    cs.clone(),
+                    || Ok(F::from_biguint(traces.original.clone())),
+                    mode,
+                )?,
+                interaction: NonNativeFieldVar::new_variable(
                     cs.clone(),
                     || Ok(F::from_biguint(traces.interaction.clone())),
                     mode,
@@ -703,6 +1148,41 @@ where
     }
 }
 
+impl<F: PrimeField + SimpleField + PoseidonHash, ConstraintF: PrimeField + SimpleField> AllocVar<FriUnsentCommitment, ConstraintF>
+    for FriUnsentCommitmentVerifier<NonNativeFieldVar<F, ConstraintF>>
+where
+    NonNativeFieldVar<F, ConstraintF>: PoseidonHash,
+{
+    fn new_variable<T: Borrow<FriUnsentCommitment>>(
+        cs: impl Into<Namespace<ConstraintF>>,
+        f: impl FnOnce() -> Result<T, SynthesisError>,
+        mode: AllocationMode,
+    ) -> Result<Self, SynthesisError> {
+        f().and_then(|fri| {
+            let ns = cs.into();
+            let cs = ns.cs();
+            let fri = fri.borrow();
+
+            Ok(FriUnsentCommitmentVerifier {
+                last_layer_coefficients: fri
+                    .last_layer_coefficients
+                    .iter()
+                    .map(|x| {
+                        NonNativeFieldVar::new_variable(cs.clone(), || Ok(F::from_biguint(x.clone())), mode)
+                    })
+                    .collect::<Result<Vec<_>, _>>()?,
+                inner_layers: fri
+                    .inner_layers
+                    .iter()
+                    .map(|x| {
+                        NonNativeFieldVar::new_variable(cs.clone(), || Ok(F::from_biguint(x.clone())), mode)
+                    })
+                    .collect::<Result<Vec<_>, _>>()?,
+            })
+        })
+    }
+}
+
 impl From<ProofOfWorkUnsentCommitment> for PowUnsentCommitmentVerifier {
     fn from(pow: ProofOfWorkUnsentCommitment) -> Self {
         PowUnsentCommitmentVerifier {
@@ -732,6 +1212,52 @@ where
 {
     fn new_variable<T: Borrow<StarkWitness>>(
         cs: impl Into<Namespace<F>>,
+        f: impl FnOnce() -> Result<T, SynthesisError>,
+        mode: AllocationMode,
+    ) -> Result<Self, SynthesisError> {
+        f().and_then(|witness| {
+            let ns = cs.into();
+            let cs = ns.cs();
+            let witness = witness.borrow();
+
+            Ok(StarkWitnessVerifier {
+                traces_decommitment: TraceDecommitmentVerifier::new_variable(
+                    cs.clone(),
+                    || Ok(witness.traces_decommitment.clone()),
+                    mode,
+                )?,
+                traces_witness: TraceWitnessVerifier::new_variable(
+                    cs.clone(),
+                    || Ok(witness.traces_witness.clone()),
+                    mode,
+                )?,
+                composition_decommitment: TableDecommitmentVerifier::new_variable(
+                    cs.clone(),
+                    || Ok(witness.composition_decommitment.clone()),
+                    mode,
+                )?,
+                composition_witness: TableCommitmentWitnessVerifier::new_variable(
+                    cs.clone(),
+                    || Ok(witness.composition_witness.clone()),
+                    mode,
+                )?,
+                fri_witness: FriWitnessVerifier::new_variable(
+                    cs.clone(),
+                    || Ok(witness.fri_witness.clone()),
+                    mode,
+                )?,
+            })
+        })
+    }
+}
+
+impl<F: PrimeField + SimpleField + PoseidonHash, ConstraintF: PrimeField + SimpleField> AllocVar<StarkWitness, ConstraintF>
+    for StarkWitnessVerifier<NonNativeFieldVar<F, ConstraintF>>
+where
+    NonNativeFieldVar<F, ConstraintF>: PoseidonHash,
+{
+    fn new_variable<T: Borrow<StarkWitness>>(
+        cs: impl Into<Namespace<ConstraintF>>,
         f: impl FnOnce() -> Result<T, SynthesisError>,
         mode: AllocationMode,
     ) -> Result<Self, SynthesisError> {
@@ -823,6 +1349,37 @@ where
     }
 }
 
+impl<F: PrimeField + SimpleField + PoseidonHash, ConstraintF: PrimeField + SimpleField> AllocVar<TracesDecommitment, ConstraintF>
+    for TraceDecommitmentVerifier<NonNativeFieldVar<F, ConstraintF>>
+where
+    NonNativeFieldVar<F, ConstraintF>: PoseidonHash,
+{
+    fn new_variable<T: Borrow<TracesDecommitment>>(
+        cs: impl Into<Namespace<ConstraintF>>,
+        f: impl FnOnce() -> Result<T, SynthesisError>,
+        mode: AllocationMode,
+    ) -> Result<Self, SynthesisError> {
+        f().and_then(|traces| {
+            let ns = cs.into();
+            let cs = ns.cs();
+            let traces = traces.borrow();
+
+            Ok(TraceDecommitmentVerifier {
+                original: TableDecommitmentVerifier::new_variable(
+                    cs.clone(),
+                    || Ok(traces.original.clone()),
+                    mode,
+                )?,
+                interaction: TableDecommitmentVerifier::new_variable(
+                    cs.clone(),
+                    || Ok(traces.interaction.clone()),
+                    mode,
+                )?,
+            })
+        })
+    }
+}
+
 impl<F: PrimeField + SimpleField + PoseidonHash> AllocVar<TableDecommitment, F>
     for TableDecommitmentVerifier<FpVar<F>>
 where
@@ -844,6 +1401,38 @@ where
                     .iter()
                     .map(|x| {
                         FpVar::<F>::new_variable(
+                            cs.clone(),
+                            || Ok(F::from_biguint(x.clone())),
+                            mode,
+                        )
+                    })
+                    .collect::<Result<Vec<_>, _>>()?,
+            })
+        })
+    }
+}
+
+impl<F: PrimeField + SimpleField + PoseidonHash, ConstraintF: PrimeField + SimpleField> AllocVar<TableDecommitment, ConstraintF>
+    for TableDecommitmentVerifier<NonNativeFieldVar<F, ConstraintF>>
+where
+    NonNativeFieldVar<F, ConstraintF>: PoseidonHash,
+{
+    fn new_variable<T: Borrow<TableDecommitment>>(
+        cs: impl Into<Namespace<ConstraintF>>,
+        f: impl FnOnce() -> Result<T, SynthesisError>,
+        mode: AllocationMode,
+    ) -> Result<Self, SynthesisError> {
+        f().and_then(|table| {
+            let ns = cs.into();
+            let cs = ns.cs();
+            let table = table.borrow();
+
+            Ok(TableDecommitmentVerifier {
+                values: table
+                    .values
+                    .iter()
+                    .map(|x| {
+                        NonNativeFieldVar::<F, ConstraintF>::new_variable(
                             cs.clone(),
                             || Ok(F::from_biguint(x.clone())),
                             mode,
@@ -895,6 +1484,37 @@ where
     }
 }
 
+impl<F: PrimeField + SimpleField + PoseidonHash, ConstraintF: PrimeField + SimpleField> AllocVar<TracesWitness, ConstraintF>
+    for TraceWitnessVerifier<NonNativeFieldVar<F, ConstraintF>>
+where
+    NonNativeFieldVar<F, ConstraintF>: PoseidonHash,
+{
+    fn new_variable<T: Borrow<TracesWitness>>(
+        cs: impl Into<Namespace<ConstraintF>>,
+        f: impl FnOnce() -> Result<T, SynthesisError>,
+        mode: AllocationMode,
+    ) -> Result<Self, SynthesisError> {
+        f().and_then(|traces| {
+            let ns = cs.into();
+            let cs = ns.cs();
+            let traces = traces.borrow();
+
+            Ok(TraceWitnessVerifier {
+                original: TableCommitmentWitnessVerifier::new_variable(
+                    cs.clone(),
+                    || Ok(traces.original.clone()),
+                    mode,
+                )?,
+                interaction: TableCommitmentWitnessVerifier::new_variable(
+                    cs.clone(),
+                    || Ok(traces.interaction.clone()),
+                    mode,
+                )?,
+            })
+        })
+    }
+}
+
 impl<F: SimpleField + PoseidonHash> From<TableCommitmentWitness>
     for TableCommitmentWitnessVerifier<F>
 {
@@ -912,6 +1532,32 @@ where
 {
     fn new_variable<T: Borrow<TableCommitmentWitness>>(
         cs: impl Into<Namespace<F>>,
+        f: impl FnOnce() -> Result<T, SynthesisError>,
+        mode: AllocationMode,
+    ) -> Result<Self, SynthesisError> {
+        f().and_then(|table| {
+            let ns = cs.into();
+            let cs = ns.cs();
+            let table = table.borrow();
+
+            Ok(TableCommitmentWitnessVerifier {
+                vector: VectorCommitmentWitnessVerifier::new_variable::<VectorCommitmentWitness>(
+                    cs.clone(),
+                    || Ok(table.vector.clone()),
+                    mode,
+                )?,
+            })
+        })
+    }
+}
+
+impl<F: PrimeField + SimpleField + PoseidonHash, ConstraintF: PrimeField + SimpleField> AllocVar<TableCommitmentWitness, ConstraintF>
+    for TableCommitmentWitnessVerifier<NonNativeFieldVar<F, ConstraintF>>
+where
+    NonNativeFieldVar<F, ConstraintF>: PoseidonHash,
+{
+    fn new_variable<T: Borrow<TableCommitmentWitness>>(
+        cs: impl Into<Namespace<ConstraintF>>,
         f: impl FnOnce() -> Result<T, SynthesisError>,
         mode: AllocationMode,
     ) -> Result<Self, SynthesisError> {
@@ -977,6 +1623,38 @@ where
     }
 }
 
+impl<F: PrimeField + SimpleField + PoseidonHash, ConstraintF: PrimeField + SimpleField> AllocVar<VectorCommitmentWitness, ConstraintF>
+    for VectorCommitmentWitnessVerifier<NonNativeFieldVar<F, ConstraintF>>
+where
+    NonNativeFieldVar<F, ConstraintF>: PoseidonHash,
+{
+    fn new_variable<T: Borrow<VectorCommitmentWitness>>(
+        cs: impl Into<Namespace<ConstraintF>>,
+        f: impl FnOnce() -> Result<T, SynthesisError>,
+        mode: AllocationMode,
+    ) -> Result<Self, SynthesisError> {
+        f().and_then(|vector| {
+            let ns = cs.into();
+            let cs = ns.cs();
+            let vector = vector.borrow();
+
+            Ok(VectorCommitmentWitnessVerifier {
+                authentications: vector
+                    .authentications
+                    .iter()
+                    .map(|x| {
+                        NonNativeFieldVar::<F, ConstraintF>::new_variable(
+                            cs.clone(),
+                            || Ok(F::from_biguint(x.clone())),
+                            mode,
+                        )
+                    })
+                    .collect::<Result<Vec<_>, _>>()?,
+            })
+        })
+    }
+}
+
 impl<F: SimpleField + PoseidonHash> From<FriWitness> for FriWitnessVerifier<F> {
     fn from(fri: FriWitness) -> Self {
         FriWitnessVerifier {
@@ -1024,6 +1702,33 @@ where
     }
 }
 
+impl<F: PrimeField + SimpleField + PoseidonHash, ConstraintF: PrimeField + SimpleField> AllocVar<FriWitness, ConstraintF>
+    for FriWitnessVerifier<NonNativeFieldVar<F, ConstraintF>>
+where
+    NonNativeFieldVar<F, ConstraintF>: PoseidonHash,
+{
+    fn new_variable<T: Borrow<FriWitness>>(
+        cs: impl Into<Namespace<ConstraintF>>,
+        f: impl FnOnce() -> Result<T, SynthesisError>,
+        mode: AllocationMode,
+    ) -> Result<Self, SynthesisError> {
+        f().and_then(|fri| {
+            let ns = cs.into();
+            let cs = ns.cs();
+            let fri = fri.borrow();
+
+            Ok(FriWitnessVerifier {
+                layers: fri
+                    .layers
+                    .iter()
+                    .map(|layer| LayerWitness::new_variable(cs.clone(), || Ok(layer), mode))
+                    .collect::<Result<Vec<_>, _>>()?,
+            })
+        })
+    }
+}
+
+
 impl<F: PrimeField + SimpleField + PoseidonHash> AllocVar<FriLayerWitness, F>
     for LayerWitness<FpVar<F>>
 where
@@ -1061,6 +1766,43 @@ where
     }
 }
 
+impl<F: PrimeField + SimpleField + PoseidonHash, ConstraintF: PrimeField + SimpleField> AllocVar<FriLayerWitness, ConstraintF>
+    for LayerWitness<NonNativeFieldVar<F, ConstraintF>>
+where
+    NonNativeFieldVar<F, ConstraintF>: PoseidonHash,
+{
+    fn new_variable<T: Borrow<FriLayerWitness>>(
+        cs: impl Into<Namespace<ConstraintF>>,
+        f: impl FnOnce() -> Result<T, SynthesisError>,
+        mode: AllocationMode,
+    ) -> Result<Self, SynthesisError> {
+        f().and_then(|layer| {
+            let ns = cs.into();
+            let cs = ns.cs();
+            let layer = layer.borrow();
+
+            Ok(LayerWitness {
+                leaves: layer
+                    .leaves
+                    .iter()
+                    .map(|x| {
+                        NonNativeFieldVar::<F, ConstraintF>::new_variable(
+                            cs.clone(),
+                            || Ok(F::from_biguint(x.clone())),
+                            mode,
+                        )
+                    })
+                    .collect::<Result<Vec<_>, _>>()?,
+                table_witness: TableCommitmentWitnessVerifier::new_variable::<
+                    TableCommitmentWitnessFlat,
+                >(
+                    cs.clone(), || Ok(layer.table_witness.clone()), mode
+                )?,
+            })
+        })
+    }
+}
+
 impl<F: SimpleField + PoseidonHash> From<TableCommitmentWitnessFlat>
     for TableCommitmentWitnessVerifier<F>
 {
@@ -1078,6 +1820,35 @@ where
 {
     fn new_variable<T: Borrow<TableCommitmentWitnessFlat>>(
         cs: impl Into<Namespace<F>>,
+        f: impl FnOnce() -> Result<T, SynthesisError>,
+        mode: AllocationMode,
+    ) -> Result<Self, SynthesisError> {
+        f().and_then(|flat| {
+            let ns = cs.into();
+            let cs = ns.cs();
+            let flat = flat.borrow();
+
+            Ok(TableCommitmentWitnessVerifier {
+                vector: VectorCommitmentWitnessVerifier::new_variable::<VectorCommitmentWitnessFlat>(
+                    cs.clone(),
+                    || Ok(flat.vector.clone()),
+                    mode,
+                )?,
+            })
+        })
+    }
+}
+
+impl<
+        F: PrimeField + SimpleField + PoseidonHash,
+        ConstraintF: PrimeField + SimpleField,
+    > AllocVar<TableCommitmentWitnessFlat, ConstraintF>
+    for TableCommitmentWitnessVerifier<NonNativeFieldVar<F, ConstraintF>>
+where
+    NonNativeFieldVar<F, ConstraintF>: PoseidonHash,
+{
+    fn new_variable<T: Borrow<TableCommitmentWitnessFlat>>(
+        cs: impl Into<Namespace<ConstraintF>>,
         f: impl FnOnce() -> Result<T, SynthesisError>,
         mode: AllocationMode,
     ) -> Result<Self, SynthesisError> {
@@ -1132,6 +1903,41 @@ where
                     .iter()
                     .map(|x| {
                         FpVar::<F>::new_variable(
+                            cs.clone(),
+                            || Ok(F::from_biguint(x.clone())),
+                            mode,
+                        )
+                    })
+                    .collect::<Result<Vec<_>, _>>()?,
+            })
+        })
+    }
+}
+
+impl<
+        F: PrimeField + SimpleField + PoseidonHash,
+        ConstraintF: PrimeField + SimpleField,
+    > AllocVar<VectorCommitmentWitnessFlat, ConstraintF>
+    for VectorCommitmentWitnessVerifier<NonNativeFieldVar<F, ConstraintF>>
+where
+    NonNativeFieldVar<F, ConstraintF>: PoseidonHash,
+{
+    fn new_variable<T: Borrow<VectorCommitmentWitnessFlat>>(
+        cs: impl Into<Namespace<ConstraintF>>,
+        f: impl FnOnce() -> Result<T, SynthesisError>,
+        mode: AllocationMode,
+    ) -> Result<Self, SynthesisError> {
+        f().and_then(|flat| {
+            let ns = cs.into();
+            let cs = ns.cs();
+            let flat = flat.borrow();
+
+            Ok(VectorCommitmentWitnessVerifier {
+                authentications: flat
+                    .authentications
+                    .iter()
+                    .map(|x| {
+                        NonNativeFieldVar::new_variable(
                             cs.clone(),
                             || Ok(F::from_biguint(x.clone())),
                             mode,

@@ -125,13 +125,17 @@ pub mod curve {
     use ark_ec::CurveConfig;
     use ark_ff::Field;
     use ark_ff::MontFp as Fp;
+    use ark_ff::PrimeField;
+    use ark_r1cs_std::fields::nonnative::NonNativeFieldVar;
     use ark_r1cs_std::fields::FieldOpsBounds;
     use ark_r1cs_std::fields::FieldVar;
     use ark_r1cs_std::groups::curves::short_weierstrass::AffineVar;
+    use ark_r1cs_std::groups::nonnative::NonNativeAffineVar;
     use ark_r1cs_std::prelude::Boolean;
     use swiftness_field::Fp;
     use swiftness_field::Fr;
     use swiftness_field::SimpleField;
+    use ark_r1cs_std::prelude::EqGadget;
 
     /// calculates the slope between points `p1` and `p2`
     /// Returns None if one of the points is the point at infinity
@@ -190,6 +194,41 @@ pub mod curve {
 
         Some(SimpleField::select(
             &F::BooleanType::from(x1.is_eq(&x2).unwrap()),
+            {
+                // use tangent line
+                let xx = x1.square().ok()?;
+                (xx.clone() + &xx + &xx + P::COEFF_A).field_div(&(y1.clone() + &y1))
+            },
+            {
+                // use slope
+                (y2 - y1).field_div(&(x2 - x1))
+            },
+        ))
+    }
+
+    pub fn calculate_slope_nnvar<
+        P: SWCurveConfig<BaseField = SimulationF>,
+        ConstraintF: PrimeField + SimpleField,
+        SimulationF: PrimeField + SimpleField,
+    >(
+        p1: NonNativeAffineVar<P, ConstraintF, SimulationF>,
+        p2: NonNativeAffineVar<P, ConstraintF, SimulationF>,
+    ) -> Option<NonNativeFieldVar<SimulationF, ConstraintF>> {
+        // TODO: enable check
+        // if p1.infinity || p2.infinity || (p1.x == p2.x && p1.y != p2.y) {
+        //     return None;
+        // }
+
+        let y1 = p1.y;
+        let y2 = p2.y;
+        let x1 = p1.x;
+        let x2 = p2.x;
+
+        // TODO: enable check
+        // SimpleField::assert_true(x1.is_neq(&x2).unwrap().or(&y1.is_eq(&y2).unwrap()));
+
+        Some(SimpleField::select(
+            &<NonNativeFieldVar::<SimulationF, ConstraintF> as SimpleField>::BooleanType::from(x1.is_eq(&x2).unwrap()),
             {
                 // use tangent line
                 let xx = x1.square().ok()?;

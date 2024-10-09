@@ -5,6 +5,7 @@ use ark_bls12_381::{Bls12_381, Fr};
 use ark_ff::UniformRand;
 use ark_r1cs_std::boolean::Boolean;
 use ark_r1cs_std::eq::EqGadget;
+use ark_r1cs_std::fields::nonnative::NonNativeFieldVar;
 use ark_r1cs_std::uint64::UInt64;
 use ark_r1cs_std::{R1CSVar, ToBitsGadget};
 use ark_relations::r1cs::{ConstraintSynthesizer, ConstraintSystem};
@@ -212,6 +213,29 @@ impl KeccakHash for Fp {
 }
 
 impl<F: PrimeField + SimpleField> KeccakHash for FpVar<F> {
+    fn hash(data: &[<Self as SimpleField>::ByteType]) -> Vec<<Self as SimpleField>::ByteType> {
+        // convert input to boolean
+        let input = data
+            .iter()
+            .flat_map(|byte| byte.to_bits_le().unwrap())
+            .collect::<Vec<_>>();
+
+        let res = match keccak256(&input) {
+            Ok(res) => res,
+            Err(e) => {
+                panic!("keccak256 hash err:{}", e);
+            }
+        };
+
+        //convert output to bytes
+        let output = res.chunks(8).map(UInt8::from_bits_le).collect::<Vec<_>>();
+        output
+    }
+}
+
+impl<F: PrimeField + SimpleField, ConstraintF: PrimeField + SimpleField> KeccakHash
+    for NonNativeFieldVar<F, ConstraintF>
+{
     fn hash(data: &[<Self as SimpleField>::ByteType]) -> Vec<<Self as SimpleField>::ByteType> {
         // convert input to boolean
         let input = data

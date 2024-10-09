@@ -16,6 +16,14 @@ use ark_r1cs_std::{
     Assignment, ToConstraintFieldGadget,
 };
 
+/// Converts a field element from one field to another.
+pub fn convert<TargetF: PrimeField, BaseField: PrimeField>(
+    value: TargetF,
+) -> BaseField {
+    let value: num_bigint::BigUint = value.into_bigint().into();
+    BaseField::from_bigint(BaseField::BigInt::try_from(value).unwrap()).unwrap()
+}
+
 /// Represents a variable in the constraint system whose
 /// value can be an arbitrary field element.
 #[derive(Debug, Clone)]

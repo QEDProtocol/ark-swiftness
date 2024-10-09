@@ -8,6 +8,7 @@ use ark_ff::{biginteger::BigInteger256 as B, BigInteger as _};
 use ark_r1cs_std::alloc::AllocVar;
 use ark_r1cs_std::eq::EqGadget;
 use ark_r1cs_std::fields::fp::FpVar;
+use ark_r1cs_std::fields::nonnative::NonNativeFieldVar;
 use ark_r1cs_std::fields::FieldVar;
 use ark_r1cs_std::prelude::Boolean;
 use ark_r1cs_std::uint8::UInt8;
@@ -498,6 +499,1104 @@ impl<F: PrimeField + SimpleField> SimpleField for FpVar<F> {
             let mut new_values = values.value().unwrap();
             new_values.sort();
             return new_values.into_iter().map(|v| FpVar::Constant(v)).collect();
+        }
+
+        let new_values = Vec::<Self>::new_witness(cs, || {
+            let mut values = values.value().unwrap();
+            values.sort();
+            Ok(values)
+        })
+        .unwrap();
+
+        // TODO: check new_values come from the original vector
+        new_values.iter().reduce(|prev, next| {
+            SimpleField::assert_lte(prev, next);
+            next
+        });
+
+        new_values
+    }
+
+    // Unsafe
+    fn slice(values: &[Self], start: &Self, end: &Self) -> Vec<Self> {
+        let cs = values.cs();
+
+        // All should be constants
+        if cs.is_none() {
+            let start = start.get_value();
+            let end = end.get_value();
+            return values[start.into_constant()..end.into_constant()].to_vec();
+        }
+
+        let slice = Vec::<Self>::new_witness(cs, || {
+            let start = start.get_value();
+            let end = end.get_value();
+            let values = values.value().unwrap();
+            Ok(values[start.into_constant()..end.into_constant()].to_vec())
+        })
+        .unwrap();
+
+        // TODO: check new slice comes from the original slice
+        slice
+    }
+
+    // Unsafe
+    fn skip(values: &[Self], n: &Self) -> Vec<Self> {
+        let cs = values.cs();
+
+        // All should be constants
+        if cs.is_none() {
+            let start = n.get_value();
+            return values[start.into_constant()..].to_vec();
+        }
+
+        let slice = Vec::<Self>::new_witness(cs, || {
+            let start = n.get_value();
+            let values = values.value().unwrap();
+            Ok(values[start.into_constant()..].to_vec())
+        })
+        .unwrap();
+
+        // TODO: check new slice comes from the original slice
+        slice
+    }
+
+    // Unsafe
+    fn take(values: &[Self], n: &Self) -> Vec<Self> {
+        let cs = values.cs();
+
+        // All should be constants
+        if cs.is_none() {
+            let start = n.get_value();
+            return values[..start.into_constant()].to_vec();
+        }
+
+        let slice = Vec::<Self>::new_witness(cs, || {
+            let start = n.get_value();
+            let values = values.value().unwrap();
+            Ok(values[..start.into_constant()].to_vec())
+        })
+        .unwrap();
+
+        // TODO: check new slice comes from the original slice
+        slice
+    }
+
+    // Unsafe
+    fn range(start: &Self, end: &Self) -> Vec<Self> {
+        let cs = start.cs().or(end.cs());
+
+        if cs.is_none() {
+            return (start.value().unwrap().into_constant::<usize>()
+                ..end.value().unwrap().into_constant::<usize>())
+                .map(|v| Self::from_constant(v))
+                .collect::<Vec<_>>();
+        }
+
+        let range = Vec::<Self>::new_witness(cs, || {
+            Ok((start.value().unwrap().into_constant::<usize>()
+                ..end.value().unwrap().into_constant::<usize>())
+                .map(|v| F::from_constant(v))
+                .collect::<Vec<_>>())
+        })
+        .unwrap();
+
+        if let Some(first) = range.first() {
+            first.assert_equal(start);
+        }
+
+        if let Some(last) = range.last() {
+            last.assert_equal(&(end.clone() - &SimpleField::one()))
+        }
+
+        range.iter().reduce(|prev, next| {
+            next.assert_equal(&(prev + &SimpleField::one()));
+            next
+        });
+
+        return range;
+    }
+
+    // Unsafe
+    fn at(values: &[Self], i: &Self) -> Self {
+        let cs = values.cs();
+        if i.is_constant() || cs.is_none() {
+            return values[i.into_constant::<usize>()].clone();
+        }
+
+        let value = Self::new_witness(cs, || {
+            Ok(<Self as R1CSVar<F>>::value(&values[i.into_constant::<usize>()]).unwrap())
+        })
+        .unwrap();
+
+        // TODO: check value equals to element at i position
+        value
+    }
+
+    fn mul_by_constant(&self, n: impl Into<num_bigint::BigUint>) -> Self {
+        self.mul(&Self::from_constant(n))
+    }
+}
+
+/// Converts a field element from one field to another.
+pub fn convert<TargetF: PrimeField, BaseField: PrimeField>(value: TargetF) -> BaseField {
+    let value: num_bigint::BigUint = value.into_bigint().into();
+    BaseField::from_bigint(BaseField::BigInt::try_from(value).unwrap()).unwrap()
+}
+
+impl<SimulationF: PrimeField + SimpleField, ConstraintF: PrimeField + SimpleField> SimpleField
+    for NonNativeFieldVar<SimulationF, ConstraintF>
+{
+    type Value = SimulationF;
+    type BooleanType = Boolean<ConstraintF>;
+    type ByteType = UInt8<ConstraintF>;
+
+    fn zero() -> Self {
+        NonNativeFieldVar::Constant(SimpleField::zero())
+    }
+
+    fn one() -> Self {
+        NonNativeFieldVar::Constant(SimpleField::one())
+    }
+
+    fn two() -> Self {
+        NonNativeFieldVar::Constant(SimpleField::two())
+    }
+
+    fn negate(&self) -> Self {
+        <NonNativeFieldVar<SimulationF, ConstraintF> as FieldVar<SimulationF, ConstraintF>>::negate(
+            self,
+        )
+        .unwrap()
+    }
+
+    fn is_zero(&self) -> Self::BooleanType {
+        EqGadget::is_eq(self, &SimpleField::zero()).unwrap()
+    }
+
+    fn is_one(&self) -> Self::BooleanType {
+        EqGadget::is_eq(self, &SimpleField::one()).unwrap()
+    }
+
+    fn inv(&self) -> Self {
+        if self.is_constant() {
+            NonNativeFieldVar::Constant(self.value().unwrap().inv().clone())
+        } else {
+            let is_zero = <Self as SimpleField>::is_zero(self);
+            let inv =
+                NonNativeFieldVar::new_witness(self.cs(), || Ok(self.value()?.inv())).unwrap();
+            self.mul_equals(&inv, &Self::from_boolean(Self::not(&is_zero)))
+                .unwrap();
+            inv
+        }
+    }
+
+    fn from_constant(value: impl Into<num_bigint::BigUint>) -> Self {
+        NonNativeFieldVar::Constant(SimulationF::from_constant(value))
+    }
+
+    fn from_boolean(value: Self::BooleanType) -> Self {
+        Self::from(value)
+    }
+
+    fn into_boolean(&self) -> Self::BooleanType {
+        Self::assert_true(Self::or(
+            &SimpleField::is_zero(self),
+            &SimpleField::is_one(self),
+        ));
+        Boolean::select(
+            &SimpleField::is_zero(self),
+            &Boolean::<ConstraintF>::FALSE,
+            &Boolean::<ConstraintF>::TRUE,
+        )
+        .unwrap()
+    }
+
+    fn from_biguint(value: num_bigint::BigUint) -> Self {
+        NonNativeFieldVar::Constant(SimulationF::from_biguint(value))
+    }
+
+    fn into_biguint(&self) -> num_bigint::BigUint {
+        self.value().unwrap().try_into().unwrap()
+    }
+
+    fn into_constant<T: TryFrom<num_bigint::BigUint>>(&self) -> T
+    where
+        <T as TryFrom<num_bigint::BigUint>>::Error: Debug,
+    {
+        self.into_biguint().try_into().unwrap()
+    }
+
+    fn powers<Exp: AsRef<[u64]>>(&self, n: Exp) -> Self {
+        self.pow_by_constant(n).unwrap()
+    }
+
+    fn from_felt(value: Fp) -> Self {
+        NonNativeFieldVar::Constant(SimpleField::from_felt(value))
+    }
+
+    fn from_stark_felt(value: starknet_crypto::Felt) -> Self {
+        NonNativeFieldVar::Constant(SimpleField::from_stark_felt(value))
+    }
+
+    fn assert_equal(&self, other: &Self) {
+        assert!(ark_r1cs_std::eq::EqGadget::enforce_equal(self, other).is_ok());
+    }
+
+    fn assert_not_equal(&self, other: &Self) {
+        assert!(ark_r1cs_std::eq::EqGadget::enforce_not_equal(self, other).is_ok());
+    }
+
+    fn powers_felt(&self, n: &Self) -> Self {
+        ark_r1cs_std::bits::ToBitsGadget::to_bits_le(n)
+            .and_then(|bits| FieldVar::pow_le(self, &bits))
+            .unwrap()
+    }
+
+    fn div_rem(&self, other: &Self) -> (Self, Self) {
+        if let (NonNativeFieldVar::Constant(dividend), NonNativeFieldVar::Constant(divisor)) =
+            (self, other)
+        {
+            let (quotient, remainder) = dividend.div_rem(divisor);
+            return (
+                NonNativeFieldVar::Constant(quotient),
+                NonNativeFieldVar::Constant(remainder),
+            );
+        }
+
+        let cs = self.cs().or(other.cs());
+
+        let quotient = Self::new_witness(cs.clone(), || {
+            Ok(self.value().unwrap().div_rem(&other.value().unwrap()).0)
+        })
+        .unwrap();
+
+        let remainder = Self::new_witness(cs.clone(), || {
+            Ok(self.value().unwrap().div_rem(&other.value().unwrap()).1)
+        })
+        .unwrap();
+
+        (quotient.clone() * other + &remainder)
+            .enforce_equal(self)
+            .unwrap();
+
+        (quotient, remainder)
+    }
+
+    fn div2_rem(&self) -> (Self, Self) {
+        let bits = self.to_bits_le().unwrap();
+        if bits.is_empty() {
+            return (SimpleField::zero(), SimpleField::zero());
+        }
+
+        let (left, right) = bits.split_at(1);
+        (
+            Self::from_le_bits(right),
+            Self::from_le_bits(left),
+            // Boolean::le_bits_to_fp_var(right).unwrap(),
+            // Boolean::le_bits_to_fp_var(left).unwrap(),
+        )
+    }
+
+    fn select(cond: &Self::BooleanType, a: Self, b: Self) -> Self {
+        cond.select(&a, &b).unwrap()
+    }
+
+    fn is_equal(&self, other: &Self) -> Self::BooleanType {
+        EqGadget::is_eq(self, other).unwrap()
+    }
+
+    fn and(lhs: &Self::BooleanType, rhs: &Self::BooleanType) -> Self::BooleanType {
+        Boolean::and(lhs, rhs).unwrap()
+    }
+
+    fn or(lhs: &Self::BooleanType, rhs: &Self::BooleanType) -> Self::BooleanType {
+        Boolean::or(lhs, rhs).unwrap()
+    }
+
+    fn xor(lhs: &Self::BooleanType, rhs: &Self::BooleanType) -> Self::BooleanType {
+        Boolean::xor(lhs, rhs).unwrap()
+    }
+
+    fn not(value: &Self::BooleanType) -> Self::BooleanType {
+        Boolean::not(value)
+    }
+
+    fn assert_gt(&self, other: &Self) {
+        let self_var = FpVar::<ConstraintF>::new_witness(self.cs(), || Ok(convert::<SimulationF, ConstraintF>(self.value().unwrap()))).unwrap();
+        let other_var = FpVar::<ConstraintF>::new_witness(self.cs(), || Ok(convert::<SimulationF, ConstraintF>(other.value().unwrap()))).unwrap();
+
+        self_var.assert_gt(&other_var);
+    }
+
+    fn assert_lt(&self, other: &Self) {
+        let self_var = FpVar::<ConstraintF>::new_witness(self.cs(), || Ok(convert::<SimulationF, ConstraintF>(self.value().unwrap()))).unwrap();
+        let other_var = FpVar::<ConstraintF>::new_witness(self.cs(), || Ok(convert::<SimulationF, ConstraintF>(other.value().unwrap()))).unwrap();
+
+        self_var.assert_lt(&other_var);
+    }
+
+    fn assert_gte(&self, other: &Self) {
+        let self_var = FpVar::<ConstraintF>::new_witness(self.cs(), || Ok(convert::<SimulationF, ConstraintF>(self.value().unwrap()))).unwrap();
+        let other_var = FpVar::<ConstraintF>::new_witness(self.cs(), || Ok(convert::<SimulationF, ConstraintF>(other.value().unwrap()))).unwrap();
+
+        self_var.assert_gte(&other_var);
+    }
+
+    fn assert_lte(&self, other: &Self) {
+        let self_var = FpVar::<ConstraintF>::new_witness(self.cs(), || Ok(convert::<SimulationF, ConstraintF>(self.value().unwrap()))).unwrap();
+        let other_var = FpVar::<ConstraintF>::new_witness(self.cs(), || Ok(convert::<SimulationF, ConstraintF>(other.value().unwrap()))).unwrap();
+
+        self_var.assert_lte(&other_var);
+    }
+
+    fn field_div(&self, other: &Self) -> Self {
+        self.mul(other.inv())
+    }
+
+    fn rsh(&self, n: usize) -> Self {
+        let bits = self.to_bits_le().unwrap();
+        if bits.is_empty() || n >= bits.len() {
+            return SimpleField::zero();
+        }
+
+        // Boolean::le_bits_to_fp_var(&bits[n..]).unwrap()
+        Self::from_le_bits(&bits)
+    }
+
+    fn rshm(&self, n: usize) -> (Self, Self) {
+        let bits = self.to_bits_le().unwrap();
+        if bits.is_empty() || n >= bits.len() {
+            return (SimpleField::zero(), self.clone());
+        }
+
+        (
+            Self::from_le_bits(&bits[n..]),
+            Self::from_le_bits(&bits[..n]),
+            // Boolean::le_bits_to_fp_var(&bits[n..]).unwrap(),
+            // Boolean::le_bits_to_fp_var(&bits[..n]).unwrap(),
+        )
+    }
+
+    fn greater_than(&self, other: &Self) -> Self::BooleanType {
+        // NonNativeFieldVar::<F>::is_cmp_unchecked(self, other, core::cmp::Ordering::Greater, false).unwrap()
+        todo!()
+    }
+
+    fn less_than(&self, other: &Self) -> Self::BooleanType {
+        // NonNativeFieldVar::<F>::is_cmp_unchecked(self, other, core::cmp::Ordering::Less, false).unwrap()
+        todo!()
+    }
+
+    fn lte(&self, other: &Self) -> Self::BooleanType {
+        // NonNativeFieldVar::<F>::is_cmp_unchecked(self, other, core::cmp::Ordering::Less, true).unwrap()
+        todo!()
+    }
+
+    fn gte(&self, other: &Self) -> Self::BooleanType {
+        // NonNativeFieldVar::<F>::is_cmp_unchecked(self, other, core::cmp::Ordering::Greater, true).unwrap()
+        todo!()
+    }
+
+    fn three() -> Self {
+        NonNativeFieldVar::Constant(SimpleField::three())
+    }
+
+    fn four() -> Self {
+        NonNativeFieldVar::Constant(SimpleField::four())
+    }
+
+    fn is_not_equal(&self, other: &Self) -> Self::BooleanType {
+        EqGadget::is_neq(self, other).unwrap()
+    }
+
+    fn assert_true(value: Self::BooleanType) {
+        value.enforce_equal(&Boolean::<ConstraintF>::TRUE).unwrap()
+    }
+
+    fn assert_false(value: Self::BooleanType) {
+        value.enforce_equal(&Boolean::<ConstraintF>::FALSE).unwrap()
+    }
+
+    fn lsh(&self, n: usize) -> Self {
+        let bits = self.to_bits_le().unwrap();
+        if bits.is_empty() || n >= bits.len() {
+            return SimpleField::zero();
+        }
+
+        Self::from_le_bits(
+            &core::iter::repeat(Boolean::<ConstraintF>::FALSE)
+                .take(n)
+                .chain(bits.iter().cloned())
+                .collect::<Vec<_>>(),
+        )
+    }
+
+    fn to_le_bytes(&self) -> Vec<Self::ByteType> {
+        ToBytesGadget::to_bytes(self).unwrap()
+    }
+
+    fn to_be_bytes(&self) -> Vec<Self::ByteType> {
+        ToBytesGadget::to_bytes(self)
+            .unwrap()
+            .into_iter()
+            .rev()
+            .collect()
+    }
+
+    fn to_le_bits(&self) -> Vec<Self::BooleanType> {
+        ToBitsGadget::to_bits_le(self).unwrap()
+    }
+
+    fn to_be_bits(&self) -> Vec<Self::BooleanType> {
+        ToBitsGadget::to_bits_be(self).unwrap()
+    }
+
+    fn construct_byte(value: u8) -> Self::ByteType {
+        UInt8::<ConstraintF>::constant(value)
+    }
+
+    fn construct_bool(value: bool) -> Self::BooleanType {
+        Boolean::<ConstraintF>::constant(value)
+    }
+
+    fn from_be_bytes(bytes: &[Self::ByteType]) -> Self {
+        let var = Boolean::le_bits_to_fp_var(
+            &bytes
+                .iter()
+                .rev()
+                .flat_map(|b| b.to_bits_le().unwrap())
+                .collect::<Vec<_>>(),
+        )
+        .unwrap();
+
+        match var {
+            FpVar::Constant(c) => {
+                NonNativeFieldVar::Constant(convert::<ConstraintF, SimulationF>(c))
+            }
+            FpVar::Var(allocated_fp) => {
+                let value = allocated_fp.value().unwrap();
+                let value = convert::<ConstraintF, SimulationF>(value);
+
+                NonNativeFieldVar::new_witness(allocated_fp.cs, || Ok(value)).unwrap()
+            } // var => Self::new_witness(var.cs(), || Ok(convert::<SimulationF, ConstraintF>(var.value().unwrap()))).unwrap(),
+        }
+    }
+
+    fn from_le_bytes(bytes: &[Self::ByteType]) -> Self {
+        let var = Boolean::le_bits_to_fp_var(
+            &bytes
+                .iter()
+                .flat_map(|b| b.to_bits_le().unwrap())
+                .collect::<Vec<_>>(),
+        )
+        .unwrap();
+        match var {
+            FpVar::Constant(c) => {
+                NonNativeFieldVar::Constant(convert::<ConstraintF, SimulationF>(c))
+            }
+            FpVar::Var(allocated_fp) => {
+                let value = allocated_fp.value().unwrap();
+                let value = convert::<ConstraintF, SimulationF>(value);
+
+                NonNativeFieldVar::new_witness(allocated_fp.cs, || Ok(value)).unwrap()
+            }
+        }
+    }
+
+    fn from_le_bits(bits: &[Self::BooleanType]) -> Self {
+        let var = Boolean::le_bits_to_fp_var(&bits).unwrap();
+        match var {
+            FpVar::Constant(c) => {
+                NonNativeFieldVar::Constant(convert::<ConstraintF, SimulationF>(c))
+            }
+            FpVar::Var(allocated_fp) => {
+                let value = allocated_fp.value().unwrap();
+                let value = convert::<ConstraintF, SimulationF>(value);
+
+                NonNativeFieldVar::new_witness(allocated_fp.cs, || Ok(value)).unwrap()
+            }
+        }
+    }
+
+    fn from_be_bits(bits: &[Self::BooleanType]) -> Self {
+        let var = Boolean::le_bits_to_fp_var(
+            bits.into_iter()
+                .cloned()
+                .rev()
+                .collect::<Vec<_>>()
+                .as_slice(),
+        )
+        .unwrap();
+        match var {
+            FpVar::Constant(c) => {
+                NonNativeFieldVar::Constant(convert::<ConstraintF, SimulationF>(c))
+            }
+            FpVar::Var(allocated_fp) => {
+                let value = allocated_fp.value().unwrap();
+                let value = convert::<ConstraintF, SimulationF>(value);
+
+                NonNativeFieldVar::new_witness(allocated_fp.cs, || Ok(value)).unwrap()
+            }
+        }
+    }
+
+    // Unsafe
+    fn reverse_bits(&self, n: usize) -> Self {
+        if self.is_constant() {
+            return NonNativeFieldVar::Constant(self.value().unwrap().reverse_bits(n));
+        }
+
+        let r = Self::new_witness(self.cs(), || Ok(self.value().unwrap().reverse_bits(n))).unwrap();
+
+        // TODO: we should have been able to write this in circuits but arkworks' to_non_unique_bits looks buggy
+        r
+    }
+
+    fn get_value(&self) -> Self::Value {
+        self.value().unwrap().clone()
+    }
+
+    // Unsafe
+    fn sort(values: Vec<Self>) -> Vec<Self> {
+        if values.is_empty() {
+            return vec![];
+        }
+
+        let cs = values.cs();
+
+        // All should be constants
+        if cs.is_none() {
+            let mut new_values = values.value().unwrap();
+            new_values.sort();
+            return new_values
+                .into_iter()
+                .map(|v| NonNativeFieldVar::Constant(v))
+                .collect();
+        }
+
+        let new_values = Vec::<Self>::new_witness(cs, || {
+            let mut values = values.value().unwrap();
+            values.sort();
+            Ok(values)
+        })
+        .unwrap();
+
+        // TODO: check new_values come from the original vector
+        new_values.iter().reduce(|prev, next| {
+            SimpleField::assert_lte(prev, next);
+            next
+        });
+
+        new_values
+    }
+
+    // Unsafe
+    fn slice(values: &[Self], start: &Self, end: &Self) -> Vec<Self> {
+        let cs = values.cs();
+
+        // All should be constants
+        if cs.is_none() {
+            let start = start.get_value();
+            let end = end.get_value();
+            return values[start.into_constant()..end.into_constant()].to_vec();
+        }
+
+        let slice = Vec::<Self>::new_witness(cs, || {
+            let start = start.get_value();
+            let end = end.get_value();
+            let values = values.value().unwrap();
+            Ok(values[start.into_constant()..end.into_constant()].to_vec())
+        })
+        .unwrap();
+
+        // TODO: check new slice comes from the original slice
+        slice
+    }
+
+    // Unsafe
+    fn skip(values: &[Self], n: &Self) -> Vec<Self> {
+        let cs = values.cs();
+
+        // All should be constants
+        if cs.is_none() {
+            let start = n.get_value();
+            return values[start.into_constant()..].to_vec();
+        }
+
+        let slice = Vec::<Self>::new_witness(cs, || {
+            let start = n.get_value();
+            let values = values.value().unwrap();
+            Ok(values[start.into_constant()..].to_vec())
+        })
+        .unwrap();
+
+        // TODO: check new slice comes from the original slice
+        slice
+    }
+
+    // Unsafe
+    fn take(values: &[Self], n: &Self) -> Vec<Self> {
+        let cs = values.cs();
+
+        // All should be constants
+        if cs.is_none() {
+            let start = n.get_value();
+            return values[..start.into_constant()].to_vec();
+        }
+
+        let slice = Vec::<Self>::new_witness(cs, || {
+            let start = n.get_value();
+            let values = values.value().unwrap();
+            Ok(values[..start.into_constant()].to_vec())
+        })
+        .unwrap();
+
+        // TODO: check new slice comes from the original slice
+        slice
+    }
+
+    // Unsafe
+    fn range(start: &Self, end: &Self) -> Vec<Self> {
+        let cs = start.cs().or(end.cs());
+
+        if cs.is_none() {
+            return (start.value().unwrap().into_constant::<usize>()
+                ..end.value().unwrap().into_constant::<usize>())
+                .map(|v| Self::from_constant(v))
+                .collect::<Vec<_>>();
+        }
+
+        let range = Vec::<Self>::new_witness(cs, || {
+            Ok((start.value().unwrap().into_constant::<usize>()
+                ..end.value().unwrap().into_constant::<usize>())
+                .map(|v| SimulationF::from_constant(v))
+                .collect::<Vec<_>>())
+        })
+        .unwrap();
+
+        if let Some(first) = range.first() {
+            first.assert_equal(start);
+        }
+
+        if let Some(last) = range.last() {
+            last.assert_equal(&(end.clone() - &SimpleField::one()))
+        }
+
+        range.iter().reduce(|prev, next| {
+            next.assert_equal(&(prev + &SimpleField::one()));
+            next
+        });
+
+        return range;
+    }
+
+    // Unsafe
+    fn at(values: &[Self], i: &Self) -> Self {
+        let cs = values.cs();
+        if i.is_constant() || cs.is_none() {
+            return values[i.into_constant::<usize>()].clone();
+        }
+
+        let value = Self::new_witness(cs, || {
+            Ok(<Self as R1CSVar<ConstraintF>>::value(&values[i.into_constant::<usize>()]).unwrap())
+        })
+        .unwrap();
+
+        // TODO: check value equals to element at i position
+        value
+    }
+
+    fn mul_by_constant(&self, n: impl Into<num_bigint::BigUint>) -> Self {
+        self.mul(&Self::from_constant(n))
+    }
+}
+
+impl<F: PrimeField + SimpleField> SimpleField for SimpleFpVar<F> {
+    type Value = F;
+    type BooleanType = Boolean<F>;
+    type ByteType = UInt8<F>;
+
+    fn zero() -> Self {
+        SimpleFpVar::Constant(SimpleField::zero())
+    }
+
+    fn one() -> Self {
+        SimpleFpVar::Constant(SimpleField::one())
+    }
+
+    fn two() -> Self {
+        SimpleFpVar::Constant(SimpleField::two())
+    }
+
+    fn negate(&self) -> Self {
+        FieldVar::<F, F>::negate(self).unwrap()
+    }
+
+    fn is_zero(&self) -> Self::BooleanType {
+        EqGadget::is_eq(self, &SimpleField::zero()).unwrap()
+    }
+
+    fn is_one(&self) -> Self::BooleanType {
+        EqGadget::is_eq(self, &SimpleField::one()).unwrap()
+    }
+
+    fn inv(&self) -> Self {
+        if self.is_constant() {
+            SimpleFpVar::Constant(self.value().unwrap().inv().clone())
+        } else {
+            let is_zero = <Self as SimpleField>::is_zero(self);
+            let inv = SimpleFpVar::new_witness(self.cs(), || Ok(self.value()?.inv())).unwrap();
+            self.mul_equals(&inv, &Self::from_boolean(Self::not(&is_zero)))
+                .unwrap();
+            inv
+        }
+    }
+
+    fn from_constant(value: impl Into<num_bigint::BigUint>) -> Self {
+        SimpleFpVar::Constant(F::from_constant(value))
+    }
+
+    fn from_boolean(value: Self::BooleanType) -> Self {
+        Self::from(value)
+    }
+
+    fn into_boolean(&self) -> Self::BooleanType {
+        Self::assert_true(Self::or(
+            &SimpleField::is_zero(self),
+            &SimpleField::is_one(self),
+        ));
+        Boolean::select(
+            &SimpleField::is_zero(self),
+            &Boolean::<F>::FALSE,
+            &Boolean::<F>::TRUE,
+        )
+        .unwrap()
+    }
+
+    fn from_biguint(value: num_bigint::BigUint) -> Self {
+        SimpleFpVar::Constant(F::from_biguint(value))
+    }
+
+    fn into_biguint(&self) -> num_bigint::BigUint {
+        self.value().unwrap().try_into().unwrap()
+    }
+
+    fn into_constant<T: TryFrom<num_bigint::BigUint>>(&self) -> T
+    where
+        <T as TryFrom<num_bigint::BigUint>>::Error: Debug,
+    {
+        self.into_biguint().try_into().unwrap()
+    }
+
+    fn powers<Exp: AsRef<[u64]>>(&self, n: Exp) -> Self {
+        self.pow_by_constant(n).unwrap()
+    }
+
+    fn from_felt(value: Fp) -> Self {
+        SimpleFpVar::Constant(SimpleField::from_felt(value))
+    }
+
+    fn from_stark_felt(value: starknet_crypto::Felt) -> Self {
+        SimpleFpVar::Constant(SimpleField::from_stark_felt(value))
+    }
+
+    fn assert_equal(&self, other: &Self) {
+        assert!(ark_r1cs_std::eq::EqGadget::enforce_equal(self, other).is_ok());
+    }
+
+    fn assert_not_equal(&self, other: &Self) {
+        assert!(ark_r1cs_std::eq::EqGadget::enforce_not_equal(self, other).is_ok());
+    }
+
+    fn powers_felt(&self, n: &Self) -> Self {
+        ark_r1cs_std::bits::ToBitsGadget::to_bits_le(n)
+            .and_then(|bits| FieldVar::pow_le(self, &bits))
+            .unwrap()
+    }
+
+    fn div_rem(&self, other: &Self) -> (Self, Self) {
+        if let (SimpleFpVar::Constant(dividend), SimpleFpVar::Constant(divisor)) = (self, other) {
+            let (quotient, remainder) = dividend.div_rem(divisor);
+            return (
+                SimpleFpVar::Constant(quotient),
+                SimpleFpVar::Constant(remainder),
+            );
+        }
+
+        let cs = self.cs().or(other.cs());
+
+        let quotient = Self::new_witness(cs.clone(), || {
+            Ok(self.value().unwrap().div_rem(&other.value().unwrap()).0)
+        })
+        .unwrap();
+
+        let remainder = Self::new_witness(cs.clone(), || {
+            Ok(self.value().unwrap().div_rem(&other.value().unwrap()).1)
+        })
+        .unwrap();
+
+        (quotient.clone() * other + &remainder)
+            .enforce_equal(self)
+            .unwrap();
+
+        (quotient, remainder)
+    }
+
+    fn div2_rem(&self) -> (Self, Self) {
+        let bits = self.to_bits_le().unwrap();
+        if bits.is_empty() {
+            return (SimpleField::zero(), SimpleField::zero());
+        }
+
+        let (left, right) = bits.split_at(1);
+        (
+            Self::from_le_bits(right),
+            Self::from_le_bits(left),
+            // Boolean::le_bits_to_fp_var(right).unwrap(),
+            // Boolean::le_bits_to_fp_var(left).unwrap(),
+        )
+    }
+
+    fn select(cond: &Self::BooleanType, a: Self, b: Self) -> Self {
+        cond.select(&a, &b).unwrap()
+    }
+
+    fn is_equal(&self, other: &Self) -> Self::BooleanType {
+        EqGadget::is_eq(self, other).unwrap()
+    }
+
+    fn and(lhs: &Self::BooleanType, rhs: &Self::BooleanType) -> Self::BooleanType {
+        Boolean::and(lhs, rhs).unwrap()
+    }
+
+    fn or(lhs: &Self::BooleanType, rhs: &Self::BooleanType) -> Self::BooleanType {
+        Boolean::or(lhs, rhs).unwrap()
+    }
+
+    fn xor(lhs: &Self::BooleanType, rhs: &Self::BooleanType) -> Self::BooleanType {
+        Boolean::xor(lhs, rhs).unwrap()
+    }
+
+    fn not(value: &Self::BooleanType) -> Self::BooleanType {
+        Boolean::not(value)
+    }
+
+    fn assert_gt(&self, other: &Self) {
+        todo!()
+        // SimpleFpVar::<F>::enforce_cmp(self, other, core::cmp::Ordering::Greater, false).unwrap();
+    }
+
+    fn assert_lt(&self, other: &Self) {
+        todo!()
+        // SimpleFpVar::<F>::enforce_cmp(self, other, core::cmp::Ordering::Less, false).unwrap();
+    }
+
+    fn assert_gte(&self, other: &Self) {
+        todo!()
+        // SimpleFpVar::<F>::enforce_cmp(self, other, core::cmp::Ordering::Greater, true).unwrap();
+    }
+
+    fn assert_lte(&self, other: &Self) {
+        todo!()
+        // SimpleFpVar::<F>::enforce_cmp(self, other, core::cmp::Ordering::Less, true).unwrap();
+    }
+
+    fn field_div(&self, other: &Self) -> Self {
+        self.mul(other.inv())
+    }
+
+    fn rsh(&self, n: usize) -> Self {
+        let bits = self.to_bits_le().unwrap();
+        if bits.is_empty() || n >= bits.len() {
+            return SimpleField::zero();
+        }
+
+        // Boolean::le_bits_to_fp_var(&bits[n..]).unwrap()
+        Self::from_le_bits(&bits)
+    }
+
+    fn rshm(&self, n: usize) -> (Self, Self) {
+        let bits = self.to_bits_le().unwrap();
+        if bits.is_empty() || n >= bits.len() {
+            return (SimpleField::zero(), self.clone());
+        }
+
+        (
+            Self::from_le_bits(&bits[n..]),
+            Self::from_le_bits(&bits[..n]),
+            // Boolean::le_bits_to_fp_var(&bits[n..]).unwrap(),
+            // Boolean::le_bits_to_fp_var(&bits[..n]).unwrap(),
+        )
+    }
+
+    fn greater_than(&self, other: &Self) -> Self::BooleanType {
+        // SimpleFpVar::<F>::is_cmp_unchecked(self, other, core::cmp::Ordering::Greater, false).unwrap()
+        todo!()
+    }
+
+    fn less_than(&self, other: &Self) -> Self::BooleanType {
+        // SimpleFpVar::<F>::is_cmp_unchecked(self, other, core::cmp::Ordering::Less, false).unwrap()
+        todo!()
+    }
+
+    fn lte(&self, other: &Self) -> Self::BooleanType {
+        // SimpleFpVar::<F>::is_cmp_unchecked(self, other, core::cmp::Ordering::Less, true).unwrap()
+        todo!()
+    }
+
+    fn gte(&self, other: &Self) -> Self::BooleanType {
+        // SimpleFpVar::<F>::is_cmp_unchecked(self, other, core::cmp::Ordering::Greater, true).unwrap()
+        todo!()
+    }
+
+    fn three() -> Self {
+        SimpleFpVar::Constant(SimpleField::three())
+    }
+
+    fn four() -> Self {
+        SimpleFpVar::Constant(SimpleField::four())
+    }
+
+    fn is_not_equal(&self, other: &Self) -> Self::BooleanType {
+        EqGadget::is_neq(self, other).unwrap()
+    }
+
+    fn assert_true(value: Self::BooleanType) {
+        value.enforce_equal(&Boolean::<F>::TRUE).unwrap()
+    }
+
+    fn assert_false(value: Self::BooleanType) {
+        value.enforce_equal(&Boolean::<F>::FALSE).unwrap()
+    }
+
+    fn lsh(&self, n: usize) -> Self {
+        let bits = self.to_bits_le().unwrap();
+        if bits.is_empty() || n >= bits.len() {
+            return SimpleField::zero();
+        }
+
+        Self::from_le_bits(
+            &core::iter::repeat(Boolean::<F>::FALSE)
+                .take(n)
+                .chain(bits.iter().cloned())
+                .collect::<Vec<_>>(),
+        )
+    }
+
+    fn to_le_bytes(&self) -> Vec<Self::ByteType> {
+        ToBytesGadget::to_bytes(self).unwrap()
+    }
+
+    fn to_be_bytes(&self) -> Vec<Self::ByteType> {
+        ToBytesGadget::to_bytes(self)
+            .unwrap()
+            .into_iter()
+            .rev()
+            .collect()
+    }
+
+    fn to_le_bits(&self) -> Vec<Self::BooleanType> {
+        ToBitsGadget::to_bits_le(self).unwrap()
+    }
+
+    fn to_be_bits(&self) -> Vec<Self::BooleanType> {
+        ToBitsGadget::to_bits_be(self).unwrap()
+    }
+
+    fn construct_byte(value: u8) -> Self::ByteType {
+        UInt8::<F>::constant(value)
+    }
+
+    fn construct_bool(value: bool) -> Self::BooleanType {
+        Boolean::<F>::constant(value)
+    }
+
+    fn from_be_bytes(bytes: &[Self::ByteType]) -> Self {
+        let var = Boolean::le_bits_to_fp_var(
+            &bytes
+                .iter()
+                .rev()
+                .flat_map(|b| b.to_bits_le().unwrap())
+                .collect::<Vec<_>>(),
+        )
+        .unwrap();
+
+        match var {
+            FpVar::Constant(c) => SimpleFpVar::Constant(c),
+            var => Self::new_witness(var.cs(), || var.value()).unwrap(),
+        }
+    }
+
+    fn from_le_bytes(bytes: &[Self::ByteType]) -> Self {
+        let var = Boolean::le_bits_to_fp_var(
+            &bytes
+                .iter()
+                .flat_map(|b| b.to_bits_le().unwrap())
+                .collect::<Vec<_>>(),
+        )
+        .unwrap();
+        match var {
+            FpVar::Constant(c) => SimpleFpVar::Constant(c),
+            var => Self::new_witness(var.cs(), || var.value()).unwrap(),
+        }
+    }
+
+    fn from_le_bits(bits: &[Self::BooleanType]) -> Self {
+        let var = Boolean::le_bits_to_fp_var(&bits).unwrap();
+        match var {
+            FpVar::Constant(c) => SimpleFpVar::Constant(c),
+            var => Self::new_witness(var.cs(), || var.value()).unwrap(),
+        }
+    }
+
+    fn from_be_bits(bits: &[Self::BooleanType]) -> Self {
+        let var = Boolean::le_bits_to_fp_var(
+            bits.into_iter()
+                .cloned()
+                .rev()
+                .collect::<Vec<_>>()
+                .as_slice(),
+        )
+        .unwrap();
+        match var {
+            FpVar::Constant(c) => SimpleFpVar::Constant(c),
+            var => Self::new_witness(var.cs(), || var.value()).unwrap(),
+        }
+    }
+
+    // Unsafe
+    fn reverse_bits(&self, n: usize) -> Self {
+        if self.is_constant() {
+            return SimpleFpVar::Constant(self.value().unwrap().reverse_bits(n));
+        }
+
+        let r = Self::new_witness(self.cs(), || Ok(self.value().unwrap().reverse_bits(n))).unwrap();
+
+        // TODO: we should have been able to write this in circuits but arkworks' to_non_unique_bits looks buggy
+        r
+    }
+
+    fn get_value(&self) -> Self::Value {
+        self.value().unwrap().clone()
+    }
+
+    // Unsafe
+    fn sort(values: Vec<Self>) -> Vec<Self> {
+        if values.is_empty() {
+            return vec![];
+        }
+
+        let cs = values.cs();
+
+        // All should be constants
+        if cs.is_none() {
+            let mut new_values = values.value().unwrap();
+            new_values.sort();
+            return new_values
+                .into_iter()
+                .map(|v| SimpleFpVar::Constant(v))
+                .collect();
         }
 
         let new_values = Vec::<Self>::new_witness(cs, || {
@@ -1826,7 +2925,9 @@ mod tests {
             BaseField::from_bigint(BaseField::BigInt::try_from(value).unwrap()).unwrap()
         }
         let cs = ConstraintSystem::<Fp>::new_ref();
-        let mut rng = ark_std::rand::rngs::StdRng::seed_from_u64(ark_std::rand::RngCore::next_u64(&mut ark_std::test_rng()));
+        let mut rng = ark_std::rand::rngs::StdRng::seed_from_u64(ark_std::rand::RngCore::next_u64(
+            &mut ark_std::test_rng(),
+        ));
 
         let a: Fr = ark_std::rand::Rng::gen(&mut rng);
         let b: Fr = ark_std::rand::Rng::gen(&mut rng);
@@ -1840,6 +2941,5 @@ mod tests {
         let b_var = SimpleFpVar::<Fp>::new_witness(cs.clone(), || Ok(b)).unwrap();
         let c_var = a_var * b_var;
         assert_eq!(c_var.value().unwrap(), convert(c));
-
     }
 }
