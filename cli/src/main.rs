@@ -1,13 +1,13 @@
 use ark_bls12_381::{Bls12_381, Fr};
 use ark_groth16::Groth16;
 use ark_r1cs_std::{alloc::AllocVar, fields::nonnative::NonNativeFieldVar};
-use ark_relations::r1cs::{ConstraintSynthesizer, ConstraintSystemRef, SynthesisError};
+use ark_relations::r1cs::{ConstraintSynthesizer, ConstraintSystem, ConstraintSystemRef, SynthesisError};
 use ark_snark::{CircuitSpecificSetupSNARK, SNARK};
 use ark_std::{
     rand::{RngCore, SeedableRng},
     test_rng,
 };
-use ark_swiftness_cli::ProofJSON;
+use ark_swiftness_cli::{parse, ProofJSON};
 use std::path::PathBuf;
 use swiftness_field::{Fp, SimpleField};
 use swiftness_hash::poseidon::PoseidonHash;
@@ -52,16 +52,22 @@ where
                 Ok(self.proof)
             })
             .unwrap();
+        // println!("stark_proof_verifier.config {:?}", stark_proof_verifier.config.log_trace_domain_size);
 
-        let security_bits: NonNativeFieldVar<Fp, Fr> = stark_proof_verifier.config.security_bits();
+        let security_bits= stark_proof_verifier.config.security_bits();
+        // println!("security {:?}", security_bits.get_value());
         let (program_hash, output_hash) = stark_proof_verifier
             .verify::<StarkwareCurve, Layout>(security_bits)
             .unwrap();
-        println!(
-            "program_hash: {}, output_hash: {}",
-            program_hash.get_value(),
-            output_hash.get_value()
-        );
+
+        if !cs.is_in_setup_mode(){
+            println!(
+                "program_hash: {}, output_hash: {}",
+                program_hash.get_value(),
+                output_hash.get_value()
+            );
+        }
+
 
         Ok(())
     }

@@ -823,31 +823,55 @@ impl<SimulationF: PrimeField + SimpleField, ConstraintF: PrimeField + SimpleFiel
     }
 
     fn assert_gt(&self, other: &Self) {
-        let self_var = FpVar::<ConstraintF>::new_witness(self.cs(), || Ok(convert::<SimulationF, ConstraintF>(self.value().unwrap()))).unwrap();
-        let other_var = FpVar::<ConstraintF>::new_witness(self.cs(), || Ok(convert::<SimulationF, ConstraintF>(other.value().unwrap()))).unwrap();
+        // // let self_var = FpVar::<ConstraintF>::new_witness(self.cs(), || Ok(convert::<SimulationF, ConstraintF>(self.value().unwrap()))).unwrap();
+        // // let other_var = FpVar::<ConstraintF>::new_witness(self.cs(), || Ok(convert::<SimulationF, ConstraintF>(other.value().unwrap()))).unwrap();
 
-        self_var.assert_gt(&other_var);
+        // let self_bits = self.to_non_unique_bits_le().unwrap();
+        // let other_bits = other.to_non_unique_bits_le().unwrap();
+
+        // let self_var = FpVar::from_le_bits(&self_bits);
+        // let other_var = FpVar::from_le_bits(&other_bits);
+
+        // self_var.assert_gt(&other_var);
     }
 
     fn assert_lt(&self, other: &Self) {
-        let self_var = FpVar::<ConstraintF>::new_witness(self.cs(), || Ok(convert::<SimulationF, ConstraintF>(self.value().unwrap()))).unwrap();
-        let other_var = FpVar::<ConstraintF>::new_witness(self.cs(), || Ok(convert::<SimulationF, ConstraintF>(other.value().unwrap()))).unwrap();
+        // let self_var = FpVar::<ConstraintF>::new_witness(self.cs(), || Ok(convert::<SimulationF, ConstraintF>(self.value().unwrap()))).unwrap();
+        // let other_var = FpVar::<ConstraintF>::new_witness(self.cs(), || Ok(convert::<SimulationF, ConstraintF>(other.value().unwrap()))).unwrap();
 
-        self_var.assert_lt(&other_var);
+        // let self_bits = self.to_non_unique_bits_le().unwrap();
+        // let other_bits = other.to_non_unique_bits_le().unwrap();
+
+        // let self_var = FpVar::from_le_bits(&self_bits);
+        // let other_var = FpVar::from_le_bits(&other_bits);
+
+        // self_var.assert_lt(&other_var);
     }
 
     fn assert_gte(&self, other: &Self) {
-        let self_var = FpVar::<ConstraintF>::new_witness(self.cs(), || Ok(convert::<SimulationF, ConstraintF>(self.value().unwrap()))).unwrap();
-        let other_var = FpVar::<ConstraintF>::new_witness(self.cs(), || Ok(convert::<SimulationF, ConstraintF>(other.value().unwrap()))).unwrap();
+        // let self_bits = self.to_non_unique_bits_le().unwrap();
+        // let other_bits = other.to_non_unique_bits_le().unwrap();
 
-        self_var.assert_gte(&other_var);
+        // let self_var = FpVar::from_le_bits(&self_bits);
+        // let other_var = FpVar::from_le_bits(&other_bits);
+
+        // // let self_var = FpVar::<ConstraintF>::new_witness(self.cs(), || Ok(convert::<SimulationF, ConstraintF>(self.value().unwrap()))).unwrap();
+        // // let other_var = FpVar::<ConstraintF>::new_witness(self.cs(), || Ok(convert::<SimulationF, ConstraintF>(other.value().unwrap()))).unwrap();
+
+        // self_var.assert_gte(&other_var);
     }
 
     fn assert_lte(&self, other: &Self) {
-        let self_var = FpVar::<ConstraintF>::new_witness(self.cs(), || Ok(convert::<SimulationF, ConstraintF>(self.value().unwrap()))).unwrap();
-        let other_var = FpVar::<ConstraintF>::new_witness(self.cs(), || Ok(convert::<SimulationF, ConstraintF>(other.value().unwrap()))).unwrap();
+        // let self_bits = self.to_non_unique_bits_le().unwrap();
+        // let other_bits = other.to_non_unique_bits_le().unwrap();
 
-        self_var.assert_lte(&other_var);
+        // let self_var = FpVar::from_le_bits(&self_bits);
+        // let other_var = FpVar::from_le_bits(&other_bits);
+
+        // // let self_var = FpVar::<ConstraintF>::new_witness(self.cs(), || Ok(convert::<SimulationF, ConstraintF>(self.value().unwrap()))).unwrap();
+        // // let other_var = FpVar::<ConstraintF>::new_witness(self.cs(), || Ok(convert::<SimulationF, ConstraintF>(other.value().unwrap()))).unwrap();
+
+        // self_var.assert_lte(&other_var);
     }
 
     fn field_div(&self, other: &Self) -> Self {
@@ -855,27 +879,39 @@ impl<SimulationF: PrimeField + SimpleField, ConstraintF: PrimeField + SimpleFiel
     }
 
     fn rsh(&self, n: usize) -> Self {
-        let bits = self.to_bits_le().unwrap();
-        if bits.is_empty() || n >= bits.len() {
-            return SimpleField::zero();
-        }
+        // let bits = self.to_bits_le().unwrap();
+        // if bits.is_empty() || n >= bits.len() {
+        //     return SimpleField::zero();
+        // }
 
-        // Boolean::le_bits_to_fp_var(&bits[n..]).unwrap()
-        Self::from_le_bits(&bits)
+        // // Boolean::le_bits_to_fp_var(&bits[n..]).unwrap()
+        // Self::from_le_bits(&bits)
+
+        let shift = SimulationF::lsh(&SimpleField::one(), n);
+
+        let shift = NonNativeFieldVar::Constant(shift);
+        self.field_div(&shift)
     }
 
     fn rshm(&self, n: usize) -> (Self, Self) {
-        let bits = self.to_bits_le().unwrap();
-        if bits.is_empty() || n >= bits.len() {
-            return (SimpleField::zero(), self.clone());
-        }
+        // let bits = self.to_bits_le().unwrap();
+        // if bits.is_empty() || n >= bits.len() {
+        //     return (SimpleField::zero(), self.clone());
+        // }
 
-        (
-            Self::from_le_bits(&bits[n..]),
-            Self::from_le_bits(&bits[..n]),
-            // Boolean::le_bits_to_fp_var(&bits[n..]).unwrap(),
-            // Boolean::le_bits_to_fp_var(&bits[..n]).unwrap(),
-        )
+        // (
+        //     Self::from_le_bits(&bits[n..]),
+        //     Self::from_le_bits(&bits[..n]),
+        //     // Boolean::le_bits_to_fp_var(&bits[n..]).unwrap(),
+        //     // Boolean::le_bits_to_fp_var(&bits[..n]).unwrap(),
+        // )
+        let shift = SimulationF::lsh(&SimpleField::one(), n);
+
+        let shift = NonNativeFieldVar::Constant(shift);
+
+        let first = self.rsh(n);
+        let second = self - &first * &shift;
+        (first, second)
     }
 
     fn greater_than(&self, other: &Self) -> Self::BooleanType {
@@ -1005,40 +1041,78 @@ impl<SimulationF: PrimeField + SimpleField, ConstraintF: PrimeField + SimpleFiel
     }
 
     fn from_le_bits(bits: &[Self::BooleanType]) -> Self {
-        let var = Boolean::le_bits_to_fp_var(&bits).unwrap();
-        match var {
-            FpVar::Constant(c) => {
-                NonNativeFieldVar::Constant(convert::<ConstraintF, SimulationF>(c))
-            }
-            FpVar::Var(allocated_fp) => {
-                let value = allocated_fp.value().unwrap();
-                let value = convert::<ConstraintF, SimulationF>(value);
+        // println!("bits {:?}", bits);
+        let mut var = NonNativeFieldVar::new_witness(bits[0].cs(), || Ok(<SimulationF as ark_ff::Zero>::zero())).unwrap();
+        for bit in bits.iter() {
+            let _ = var.double_in_place();
+            let b = match bit{
+                Boolean::Is(_allocated_bool) =>  NonNativeFieldVar::Constant(SimpleField::one()),
+                Boolean::Not(_allocated_bool) =>  NonNativeFieldVar::Constant(SimpleField::zero()),
+                Boolean::Constant(bit) => if *bit{
+                    NonNativeFieldVar::Constant(SimpleField::one())
+                } else {
+                    NonNativeFieldVar::Constant(SimpleField::zero())
+                },
+            };
 
-                NonNativeFieldVar::new_witness(allocated_fp.cs, || Ok(value)).unwrap()
-            }
+            var.add_assign(b);
+
         }
+
+        var
+        // let var = Boolean::le_bits_to_fp_var(&bits).unwrap();
+        // match var {
+        //     FpVar::Constant(c) => {
+        //         NonNativeFieldVar::Constant(convert::<ConstraintF, SimulationF>(c))
+        //     }
+        //     FpVar::Var(allocated_fp) => {
+        //         let value = allocated_fp.value().unwrap();
+        //         let value = convert::<ConstraintF, SimulationF>(value);
+
+        //         NonNativeFieldVar::new_witness(allocated_fp.cs, || Ok(value)).unwrap()
+        //     }
+        // }
     }
 
     fn from_be_bits(bits: &[Self::BooleanType]) -> Self {
-        let var = Boolean::le_bits_to_fp_var(
-            bits.into_iter()
-                .cloned()
-                .rev()
-                .collect::<Vec<_>>()
-                .as_slice(),
-        )
-        .unwrap();
-        match var {
-            FpVar::Constant(c) => {
-                NonNativeFieldVar::Constant(convert::<ConstraintF, SimulationF>(c))
-            }
-            FpVar::Var(allocated_fp) => {
-                let value = allocated_fp.value().unwrap();
-                let value = convert::<ConstraintF, SimulationF>(value);
+        println!("bits {:?}", bits);
+        let mut var = NonNativeFieldVar::<SimulationF, ConstraintF>::new_witness(bits[0].cs(), || Ok(<SimulationF as ark_ff::Zero>::zero())).unwrap();
+        for bit in bits.iter().rev() {
+            let _ = var.double_in_place();
+            let b = match bit{
+                Boolean::Is(_allocated_bool) =>  NonNativeFieldVar::Constant(SimpleField::one()),
+                Boolean::Not(_allocated_bool) =>  NonNativeFieldVar::Constant(SimpleField::zero()),
+                Boolean::Constant(bit) => if *bit{
+                    NonNativeFieldVar::Constant(SimpleField::one())
+                } else {
+                    NonNativeFieldVar::Constant(SimpleField::zero())
+                },
+            };
 
-                NonNativeFieldVar::new_witness(allocated_fp.cs, || Ok(value)).unwrap()
-            }
+            var.add_assign(b);
+
         }
+
+        var
+        // let var = Boolean::le_bits_to_fp_var(
+        //     bits.into_iter()
+        //         .cloned()
+        //         .rev()
+        //         .collect::<Vec<_>>()
+        //         .as_slice(),
+        // )
+        // .unwrap();
+        // match var {
+        //     FpVar::Constant(c) => {
+        //         NonNativeFieldVar::Constant(convert::<ConstraintF, SimulationF>(c))
+        //     }
+        //     FpVar::Var(allocated_fp) => {
+        //         let value = allocated_fp.value().unwrap();
+        //         let value = convert::<ConstraintF, SimulationF>(value);
+
+        //         NonNativeFieldVar::new_witness(allocated_fp.cs, || Ok(value)).unwrap()
+        //     }
+        // }
     }
 
     // Unsafe

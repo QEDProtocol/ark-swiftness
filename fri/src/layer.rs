@@ -38,14 +38,13 @@ pub fn compute_coset_elements<F: SimpleField + PoseidonHash>(
     for index in F::range(&F::zero(), &coset_size) {
         let q = queries.first();
         // TODO: fix q.unwrap().index == coset_start_index + F::from_constant(index as u64)
+        let _flag = F::from_boolean(
+            q.unwrap()
+                .index
+                .is_equal(&(coset_start_index.clone() + &index)),
+        ).is_equal(&F::one());
+
         if q.is_some()
-            && F::from_boolean(
-                q.unwrap()
-                    .index
-                    .is_equal(&(coset_start_index.clone() + &index)),
-            )
-            .get_value()
-                == F::one().get_value()
         {
             let query: Vec<FriLayerQuery<F>> = queries.drain(0..1).collect();
             coset_elements.push(query[0].y_value.clone());
