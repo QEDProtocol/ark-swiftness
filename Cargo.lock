@@ -420,6 +420,7 @@ dependencies = [
  "ark_swiftness_hash",
  "ark_swiftness_transcript",
  "ark_swiftness_utils",
+ "log",
  "num-traits",
  "serde",
  "serde_with 3.9.0",

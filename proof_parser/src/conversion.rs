@@ -353,7 +353,7 @@ where
                 n_layers: NonNativeFieldVar::new_variable(
                     cs.clone(),
                     || Ok(F::from_constant(fri.n_layers)),
-                    mode,
+                    AllocationMode::Constant,
                 )?,
                 inner_layers: fri
                     .inner_layers

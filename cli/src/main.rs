@@ -8,6 +8,7 @@ use ark_std::{
     test_rng,
 };
 use ark_swiftness_cli::{parse, ProofJSON};
+use log::info;
 use std::path::PathBuf;
 use swiftness_field::{Fp, SimpleField};
 use swiftness_hash::poseidon::PoseidonHash;
@@ -47,6 +48,7 @@ where
     NonNativeFieldVar<Fp, Fr>: PoseidonHash,
 {
     fn generate_constraints(self, cs: ConstraintSystemRef<Fr>) -> Result<(), SynthesisError> {
+        info!("new stark proof witness");
         let stark_proof_verifier: StarkProofVerifier<NonNativeFieldVar<Fp, Fr>> =
             StarkProofVerifier::<NonNativeFieldVar<Fp, Fr>>::new_witness(cs.clone(), || {
                 Ok(self.proof)
@@ -56,6 +58,8 @@ where
 
         let security_bits= stark_proof_verifier.config.security_bits();
         // println!("security {:?}", security_bits.get_value());
+
+        info!("verify circuit");
         let (program_hash, output_hash) = stark_proof_verifier
             .verify::<StarkwareCurve, Layout>(security_bits)
             .unwrap();
@@ -74,6 +78,8 @@ where
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    env_logger::init();
+    
     let mut rng = ark_std::rand::rngs::StdRng::seed_from_u64(test_rng().next_u64());
 
     let cli = CairoVMVerifier::parse();
@@ -82,14 +88,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let verifier = StarkProofVerifierCircuit { proof: stark_proof.clone() };
 
+    info!("Setup");
     let (pk, vk) = {
         let c = StarkProofVerifierCircuit { proof: stark_proof.clone() };
 
         Groth16::<Bls12_381>::setup(c, &mut rng).unwrap()
     };
 
+    info!("Process VK");
     let pvk = Groth16::<Bls12_381>::process_vk(&vk).unwrap();
 
+    info!("Prove");
     let proof = Groth16::<Bls12_381>::prove(&pk, verifier, &mut rng).unwrap();
 
     assert!(Groth16::<Bls12_381>::verify_with_processed_vk(&pvk, &[], &proof).unwrap());

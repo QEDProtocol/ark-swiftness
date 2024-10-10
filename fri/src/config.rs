@@ -1,6 +1,7 @@
 use alloc::vec::Vec;
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
+use log::{debug, info};
 
 const MAX_LAST_LAYER_LOG_DEGREE_BOUND: u64 = 15;
 const MAX_FRI_LAYERS: u64 = 15;
@@ -60,6 +61,7 @@ impl<F: SimpleField + PoseidonHash> Config<F> {
         // }
 
         let n_layers: usize = self.n_layers.into_biguint().try_into().unwrap();
+        info!("n_layers: {:?}", n_layers);
         let mut sum_of_step_sizes = F::zero();
         let mut log_input_size = self.log_input_size.clone();
 
