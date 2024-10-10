@@ -84,9 +84,9 @@ fn generate_vector_queries<F: SimpleField + PoseidonHash + KeccakHash + Blake2sH
                     let final_hash: Vec<<F as SimpleField>::ByteType>;
                     cfg_if::cfg_if! {
                         if #[cfg(feature = "keccak")] {
-                            final_hash = <F as KeccakHash>::hash(&data);
+                            final_hash = <F as PoseidonHash>::hash_out(&data);
                         } else if #[cfg(feature = "blake2s")] {
-                            final_hash = <F as Blake2sHash>::hash(&data);
+                            final_hash = <F as PoseidonHash>::hash_out(&data);
                         } else {
                             compile_error!("Either 'keccak' or 'blake2s' feature must be enabled");
                         }

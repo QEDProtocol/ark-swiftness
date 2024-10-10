@@ -53,9 +53,9 @@ pub fn verify_pow<F: SimpleField + Blake2sHash + KeccakHash + PoseidonHash>(
     let init_hash: Vec<<F as SimpleField>::ByteType>;
     cfg_if::cfg_if! {
         if #[cfg(feature = "keccak")] {
-            init_hash = <F as KeccakHash>::hash(&init_data);
+            init_hash = <F as PoseidonHash>::hash_out(&init_data);
         } else if #[cfg(feature = "blake2s")] {
-            init_hash = <F as Blake2sHash>::hash(&init_data);
+            init_hash = <F as PoseidonHash>::hash_out(&init_data);
         } else {
             compile_error!("Either 'keccak' or 'blake2s' feature must be enabled");
         }
@@ -82,9 +82,9 @@ pub fn verify_pow<F: SimpleField + Blake2sHash + KeccakHash + PoseidonHash>(
     let final_hash: Vec<<F as SimpleField>::ByteType>;
     cfg_if::cfg_if! {
         if #[cfg(feature = "keccak")] {
-            final_hash = <F as KeccakHash>::hash(&hash_data);
+            final_hash = <F as PoseidonHash>::hash_out(&hash_data);
         } else if #[cfg(feature = "blake2s")] {
-            final_hash = <F as Blake2sHash>::hash(&hash_data);
+            final_hash = <F as PoseidonHash>::hash_out(&hash_data);
         } else {
             compile_error!("Either 'keccak' or 'blake2s' feature must be enabled");
         }

@@ -1,7 +1,7 @@
 use ark_bls12_381::{Bls12_381, Fr};
 use ark_groth16::Groth16;
 use ark_r1cs_std::{alloc::AllocVar, fields::nonnative::NonNativeFieldVar};
-use ark_relations::r1cs::{ConstraintSynthesizer, ConstraintSystem, ConstraintSystemRef, SynthesisError};
+use ark_relations::r1cs::{ConstraintSynthesizer, ConstraintSystem, ConstraintSystemRef, OptimizationGoal, SynthesisError};
 use ark_snark::{CircuitSpecificSetupSNARK, SNARK};
 use ark_std::{
     rand::{RngCore, SeedableRng},
@@ -48,6 +48,7 @@ where
     NonNativeFieldVar<Fp, Fr>: PoseidonHash,
 {
     fn generate_constraints(self, cs: ConstraintSystemRef<Fr>) -> Result<(), SynthesisError> {
+        cs.set_optimization_goal(OptimizationGoal::Constraints);
         info!("new stark proof witness");
         let stark_proof_verifier: StarkProofVerifier<NonNativeFieldVar<Fp, Fr>> =
             StarkProofVerifier::<NonNativeFieldVar<Fp, Fr>>::new_witness(cs.clone(), || {

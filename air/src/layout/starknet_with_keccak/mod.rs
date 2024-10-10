@@ -639,10 +639,10 @@ impl<F: SimpleField + PoseidonHash> LayoutTrait<F> for Layout {
         );
 
         let hash = program.iter().fold(F::zero(), |acc, e| {
-            PedersenHash::<P>::hash(acc.clone(), e.clone())
+            PoseidonHash::hash(acc.clone(), e.clone())
         });
         let program_hash =
-            PedersenHash::<P>::hash(hash.clone(), F::from_constant(program.len() as u128));
+            PoseidonHash::hash(hash.clone(), F::from_constant(program.len() as u128));
 
         let output_len = output_stop - output_start;
         let output = F::skip(
@@ -650,9 +650,9 @@ impl<F: SimpleField + PoseidonHash> LayoutTrait<F> for Layout {
             &(F::from_constant(memory.len()) - output_len.mul_by_constant(2u64)),
         );
         let hash = output.iter().skip(1).step_by(2).fold(F::zero(), |acc, e| {
-            PedersenHash::<P>::hash(acc.clone(), e.clone())
+            PoseidonHash::hash(acc.clone(), e.clone())
         });
-        let output_hash = PedersenHash::<P>::hash(hash, output_len);
+        let output_hash = PoseidonHash::hash(hash, output_len);
 
         Ok((program_hash, output_hash))
     }

@@ -206,6 +206,12 @@ pub trait PoseidonHash: SimpleField {
         PoseidonHash::permute(state)[0].clone()
     }
 
+    fn hash_out(data: &[<Self as SimpleField>::ByteType]) -> Vec<<Self as SimpleField>::ByteType> {
+        let data_f = Self::from_le_bytes(data);
+        let data_f = Self::hash_single(data_f);
+        data_f.to_le_bytes()
+    }
+
     /// Computes the Starknet Poseidon hash of an arbitrary number of [`Felt`]s.
     ///
     /// Using this function is the same as using [`PoseidonHasher`].
