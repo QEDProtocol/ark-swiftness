@@ -1,9 +1,9 @@
 use crate::layout::LayoutTrait;
 use serde::{Deserialize, Serialize};
-use starknet_crypto::Felt;
+// use starknet_crypto::Felt;
 use swiftness_commitment::vector;
 
-const MAX_N_COLUMNS: Felt = Felt::from_hex_unchecked("0x80");
+//const MAX_N_COLUMNS: Felt = Felt::from_hex_unchecked("0x80");
 
 // Configuration for the Traces component.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

@@ -23,7 +23,7 @@ pub struct SegmentInfo<F: SimpleField + PoseidonHash> {
 }
 
 #[serde_as]
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 pub struct AddrValue<F: SimpleField + PoseidonHash> {
     #[cfg_attr(
         feature = "std",

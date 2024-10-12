@@ -5,6 +5,8 @@ use log::{debug, error, info, trace, warn};
 // use std::env;
 // use std::io::Write;
 use std::path::PathBuf;
+use std::thread;
+use std::time::{Duration, Instant};
 #[cfg(feature = "dex")]
 use swiftness_air::layout::dex::Layout;
 #[cfg(feature = "recursive")]
@@ -38,30 +40,29 @@ struct CairoVMVerifier {
 
 fn init_logger() {
     env_logger::init();
-    // let mut builder = Builder::from_default_env();
-    // builder.format(|buf, record| {
-    //     let now = Local::now();
-    //     let datetime = now.format("%Y-%m-%d %H:%M:%S");
-    //     writeln!(
-    //         buf,
-    //         "{} [{}] ({}:{}) : {}",
-    //         datetime,
-    //         record.level(),
-    //         record.file().unwrap_or("unknown"),
-    //         record.line().unwrap_or(0),
-    //         record.args()
-    //     )
-    // });
-    //
-    // builder.init();
     error!("test error");
     warn!("test warn");
     info!("test info");
     debug!("test debug");
     trace!("test trace");
 }
+fn init_memory_logger() {
+    let start_time = Instant::now();
+
+    thread::spawn(move || loop {
+        if start_time.elapsed() >= Duration::from_secs(600) {
+            println!("Memory logger stopped after 10 minutes.");
+            break;
+        }
+
+        swiftness_utils::mem_tools::print_memory_usage();
+
+        thread::sleep(Duration::from_secs(1));
+    });
+}
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     init_logger();
+    init_memory_logger();
     info!("Parsing proof from file");
     let cli = CairoVMVerifier::parse();
     let stark_proof = parse(std::fs::read_to_string(cli.proof)?)?;

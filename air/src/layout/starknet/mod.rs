@@ -406,7 +406,7 @@ impl<F: SimpleField + PoseidonHash> LayoutTrait<F> for Layout {
             .log_n_steps
             .assert_lt(&F::from_stark_felt(MAX_LOG_N_STEPS));
 
-        let n_steps = F::two().powers_felt(&public_input.log_n_steps);
+        let _n_steps = F::two().powers_felt(&public_input.log_n_steps);
         let trace_length = stark_domains.trace_domain_size.clone();
         // TODO: enable check
         // ensure!(

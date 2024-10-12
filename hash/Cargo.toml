@@ -26,7 +26,8 @@ once_cell = { workspace = true }
 ark-bls12-381 = { workspace = true }
 blake2 = { workspace = true }
 sha3 = { workspace = true }
-
+lazy_static = { workspace = true }
+log = { workspace = true }
 [dev-dependencies]
 ark-poly = { workspace = true }
 ark-relations = { workspace = true }

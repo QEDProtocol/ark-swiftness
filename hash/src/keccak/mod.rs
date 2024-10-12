@@ -1,21 +1,14 @@
 mod constants;
 mod periodic;
 mod utils;
-use ark_bls12_381::{Bls12_381, Fr};
-use ark_ff::UniformRand;
 use ark_r1cs_std::boolean::Boolean;
-use ark_r1cs_std::eq::EqGadget;
 use ark_r1cs_std::uint64::UInt64;
-use ark_r1cs_std::{R1CSVar, ToBitsGadget};
-use ark_relations::r1cs::{ConstraintSynthesizer, ConstraintSystem};
-use ark_relations::r1cs::{ConstraintSystemRef, SynthesisError};
-use ark_std::ops::{BitAnd, BitXor, Not};
-use ark_std::rand::{thread_rng, Rng};
+use ark_r1cs_std::{ToBitsGadget};
+use ark_relations::r1cs::{SynthesisError};
 use constants::{ROTR, ROUND_CONSTANTS};
 
 use crate::keccak::utils::{bitand, not, rotate_left};
 use ark_ff::PrimeField;
-use ark_r1cs_std::alloc::AllocVar;
 use ark_r1cs_std::fields::fp::FpVar;
 use ark_r1cs_std::uint8::UInt8;
 use sha3::Digest;

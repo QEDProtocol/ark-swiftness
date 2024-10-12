@@ -4,7 +4,7 @@ use crate::layout::starknet_with_keccak::const_relations::{
     init_pow_relation_for_eval_oods_polynomial_inner,
 };
 use crate::layout::LayoutTrait;
-use log::{debug, info, trace};
+use log::{debug, trace};
 use starknet_crypto::Felt;
 use std::collections::HashMap;
 use swiftness_field::SimpleField;
@@ -30,7 +30,6 @@ pub fn eval_composition_polynomial_inner<F: SimpleField + PoseidonHash>(
 ) -> F {
     println!("enter eval_composition_polynomial_inner");
     trace!("enter eval_composition_polynomial_inner");
-    let current = std::time::Instant::now();
     // Compute powers.
     let pow0 = point.powers_felt(&global_values.trace_length.rsh(19));
     let pow1 = point.powers_felt(&global_values.trace_length.rsh(15));
@@ -4317,7 +4316,10 @@ pub fn eval_composition_polynomial_inner<F: SimpleField + PoseidonHash>(
         .field_div(&(domain14));
     total_sum += constraint_coefficients[346].clone() * &value;
     // trace!("file{}, line{}", file!(), line!());
-    debug!("eval_composition_polynomial_inner, used time: {:?}", current.elapsed());
+    debug!(
+        "eval_composition_polynomial_inner, used time: {:?}",
+        current.elapsed()
+    );
     total_sum
 }
 
@@ -4330,7 +4332,6 @@ pub fn eval_oods_polynomial_inner<F: SimpleField + PoseidonHash, Layout: LayoutT
     trace_generator: &F,
 ) -> F {
     trace!("enter eval odds polynomial");
-    let current = std::time::Instant::now();
     // Compute powers.
     let pow0 = trace_generator.powers([0_u64]);
     let pow1 = trace_generator.powers([446471_u64]);
@@ -4742,7 +4743,10 @@ pub fn eval_oods_polynomial_inner<F: SimpleField + PoseidonHash, Layout: LayoutT
         - &oods_values[735])
         .field_div(&(point.clone() - oods_point_to_deg));
     total_sum += constraint_coefficients[735].clone() * &value;
-    debug!("exit eval_oods_polynomial_inner, used {}", current.elapsed().as_secs_f32());
+    debug!(
+        "exit eval_oods_polynomial_inner, used {}",
+        current.elapsed().as_secs_f32()
+    );
     total_sum
 }
 
