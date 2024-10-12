@@ -20,6 +20,8 @@ bincode = { workspace = true }
 serde_json = { workspace = true }
 num-traits = { workspace = true }
 ark-r1cs-std = { workspace = true }
+log = {workspace = true}
+env_logger = {workspace = true}
 
 [dev-dependencies]
 ark-relations = { workspace = true }

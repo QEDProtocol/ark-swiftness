@@ -30,11 +30,17 @@ impl<F: SimpleField + PoseidonHash + Blake2sHash + KeccakHash> StarkProof<F> {
         Layout::validate_public_input(&self.public_input, &stark_domains)?;
 
         info!("Computing initial hash seed for Fiat-Shamir transcript");
-        let current = std::time::Instant::now();
+        let _current = std::time::Instant::now();
         // Compute the initial hash seed for the Fiat-Shamir transcript.
-        let digest = self.public_input.get_hash();
-        debug!("Initial hash seed computed in {} seconds", current.elapsed().as_secs_f32());
-        debug!("public_input_hash={}", hex::encode(digest.get_value().into_bigint().to_bytes_le()));
+        let digest = self.public_input.get_hash(); 
+        debug!(
+            "Initial hash seed computed in {} seconds",
+            _current.elapsed().as_secs_f32()
+        );
+        debug!(
+            "public_input_hash={}",
+            hex::encode(digest.get_value().into_bigint().to_bytes_le())
+        );
         // Construct the transcript.
         // TODO: is this correct?
         let mut transcript = Transcript::new(digest);
@@ -68,7 +74,10 @@ impl<F: SimpleField + PoseidonHash + Blake2sHash + KeccakHash> StarkProof<F> {
             &self.witness,
             &stark_domains,
         )?;
-        info!("Proof verified in {} seconds", current.elapsed().as_secs_f32());
+        info!(
+            "Proof verified in {} seconds",
+            current.elapsed().as_secs_f32()
+        );
 
         info!("verifying public input ");
         Ok(Layout::verify_public_input(&self.public_input)?)

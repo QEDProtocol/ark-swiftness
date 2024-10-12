@@ -49,3 +49,4 @@ swiftness_stark = { workspace = true }
 swiftness_transcript = { workspace = true }
 swiftness_field = { workspace = true }
 swiftness_hash = { workspace = true }
+log = "0.4.22"

@@ -1,4 +1,7 @@
 #![feature(buf_read_has_data_left, int_roundings)]
+
+pub mod mem_tools;
+
 use ark_ff::FftField;
 use ark_poly::univariate::DensePolynomial;
 use ark_poly::EvaluationDomain;

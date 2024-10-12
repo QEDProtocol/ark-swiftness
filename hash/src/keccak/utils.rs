@@ -35,21 +35,21 @@ pub fn bitand<F: PrimeField>(a: &UInt64<F>, b: &UInt64<F>) -> UInt64<F> {
     UInt64::from_bits_le(&and_bits)
 }
 
-fn from_bits_to_u8(bools: &[bool]) -> u8 {
-    assert_eq!(bools.len(), 8);
-    let mut result: u8 = 0;
-    let mut shift = 0;
-    for &bit in bools {
-        if bit {
-            result |= 1 << shift;
-        }
-        shift += 1;
-        if shift == 8 {
-            break;
-        }
-    }
-    result
-}
+// fn from_bits_to_u8(bools: &[bool]) -> u8 {
+//     assert_eq!(bools.len(), 8);
+//     let mut result: u8 = 0;
+//     let mut shift = 0;
+//     for &bit in bools {
+//         if bit {
+//             result |= 1 << shift;
+//         }
+//         shift += 1;
+//         if shift == 8 {
+//             break;
+//         }
+//     }
+//     result
+// }
 
 #[cfg(test)]
 mod tests {
